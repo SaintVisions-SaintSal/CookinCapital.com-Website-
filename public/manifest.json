@@ -1,0 +1,87 @@
+{
+  "name": "CookinCapital - Real Estate Capital OS",
+  "short_name": "CookinCap",
+  "description": "The single operating system where every real estate move is acquired, analyzed, funded, legally protected, managed, and exited. Powered by SaintSal™.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f0f12",
+  "theme_color": "#d4a744",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "categories": ["business", "finance", "productivity"],
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Analyze a Deal",
+      "short_name": "Analyzer",
+      "description": "Open the Deal Analyzer",
+      "url": "/app/analyzer",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Apply for Capital",
+      "short_name": "Apply",
+      "description": "Submit a capital application",
+      "url": "/apply",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "View your dashboard",
+      "url": "/app",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "96x96" }]
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false
+}
