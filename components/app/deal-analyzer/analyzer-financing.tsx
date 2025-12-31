@@ -13,7 +13,26 @@ interface Props {
   calculations: Calculations
 }
 
+const defaultCalculations: Calculations = {
+  totalRehabCost: 0,
+  totalHoldingCosts: 0,
+  totalFinancingCosts: 0,
+  totalClosingCosts: 0,
+  totalProjectCost: 0,
+  totalProfit: 0,
+  roi: 0,
+  annualizedRoi: 0,
+  cashOnCash: 0,
+  pointsCost: 0,
+  totalInterest: 0,
+  monthlyInterest: 0,
+  totalCashRequired: 0,
+  equityRequired: 0,
+}
+
 export function AnalyzerFinancing({ data, onChange, calculations }: Props) {
+  const safeCalculations = calculations || defaultCalculations
+
   const parseCurrency = (value: string) => {
     return Number.parseInt(value.replace(/[^0-9]/g, "")) || 0
   }
@@ -170,9 +189,9 @@ export function AnalyzerFinancing({ data, onChange, calculations }: Props) {
                         className="bg-secondary border-0 pl-7"
                       />
                     </div>
-                    {calculations.totalRehabCost > 0 && (
+                    {safeCalculations.totalRehabCost > 0 && (
                       <p className="text-xs text-muted-foreground">
-                        {((data.rehabLoanAmount / calculations.totalRehabCost) * 100).toFixed(0)}% of rehab financed
+                        {((data.rehabLoanAmount / safeCalculations.totalRehabCost) * 100).toFixed(0)}% of rehab financed
                       </p>
                     )}
                   </div>
@@ -214,12 +233,14 @@ export function AnalyzerFinancing({ data, onChange, calculations }: Props) {
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div>
                   <p className="text-xs text-muted-foreground">Points Cost</p>
-                  <p className="text-sm font-semibold text-foreground">${calculations.pointsCost.toLocaleString()}</p>
+                  <p className="text-sm font-semibold text-foreground">
+                    ${safeCalculations.pointsCost.toLocaleString()}
+                  </p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Total Interest</p>
                   <p className="text-sm font-semibold text-foreground">
-                    ${calculations.totalInterest.toLocaleString()}
+                    ${safeCalculations.totalInterest.toLocaleString()}
                   </p>
                 </div>
                 <div>

@@ -53,17 +53,36 @@ const LibraryPage = () => {
       const response = await fetch("/api/user-deals")
 
       if (!response.ok) {
-        throw new Error("Failed to fetch deals")
+        // Fall back to localStorage if API fails (common in v0 preview without auth)
+        const localDeals = localStorage.getItem("cookincap_deals")
+        if (localDeals) {
+          try {
+            const parsed = JSON.parse(localDeals)
+            setDeals(Array.isArray(parsed) ? parsed : [])
+          } catch {
+            setDeals([])
+          }
+        } else {
+          setDeals([])
+        }
+        return
       }
 
       const { deals: fetchedDeals } = await response.json()
       setDeals(fetchedDeals || [])
     } catch (err) {
-      console.error("Error fetching deals:", err)
+      console.log("[v0] Error fetching deals, using localStorage fallback:", err)
       // Fallback to localStorage if API fails
-      const localDeals = localStorage.getItem("cookincap_deals")
-      if (localDeals) {
-        setDeals(JSON.parse(localDeals))
+      try {
+        const localDeals = localStorage.getItem("cookincap_deals")
+        if (localDeals) {
+          const parsed = JSON.parse(localDeals)
+          setDeals(Array.isArray(parsed) ? parsed : [])
+        } else {
+          setDeals([])
+        }
+      } catch {
+        setDeals([])
       }
     } finally {
       setLoading(false)
@@ -79,13 +98,30 @@ const LibraryPage = () => {
       })
 
       if (!response.ok) {
-        throw new Error("Failed to delete deal")
+        // If API fails, try to delete from localStorage
+        const localDeals = localStorage.getItem("cookincap_deals")
+        if (localDeals) {
+          const parsed = JSON.parse(localDeals)
+          const updated = parsed.filter((d: SavedDeal) => d.id !== id)
+          localStorage.setItem("cookincap_deals", JSON.stringify(updated))
+        }
       }
 
       setDeals((prev) => prev.filter((d) => d.id !== id))
     } catch (err) {
-      console.error("Error deleting deal:", err)
-      alert("Failed to delete deal. Please try again.")
+      console.log("[v0] Error deleting deal via API, using localStorage:", err)
+      // Fallback to localStorage delete
+      try {
+        const localDeals = localStorage.getItem("cookincap_deals")
+        if (localDeals) {
+          const parsed = JSON.parse(localDeals)
+          const updated = parsed.filter((d: SavedDeal) => d.id !== id)
+          localStorage.setItem("cookincap_deals", JSON.stringify(updated))
+        }
+        setDeals((prev) => prev.filter((d) => d.id !== id))
+      } catch {
+        alert("Failed to delete deal. Please try again.")
+      }
     }
   }
 
