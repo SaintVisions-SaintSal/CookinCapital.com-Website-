@@ -8,6 +8,7 @@ import { Menu, X, ChevronDown, FileText, ClipboardCheck } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
 const navItems = [
+  { label: "Research", href: "/research" },
   { label: "Deal Analyzer", href: "/app/analyzer" },
   { label: "Commercial Lending", href: "/capital" },
   { label: "Invest", href: "/invest" },
