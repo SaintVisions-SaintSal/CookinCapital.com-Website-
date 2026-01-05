@@ -86,6 +86,41 @@ export function ResearchHub() {
   const inputRef = useRef<HTMLInputElement>(null)
   const bottomInputRef = useRef<HTMLInputElement>(null)
 
+  const trackToGHL = async (query: string, eventType = "lead.captured") => {
+    try {
+      await fetch("/api/saintsal/webhook", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventType,
+          query,
+          source: "Research Hub",
+          intent: detectIntent(query),
+          conversationId: Date.now().toString(),
+        }),
+      })
+    } catch (error) {
+      console.log("[v0] GHL tracking error (non-critical):", error)
+    }
+  }
+
+  const detectIntent = (query: string): string => {
+    const lowerQuery = query.toLowerCase()
+    if (lowerQuery.includes("loan") || lowerQuery.includes("financing") || lowerQuery.includes("lending")) {
+      return "lending"
+    }
+    if (lowerQuery.includes("invest") || lowerQuery.includes("fund") || lowerQuery.includes("return")) {
+      return "investing"
+    }
+    if (lowerQuery.includes("property") || lowerQuery.includes("real estate") || lowerQuery.includes("house")) {
+      return "property_search"
+    }
+    if (lowerQuery.includes("deal") || lowerQuery.includes("analyze") || lowerQuery.includes("flip")) {
+      return "deal_analysis"
+    }
+    return "general"
+  }
+
   const { messages, input, setInput, handleSubmit, isLoading, append } = useChat({
     api: "/api/research",
     onFinish: () => {
@@ -112,11 +147,13 @@ export function ResearchHub() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim()) return
+    trackToGHL(input, "lead.captured")
     handleSubmit(e)
   }
 
   const handleTrendingClick = (query: string) => {
     setInput(query)
+    trackToGHL(query, "lead.captured")
     append({ role: "user", content: query })
   }
 

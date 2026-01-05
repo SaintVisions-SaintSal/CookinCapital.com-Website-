@@ -59,6 +59,23 @@ export function SaintSalDock() {
     }
   }, [])
 
+  const trackConversationToGHL = async (query: string) => {
+    try {
+      await fetch("/api/saintsal/webhook", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventType: "conversation.started",
+          query,
+          source: "SaintSal Dock",
+          conversationId: Date.now().toString(),
+        }),
+      })
+    } catch (error) {
+      console.log("[v0] GHL tracking error (non-critical):", error)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim() || isLoading) return
@@ -72,6 +89,10 @@ export function SaintSalDock() {
     setMessages((prev) => [...prev, userMessage])
     setInput("")
     setIsLoading(true)
+
+    if (messages.length <= 1) {
+      trackConversationToGHL(userMessage.content)
+    }
 
     try {
       console.log("[v0] Sending message to SaintSal API:", userMessage.content)
