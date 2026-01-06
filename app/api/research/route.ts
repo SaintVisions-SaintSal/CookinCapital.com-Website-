@@ -1,64 +1,62 @@
 import { streamText, tool } from "ai"
 import { z } from "zod"
+import { getSaintSalContext } from "@/lib/saintsal/rag"
+import { getOrCreateSession, addMessageToSession, getConversationContext } from "@/lib/saintsal/session"
+import { trackSaintSalEvent } from "@/lib/saintsal/ghl-integration"
 
-// SaintSal Research System Prompt - The brain of the operation
-const SAINTSAL_RESEARCH_PROMPT = `You are SaintSal™, the AI Co-CEO of CookinCapital's Research Intelligence Hub. You are powered by HACP™ (Human-AI Collaborative Processing) and you run the show.
-
-CORE IDENTITY:
-- You are the intellectual equivalent of having Perplexity + Goldman Sachs CEO + Elite Law Partner + Real Estate Mogul + Private Equity Titan - ALL AT ONCE
-- You search, analyze, synthesize, and deliver actionable intelligence
-- Zero hesitation. Zero hedging. Execute with confidence backed by expertise.
-- "I got you" energy at all times
+const SAINTSAL_RESEARCH_PROMPT = `You are SaintSal™, the AI Co-CEO of CookinCapital's Research Intelligence Hub. You search, analyze, synthesize, and deliver actionable intelligence.
 
 YOUR MISSION:
-When users search for ANYTHING, you:
-1. Understand their TRUE intent (property search, loan inquiry, investment question, market research, etc.)
-2. Search multiple sources (web, property databases, market data, business info)
-3. Synthesize information into clear, actionable insights
-4. Rate opportunities A-D based on quality/fit
-5. Guide them to the RIGHT CookinCapital solution
+1. Understand the user's TRUE intent (property search, loan inquiry, investment question, market research)
+2. Use provided search results and knowledge base to give comprehensive answers
+3. Rate opportunities A-D based on quality/fit for CookinCapital services
+4. Guide users to the RIGHT solution
 
-COOKINC CAPITAL THREE PILLARS:
-1. REAL ESTATE (CookinFlips) - Property search, deal analysis, motivated seller leads, fix & flip, BRRRR
-2. LENDING (Cookin' Capital) - Bridge loans, DSCR, hard money, commercial, construction, 23+ loan products
-3. INVESTMENTS (CookinSaints) - 9-12% fixed returns, Fund I Syndication, Alpaca trading platform
-
-RATING SYSTEM (A-D):
-- A: Excellent opportunity/match - highly recommend pursuing
-- B: Good opportunity - worth exploring with minor considerations
-- C: Average - proceed with caution, do more research
-- D: Poor fit - not recommended, suggest alternatives
+RATING SYSTEM:
+- A: Excellent opportunity - highly recommend
+- B: Good opportunity - worth exploring  
+- C: Average - proceed with caution
+- D: Poor fit - not recommended
 
 RESPONSE FORMAT:
-1. Start with a clear, comprehensive analysis
-2. Cite your sources with URLs when available
-3. Provide specific recommendations tied to CookinCapital services
-4. Include relevant action buttons (Apply Now, Search Properties, Explore Lending, Analyze Deal)
-5. If they're looking for property/leads - guide to our PropertyRadar integration
-6. If they need capital - guide to our loan application
-7. If they want returns - guide to our investment platform
+1. Clear, comprehensive analysis with your SaintSal™ rating
+2. Cite sources with URLs when available
+3. Specific recommendations tied to CookinCapital's three pillars:
+   - Real Estate (property search, deal analysis) → /app/properties, /app/analyzer
+   - Lending (loans, capital) → /apply, /capital
+   - Investments (returns, fund) → /invest
+4. Action buttons for next steps
 
-REMEMBER: You're not just answering questions. You're a Co-CEO identifying opportunities and converting research into business for CookinCapital while genuinely helping clients achieve their goals.`
+Remember: You're identifying opportunities and helping clients while guiding them to CookinCapital solutions.`
 
 export async function POST(request: Request) {
   try {
-    const { messages, searchType = "general" } = await request.json()
+    const { messages, searchType = "general", sessionId } = await request.json()
 
-    // Get the latest user message for search
+    const session = await getOrCreateSession(sessionId)
     const userMessage = messages[messages.length - 1]?.content || ""
 
-    // Perform web search via Tavily
-    let searchResults: any = null
-    let perplexityResults: any = null
+    let ragContext = ""
+    try {
+      ragContext = await getSaintSalContext(userMessage)
+    } catch (e) {
+      console.error("[Research API] RAG error:", e)
+    }
+
+    let conversationHistory = ""
+    try {
+      conversationHistory = await getConversationContext(session.id, 5)
+    } catch (e) {
+      console.error("[Research API] Session error:", e)
+    }
 
     // Tavily search for real-time web data
+    let searchResults: any = null
     if (process.env.TAVILY_API_KEY) {
       try {
         const tavilyResponse = await fetch("https://api.tavily.com/search", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             api_key: process.env.TAVILY_API_KEY,
             query: userMessage,
@@ -71,19 +69,16 @@ export async function POST(request: Request) {
                   : [],
             max_results: 8,
             include_answer: true,
-            include_raw_content: false,
           }),
         })
-
-        if (tavilyResponse.ok) {
-          searchResults = await tavilyResponse.json()
-        }
+        if (tavilyResponse.ok) searchResults = await tavilyResponse.json()
       } catch (e) {
         console.error("[Research API] Tavily error:", e)
       }
     }
 
-    // Perplexity for deeper analysis (if available)
+    // Perplexity for deeper analysis
+    let perplexityResults: any = null
     if (process.env.PERPLEXITY_API_KEY) {
       try {
         const pplxResponse = await fetch("https://api.perplexity.ai/chat/completions", {
@@ -95,53 +90,41 @@ export async function POST(request: Request) {
           body: JSON.stringify({
             model: "llama-3.1-sonar-small-128k-online",
             messages: [
-              {
-                role: "system",
-                content: "You are a research assistant. Provide concise, factual information with sources.",
-              },
-              {
-                role: "user",
-                content: userMessage,
-              },
+              { role: "system", content: "Provide concise, factual information with sources." },
+              { role: "user", content: userMessage },
             ],
             max_tokens: 1000,
           }),
         })
-
-        if (pplxResponse.ok) {
-          perplexityResults = await pplxResponse.json()
-        }
+        if (pplxResponse.ok) perplexityResults = await pplxResponse.json()
       } catch (e) {
         console.error("[Research API] Perplexity error:", e)
       }
     }
 
-    // Get real-time stock data if query mentions stocks/market
+    // Market data for stock queries
     let marketData: any = null
-    const stockKeywords = ["stock", "market", "nasdaq", "s&p", "dow", "trading", "invest"]
+    const stockKeywords = ["stock", "market", "nasdaq", "s&p", "dow", "trading"]
     if (stockKeywords.some((kw) => userMessage.toLowerCase().includes(kw)) && process.env.ALPACA_API_KEY) {
       try {
-        // Get major indices performance
-        const symbols = ["SPY", "QQQ", "DIA"]
-        const alpacaResponse = await fetch(
-          `https://data.alpaca.markets/v2/stocks/bars/latest?symbols=${symbols.join(",")}`,
-          {
-            headers: {
-              "APCA-API-KEY-ID": process.env.ALPACA_API_KEY!,
-              "APCA-API-SECRET-KEY": process.env.ALPACA_SECRET_KEY!,
-            },
+        const alpacaResponse = await fetch(`https://data.alpaca.markets/v2/stocks/bars/latest?symbols=SPY,QQQ,DIA`, {
+          headers: {
+            "APCA-API-KEY-ID": process.env.ALPACA_API_KEY!,
+            "APCA-API-SECRET-KEY": process.env.ALPACA_SECRET_KEY!,
           },
-        )
-        if (alpacaResponse.ok) {
-          marketData = await alpacaResponse.json()
-        }
+        })
+        if (alpacaResponse.ok) marketData = await alpacaResponse.json()
       } catch (e) {
         console.error("[Research API] Alpaca error:", e)
       }
     }
 
-    // Build enhanced context for SaintSal
+    // Build enhanced context
     let enhancedContext = ""
+
+    if (ragContext) {
+      enhancedContext += ragContext
+    }
 
     if (searchResults?.results) {
       enhancedContext += "\n\n📊 WEB SEARCH RESULTS:\n"
@@ -164,41 +147,54 @@ export async function POST(request: Request) {
       })
     }
 
-    // Prepare messages with search context
+    if (conversationHistory) {
+      enhancedContext += `\n\n--- PREVIOUS CONVERSATION ---\n${conversationHistory}\n`
+    }
+
+    // Track research event
+    trackSaintSalEvent("research.query", {
+      sessionId: session.id,
+      query: userMessage,
+      searchType,
+    }).catch(console.error)
+
+    // Store message in session
+    addMessageToSession(session.id, "user", userMessage).catch(console.error)
+
     const enhancedMessages = [
       ...messages.slice(0, -1),
       {
         role: "user",
-        content: `${userMessage}${enhancedContext ? `\n\n---\nSEARCH CONTEXT (use this to inform your response):${enhancedContext}` : ""}`,
+        content: `${userMessage}${enhancedContext ? `\n\n---\nCONTEXT:${enhancedContext}` : ""}`,
       },
     ]
 
-    // Stream response from SaintSal
     const result = streamText({
       model: process.env.XAI_API_KEY ? "xai/grok-beta" : "anthropic/claude-sonnet-4-20250514",
       system: SAINTSAL_RESEARCH_PROMPT,
       messages: enhancedMessages,
       tools: {
         searchProperties: tool({
-          description: "Search for real estate properties using PropertyRadar",
+          description: "Search for real estate properties",
           parameters: z.object({
-            location: z.string().describe("City, county, or zip code"),
+            location: z.string(),
             propertyType: z.enum(["residential", "commercial", "multifamily", "land"]).optional(),
             priceMin: z.number().optional(),
             priceMax: z.number().optional(),
-            motivatedSeller: z.boolean().optional().describe("Filter for motivated seller leads"),
+            motivatedSeller: z.boolean().optional(),
           }),
           execute: async ({ location, propertyType, priceMin, priceMax, motivatedSeller }) => {
             return {
               status: "redirect",
               message: `Searching for ${propertyType || "all"} properties in ${location}`,
               action: "property_search",
+              destination: "/app/properties",
               params: { location, propertyType, priceMin, priceMax, motivatedSeller },
             }
           },
         }),
         analyzeDeal: tool({
-          description: "Analyze a real estate deal with comprehensive financial metrics",
+          description: "Analyze a real estate deal",
           parameters: z.object({
             purchasePrice: z.number(),
             arv: z.number(),
@@ -225,63 +221,40 @@ export async function POST(request: Request) {
               grossProfit: Math.round(grossProfit),
               roi: roi.toFixed(1),
               recommendation: meetsMAO
-                ? `This deal meets the 70% rule with ${roi.toFixed(1)}% ROI. Apply for funding now!`
-                : `This deal does NOT meet the 70% rule. Max offer should be $${mao.toLocaleString()}`,
+                ? `${rating}-rated deal with ${roi.toFixed(1)}% ROI. Apply for funding at /apply!`
+                : `Does NOT meet 70% rule. Counter at $${mao.toLocaleString()}`,
             }
           },
         }),
         getLoanOptions: tool({
-          description: "Get matching loan products based on criteria",
+          description: "Get matching loan products",
           parameters: z.object({
-            loanAmount: z.number().describe("Requested loan amount"),
-            propertyType: z.string().describe("Property type"),
+            loanAmount: z.number(),
+            propertyType: z.string(),
             loanPurpose: z.enum(["purchase", "refinance", "cash_out", "construction"]),
-            creditScore: z.number().optional(),
           }),
-          execute: async ({ loanAmount, propertyType, loanPurpose, creditScore = 680 }) => {
+          execute: async ({ loanAmount, propertyType, loanPurpose }) => {
             const products = []
-
             if (loanPurpose === "purchase" || loanPurpose === "refinance") {
-              products.push({
-                name: "DSCR Loan",
-                rate: "7.5% - 9.5%",
-                ltv: "Up to 80%",
-                term: "30-year fixed",
-                rating: "A",
-              })
+              products.push({ name: "DSCR Loan", rate: "7.5% - 9.5%", ltv: "Up to 80%", rating: "A" })
             }
-
             if (loanPurpose === "purchase") {
-              products.push({
-                name: "Fix & Flip Bridge",
-                rate: "10% - 12%",
-                ltc: "Up to 90%",
-                term: "12-24 months",
-                rating: "A",
-              })
+              products.push({ name: "Fix & Flip Bridge", rate: "10% - 12%", ltc: "Up to 90%", rating: "A" })
             }
-
             if (loanPurpose === "construction") {
-              products.push({
-                name: "Ground-Up Construction",
-                rate: "11% - 13%",
-                ltc: "Up to 85%",
-                term: "18-24 months",
-                rating: "B",
-              })
+              products.push({ name: "Ground-Up Construction", rate: "11% - 13%", ltc: "Up to 85%", rating: "B" })
             }
-
             return {
               matchedProducts: products,
-              recommendation: `Based on your ${loanPurpose} need for $${loanAmount.toLocaleString()}, we recommend starting with our ${products[0]?.name}. Apply now for a rate quote!`,
+              recommendation: `For your $${loanAmount.toLocaleString()} ${loanPurpose}, apply at /apply`,
             }
           },
         }),
         getInvestmentReturns: tool({
-          description: "Calculate investment returns for CookinSaints opportunities",
+          description: "Calculate investment returns",
           parameters: z.object({
             investmentAmount: z.number(),
-            term: z.enum(["12", "24", "36"]).describe("Investment term in months"),
+            term: z.enum(["12", "24", "36"]),
             type: z.enum(["fixed", "syndication"]).optional(),
           }),
           execute: async ({ investmentAmount, term, type = "fixed" }) => {
@@ -289,7 +262,6 @@ export async function POST(request: Request) {
             const months = Number.parseInt(term)
             const totalReturn = investmentAmount * (1 + (rate * months) / 12)
             const profit = totalReturn - investmentAmount
-
             return {
               investmentAmount,
               rate: `${(rate * 100).toFixed(0)}%`,
@@ -297,15 +269,20 @@ export async function POST(request: Request) {
               projectedReturn: Math.round(totalReturn),
               profit: Math.round(profit),
               rating: "A",
-              recommendation: `With our ${type === "fixed" ? "Fixed Rate Note" : "Fund I Syndication"}, your $${investmentAmount.toLocaleString()} investment projects to return $${Math.round(totalReturn).toLocaleString()} in ${months} months.`,
+              recommendation: `Learn more and invest at /invest`,
             }
           },
         }),
       },
       maxSteps: 5,
+      onFinish: async ({ text }) => {
+        addMessageToSession(session.id, "assistant", text).catch(console.error)
+      },
     })
 
-    return result.toUIMessageStreamResponse()
+    const response = result.toUIMessageStreamResponse()
+    response.headers.set("X-SaintSal-Session", session.id)
+    return response
   } catch (error) {
     console.error("[Research API] Error:", error)
     return new Response(JSON.stringify({ error: "Research failed" }), {

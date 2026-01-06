@@ -1,17 +1,35 @@
 let supabaseClient: any = null
 let supabaseError: Error | null = null
+let initialized = false
 
-// Try to create client only once
+// Use global window storage for true singleton across all imports
+const GLOBAL_KEY = "__SUPABASE_CLIENT__"
+
 const initClient = () => {
-  if (supabaseClient || supabaseError) return
+  // Check global first
+  if (typeof window !== "undefined" && (window as any)[GLOBAL_KEY]) {
+    supabaseClient = (window as any)[GLOBAL_KEY]
+    return
+  }
+
+  if (initialized) return
+  initialized = true
 
   try {
-    // Dynamic import workaround for v0 preview
     const { createBrowserClient } = require("@supabase/ssr")
     supabaseClient = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookieOptions: {
+          name: "sb-cookincap-auth",
+        },
+      },
     )
+    // Store globally
+    if (typeof window !== "undefined") {
+      ;(window as any)[GLOBAL_KEY] = supabaseClient
+    }
   } catch (e) {
     supabaseError = e as Error
     console.warn("[v0] Supabase module failed to load - using mock client")

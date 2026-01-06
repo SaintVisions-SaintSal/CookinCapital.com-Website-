@@ -161,3 +161,21 @@ export async function trackConversationStarted(data: {
     return false
   }
 }
+
+export async function trackSaintSalEvent(eventType: string, data: Record<string, any>): Promise<boolean> {
+  try {
+    const response = await fetch(SAINTSAL_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        eventType,
+        timestamp: new Date().toISOString(),
+        ...data,
+      }),
+    })
+    return response.ok
+  } catch (error) {
+    console.error(`[GHL Integration] Event tracking failed (${eventType}):`, error)
+    return false
+  }
+}

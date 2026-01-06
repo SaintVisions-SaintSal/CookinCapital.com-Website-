@@ -28,20 +28,36 @@ interface Message {
   toolInvocations?: any[]
 }
 
+function getSessionId(): string {
+  if (typeof window === "undefined") return ""
+
+  let sessionId = localStorage.getItem("saintsal_session_id")
+  if (!sessionId) {
+    sessionId = `ss_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`
+    localStorage.setItem("saintsal_session_id", sessionId)
+  }
+  return sessionId
+}
+
 export function SaintSalDock() {
   const [isOpen, setIsOpen] = useState(false)
   const [isMinimized, setIsMinimized] = useState(false)
+  const [sessionId, setSessionId] = useState<string>("")
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
       role: "assistant",
       content:
-        "Welcome to SaintSal™ - your HACP™-powered decision engine.\n\nI'm your all-in-one expert for:\n• Real Estate Deal Analysis\n• Lending & Financing Options\n• Legal Guidance & Strategy\n• Investment Planning\n\nI can analyze deals, calculate loan costs, compare financing, and guide you through any real estate challenge.\n\nWhat can I help you with?",
+        "Welcome to SaintSal™ - your HACP™-powered decision engine.\n\nI'm your all-in-one expert for:\n• Real Estate Deal Analysis\n• Lending & Financing Options\n• Legal Guidance & Strategy\n• Investment Planning\n\nNo login needed - just ask me anything!\n\nWhat can I help you with?",
     },
   ])
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setSessionId(getSessionId())
+  }, [])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -68,11 +84,11 @@ export function SaintSalDock() {
           eventType: "conversation.started",
           query,
           source: "SaintSal Dock",
-          conversationId: Date.now().toString(),
+          conversationId: sessionId,
         }),
       })
     } catch (error) {
-      console.log("[v0] GHL tracking error (non-critical):", error)
+      // Non-critical - don't block user experience
     }
   }
 
@@ -95,34 +111,31 @@ export function SaintSalDock() {
     }
 
     try {
-      console.log("[v0] Sending message to SaintSal API:", userMessage.content)
-
       const response = await fetch("/api/saintsal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: [...messages, userMessage].map((m) => ({
+          messages: [...messages.filter((m) => m.id !== "welcome"), userMessage].map((m) => ({
             role: m.role,
             content: m.content,
           })),
+          sessionId,
         }),
       })
 
-      console.log("[v0] SaintSal API response status:", response.status)
-
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        console.error("[v0] SaintSal API error:", errorData)
+        throw new Error(errorData.error || `API error: ${response.status}`)
+      }
 
-        throw new Error(
-          errorData.error ||
-            "Failed to get response. Please check your AI service configuration or add credits to your Vercel AI Gateway account.",
-        )
+      const newSessionId = response.headers.get("X-SaintSal-Session")
+      if (newSessionId && newSessionId !== sessionId) {
+        setSessionId(newSessionId)
+        localStorage.setItem("saintsal_session_id", newSessionId)
       }
 
       const reader = response.body?.getReader()
-      const decoder = new TextDecoder()
-      let assistantContent = ""
+      if (!reader) throw new Error("No response body")
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -132,40 +145,42 @@ export function SaintSalDock() {
 
       setMessages((prev) => [...prev, assistantMessage])
 
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
+      const decoder = new TextDecoder()
+      let fullContent = ""
 
-          const chunk = decoder.decode(value)
-          console.log("[v0] Received chunk from SaintSal:", chunk.substring(0, 100))
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
 
-          const lines = chunk.split("\n")
-          for (const line of lines) {
-            if (line.startsWith("0:")) {
-              const text = line.slice(2).replace(/^"|"$/g, "")
-              assistantContent += text
+        const chunk = decoder.decode(value, { stream: true })
+        const lines = chunk.split("\n")
+
+        for (const line of lines) {
+          if (line.startsWith("0:")) {
+            try {
+              const text = JSON.parse(line.slice(2))
+              fullContent += text
               setMessages((prev) =>
-                prev.map((m) => (m.id === assistantMessage.id ? { ...m, content: assistantContent } : m)),
+                prev.map((m) => (m.id === assistantMessage.id ? { ...m, content: fullContent } : m)),
               )
+            } catch {
+              // Skip malformed chunks
             }
           }
         }
       }
-
-      console.log("[v0] SaintSal response complete")
     } catch (error) {
-      console.error("[v0] SaintSal error:", error)
-
+      console.error("[SaintSal] Error:", error)
+      const errorMessage =
+        error instanceof Error ? error.message : "I encountered an issue. Please try again in a moment."
       setMessages((prev) => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
           role: "assistant",
-          content:
-            error instanceof Error
-              ? `⚠️ ${error.message}\n\nTo fix this:\n1. Add credits to your Vercel AI Gateway at https://vercel.com/ai\n2. Or add XAI_API_KEY or ANTHROPIC_API_KEY to your environment variables\n3. Contact support at support@cookin.io if you need help`
-              : "I apologize, but I encountered an issue. Please try again or contact support@cookin.io if the problem persists.",
+          content: errorMessage.includes("AI service")
+            ? "I'm having trouble connecting right now. Please try again in a moment, or contact our team directly at 949-997-2097."
+            : `I encountered an issue: ${errorMessage}. Please try again or contact us at 949-997-2097.`,
         },
       ])
     } finally {
@@ -173,29 +188,42 @@ export function SaintSalDock() {
     }
   }
 
-  const setQuickAction = (text: string) => {
-    setInput(text)
+  const quickActions = [
+    { icon: Calculator, label: "Analyze Deal", prompt: "Help me analyze a fix and flip deal" },
+    { icon: DollarSign, label: "Loan Options", prompt: "What loan products do you offer for investment properties?" },
+    { icon: TrendingUp, label: "Investment Returns", prompt: "Tell me about your investment fund returns" },
+    { icon: Building, label: "Find Properties", prompt: "Help me find motivated seller leads in Orange County" },
+    { icon: Scale, label: "Legal Help", prompt: "I need guidance on entity structure for real estate investing" },
+  ]
+
+  const handleQuickAction = (prompt: string) => {
+    setInput(prompt)
   }
 
-  const resetConversation = () => {
+  const handleClearChat = () => {
     setMessages([
       {
         id: "welcome",
         role: "assistant",
         content:
-          "Welcome to SaintSal™ - your HACP™-powered decision engine.\n\nI'm your all-in-one expert for:\n• Real Estate Deal Analysis\n• Lending & Financing Options\n• Legal Guidance & Strategy\n• Investment Planning\n\nI can analyze deals, calculate loan costs, compare financing, and guide you through any real estate challenge.\n\nWhat can I help you with?",
+          "Welcome back! Ready to help with:\n• Deal Analysis\n• Lending Options\n• Investment Planning\n• Property Search\n\nWhat's on your mind?",
       },
     ])
   }
 
   if (!isOpen) {
     return (
-      <button
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-primary shadow-lg shadow-primary/25 transition-transform hover:scale-105 overflow-hidden"
-        aria-label="Open SaintSal"
-      >
-        <Image src="/logo.png" alt="SaintSal" width={40} height={40} className="object-contain" />
+      <button onClick={openDock} className="fixed bottom-6 right-6 z-50 group" aria-label="Open SaintSal Assistant">
+        <div className="relative">
+          <div className="absolute inset-0 bg-amber-500/20 rounded-full blur-xl group-hover:bg-amber-500/30 transition-all" />
+          <div className="relative w-16 h-16 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center shadow-2xl border-2 border-amber-400/50 group-hover:scale-110 transition-transform overflow-hidden">
+            <Image src="/logo.png" alt="SaintSal" width={48} height={48} className="object-contain" />
+          </div>
+          <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-[#0a0a0a] animate-pulse" />
+        </div>
+        <span className="absolute -top-8 right-0 bg-[#1a1a1a] text-amber-500 text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap border border-amber-500/20">
+          SaintSal™ AI
+        </span>
       </button>
     )
   }
@@ -203,187 +231,130 @@ export function SaintSalDock() {
   return (
     <div
       className={cn(
-        "fixed bottom-6 right-6 z-50 w-[420px] max-w-[calc(100vw-3rem)] rounded-2xl border border-border bg-card shadow-2xl transition-all",
-        isMinimized ? "h-14" : "h-[600px]",
+        "fixed z-50 bg-[#0f0f0f] border border-amber-500/20 rounded-2xl shadow-2xl transition-all duration-300",
+        isMinimized ? "bottom-6 right-6 w-72 h-14" : "bottom-6 right-6 w-[420px] h-[600px] max-h-[80vh] flex flex-col",
       )}
     >
       {/* Header */}
-      <div className="flex h-14 items-center justify-between border-b border-border px-4">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-amber-500/20 bg-[#0a0a0a] rounded-t-2xl">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 overflow-hidden">
-            <Image src="/logo.png" alt="SaintSal" width={28} height={28} className="object-contain" />
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center overflow-hidden">
+            <Image src="/logo.png" alt="SaintSal" width={32} height={32} className="object-contain" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-foreground">SaintSal™</p>
-            {!isMinimized && (
-              <div className="flex items-center gap-1">
-                <span className="flex h-1.5 w-1.5 rounded-full bg-green-500"></span>
-                <p className="text-xs text-muted-foreground">HACP™ Powered</p>
-              </div>
-            )}
+            <h3 className="font-semibold text-white text-sm">SaintSal™</h3>
+            <p className="text-xs text-amber-500/80">HACP™ Decision Engine</p>
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <button
-            onClick={resetConversation}
-            className="rounded-md p-1.5 transition-colors hover:bg-secondary"
-            aria-label="Reset conversation"
-            title="New conversation"
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-gray-400 hover:text-white hover:bg-white/10"
+            onClick={handleClearChat}
+            title="Clear Chat"
           >
-            <RefreshCw className="h-4 w-4 text-muted-foreground" />
-          </button>
-          <button
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-gray-400 hover:text-white hover:bg-white/10"
             onClick={() => setIsMinimized(!isMinimized)}
-            className="rounded-md p-1.5 transition-colors hover:bg-secondary"
-            aria-label={isMinimized ? "Maximize" : "Minimize"}
           >
-            {isMinimized ? (
-              <Maximize2 className="h-4 w-4 text-muted-foreground" />
-            ) : (
-              <Minimize2 className="h-4 w-4 text-muted-foreground" />
-            )}
-          </button>
-          <button
+            {isMinimized ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-gray-400 hover:text-white hover:bg-white/10"
             onClick={() => setIsOpen(false)}
-            className="rounded-md p-1.5 transition-colors hover:bg-secondary"
-            aria-label="Close"
           >
-            <X className="h-4 w-4 text-muted-foreground" />
-          </button>
+            <X className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
       {!isMinimized && (
         <>
           {/* Messages */}
-          <div className="h-[480px] flex-1 space-y-4 overflow-y-auto p-4">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {messages.map((message) => (
-              <div
-                key={message.id}
-                className={cn("rounded-lg p-3", message.role === "assistant" ? "bg-secondary" : "ml-8 bg-primary/10")}
-              >
+              <div key={message.id} className={cn("flex gap-3", message.role === "user" ? "justify-end" : "")}>
                 {message.role === "assistant" && (
-                  <div className="mb-2 flex items-center gap-2">
-                    <Image src="/logo.png" alt="SaintSal" width={14} height={14} className="object-contain" />
-                    <span className="text-xs font-medium text-primary">SaintSal™</span>
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 flex-shrink-0 flex items-center justify-center overflow-hidden">
+                    <Image src="/logo.png" alt="SaintSal" width={24} height={24} className="object-contain" />
                   </div>
                 )}
-                <p className="whitespace-pre-wrap text-sm text-foreground">{message.content}</p>
+                <div
+                  className={cn(
+                    "max-w-[80%] rounded-2xl px-4 py-3 text-sm",
+                    message.role === "user"
+                      ? "bg-amber-500 text-black"
+                      : "bg-[#1a1a1a] text-gray-200 border border-amber-500/10",
+                  )}
+                >
+                  <div className="whitespace-pre-wrap">{message.content}</div>
+                </div>
               </div>
             ))}
-
-            {isLoading && messages[messages.length - 1]?.role === "user" && (
-              <div className="rounded-lg bg-secondary p-3">
-                <div className="flex items-center gap-2">
-                  <Loader2 className="h-3 w-3 animate-spin text-primary" />
-                  <span className="text-xs text-muted-foreground">SaintSal™ is analyzing...</span>
+            {isLoading && (
+              <div className="flex gap-3">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 flex-shrink-0 flex items-center justify-center">
+                  <Loader2 className="h-4 w-4 text-black animate-spin" />
+                </div>
+                <div className="bg-[#1a1a1a] rounded-2xl px-4 py-3 text-sm text-gray-400 border border-amber-500/10">
+                  Analyzing...
                 </div>
               </div>
             )}
-
             <div ref={messagesEndRef} />
-
-            {/* Quick Actions - only show at start */}
-            {messages.length <= 1 && (
-              <div className="mt-4 space-y-3">
-                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Quick Actions</p>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <Link href="/app/analyzer">
-                    <Button variant="outline" size="sm" className="w-full justify-start bg-transparent text-xs h-9">
-                      <Calculator className="mr-2 h-3 w-3 text-blue-500" />
-                      Deal Analyzer
-                    </Button>
-                  </Link>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full justify-start bg-transparent text-xs h-9"
-                    onClick={() => setQuickAction("What are my financing options for a $300K fix and flip?")}
-                  >
-                    <DollarSign className="mr-2 h-3 w-3 text-green-500" />
-                    Financing Options
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full justify-start bg-transparent text-xs h-9"
-                    onClick={() => setQuickAction("I need help with an eviction situation")}
-                  >
-                    <Scale className="mr-2 h-3 w-3 text-purple-500" />
-                    Legal Help
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full justify-start bg-transparent text-xs h-9"
-                    onClick={() => setQuickAction("How do I invest in CookinCapital Fund?")}
-                  >
-                    <TrendingUp className="mr-2 h-3 w-3 text-amber-500" />
-                    Fund Investment
-                  </Button>
-                </div>
-
-                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mt-4">Ask About</p>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 text-xs bg-secondary/50"
-                    onClick={() => setQuickAction("Analyze a deal: $200K purchase, $320K ARV, $40K rehab")}
-                  >
-                    <Building className="mr-1 h-3 w-3" />
-                    Deal Analysis
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 text-xs bg-secondary/50"
-                    onClick={() => setQuickAction("Compare hard money vs bridge loan for my flip")}
-                  >
-                    Loan Comparison
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 text-xs bg-secondary/50"
-                    onClick={() => setQuickAction("What's the best entity structure for rental properties?")}
-                  >
-                    Entity Setup
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 text-xs bg-secondary/50"
-                    onClick={() => setQuickAction("Explain the BRRRR strategy")}
-                  >
-                    BRRRR Strategy
-                  </Button>
-                </div>
-              </div>
-            )}
           </div>
 
+          {/* Quick Actions */}
+          {messages.length <= 2 && (
+            <div className="px-4 pb-2">
+              <p className="text-xs text-gray-500 mb-2">Quick actions:</p>
+              <div className="flex flex-wrap gap-2">
+                {quickActions.map((action) => (
+                  <button
+                    key={action.label}
+                    onClick={() => handleQuickAction(action.prompt)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1a1a1a] hover:bg-[#252525] border border-amber-500/20 rounded-full text-xs text-gray-300 transition-colors"
+                  >
+                    <action.icon className="h-3 w-3 text-amber-500" />
+                    {action.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Input */}
-          <div className="border-t border-border p-4">
-            <form onSubmit={handleSubmit} className="flex items-center gap-2">
+          <form onSubmit={handleSubmit} className="p-4 border-t border-amber-500/20 bg-[#0a0a0a] rounded-b-2xl">
+            <div className="flex gap-2">
               <Input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask about deals, financing, legal..."
-                className="flex-1 border-0 bg-secondary"
+                placeholder="Ask SaintSal anything..."
+                className="flex-1 bg-[#1a1a1a] border-amber-500/20 text-white placeholder:text-gray-500 focus:border-amber-500/50 rounded-xl"
                 disabled={isLoading}
               />
               <Button
                 type="submit"
-                size="icon"
-                className="shrink-0 bg-primary text-primary-foreground"
                 disabled={isLoading || !input.trim()}
+                className="bg-amber-500 hover:bg-amber-600 text-black rounded-xl px-4"
               >
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </Button>
-            </form>
-          </div>
+            </div>
+            <p className="text-[10px] text-gray-600 mt-2 text-center">
+              No login required • Your conversation is saved •{" "}
+              <Link href="/apply" className="text-amber-500/70 hover:text-amber-500">
+                Apply for capital
+              </Link>
+            </p>
+          </form>
         </>
       )}
     </div>

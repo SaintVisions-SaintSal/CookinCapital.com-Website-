@@ -104,6 +104,12 @@ importers:
       '@supabase/supabase-js':
         specifier: 2.86.0
         version: 2.86.0
+      '@upstash/redis':
+        specifier: 1.36.0
+        version: 1.36.0
+      '@upstash/search':
+        specifier: 0.1.7
+        version: 0.1.7
       '@vercel/analytics':
         specifier: 1.3.1
         version: 1.3.1(next@16.0.10(@opentelemetry/api@1.9.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react@19.2.0)
@@ -1304,6 +1310,15 @@ packages:
   '@types/ws@8.18.1':
     resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
 
+  '@upstash/redis@1.36.0':
+    resolution: {integrity: sha512-9zN2UV9QJGPnXfWU3yZBLVQaqqENDh7g+Y4J2vJuSxBCi9FQ0aUOtaXlzuFhnsiZvCqM+eS27ic+tgmkWUsfOg==}
+
+  '@upstash/search@0.1.7':
+    resolution: {integrity: sha512-rgJ52TP0eUPLFo4K6TZtiC7qICbJnEwkT+TqaDI1vN8/Hk6qidgNC9dpnUUXCiqfwogty1rlSyBhYfk6PRgXjA==}
+
+  '@upstash/vector@1.2.2':
+    resolution: {integrity: sha512-ptQ9xnxtKqmpNK52PCcHCszlPOLxIBfjsv7ty8RoF95pkjctS9rSjTQ3Pl9bx5VFbpDj+0dMXw88WLt6swDkgQ==}
+
   '@vercel/analytics@1.3.1':
     resolution: {integrity: sha512-xhSlYgAuJ6Q4WQGkzYTLmXwhYl39sWjoMA3nHxfkvG+WdBT25c563a7QhwwKivEOZtPJXifYHR1m2ihoisbWyA==}
     peerDependencies:
@@ -1842,6 +1857,9 @@ packages:
     resolution: {integrity: sha512-wVORMBGO/FAs/++blGNeAVdbNKtIh1rbBL2EyQ1+J9lClJ93KiiKe8PmFIVdXhHcyv44SL9oglmfeSsndo0jRw==}
     engines: {node: '>=12.20'}
     hasBin: true
+
+  uncrypto@0.1.3:
+    resolution: {integrity: sha512-Ql87qFHB3s/De2ClA9e0gsnS6zXG27SkTiSJwjCc9MebbfapQfuPzumMIUMi38ezPZVNFcHI9sUIepeQfw8J8Q==}
 
   undici-types@6.11.1:
     resolution: {integrity: sha512-mIDEX2ek50x0OlRgxryxsenE5XaQD4on5U2inY7RApK3SOJpofyw7uW2AyfMKkhAxXIceo2DeWGVGwyvng1GNQ==}
@@ -2976,6 +2994,16 @@ snapshots:
     dependencies:
       '@types/node': 22.0.0
 
+  '@upstash/redis@1.36.0':
+    dependencies:
+      uncrypto: 0.1.3
+
+  '@upstash/search@0.1.7':
+    dependencies:
+      '@upstash/vector': 1.2.2
+
+  '@upstash/vector@1.2.2': {}
+
   '@vercel/analytics@1.3.1(next@16.0.10(@opentelemetry/api@1.9.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react@19.2.0)':
     dependencies:
       server-only: 0.0.1
@@ -3460,6 +3488,8 @@ snapshots:
   tw-animate-css@1.3.3: {}
 
   typescript@5.0.2: {}
+
+  uncrypto@0.1.3: {}
 
   undici-types@6.11.1: {}
 
