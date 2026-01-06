@@ -1,7 +1,7 @@
-// SaintSal RAG Protocol - Knowledge Base with Upstash Search
-import { Index } from "@upstash/search"
+// SaintSal RAG Protocol - Knowledge Base with Upstash Vector
+import { Index } from "@upstash/vector"
 
-// Initialize Upstash Search for RAG
+// Initialize Upstash Vector for RAG
 const searchIndex = new Index({
   url: process.env.UPSTASH_SEARCH_REST_URL!,
   token: process.env.UPSTASH_SEARCH_REST_TOKEN!,
@@ -77,18 +77,21 @@ export async function searchKnowledgeBase(
   },
 ): Promise<Array<{ id: string; content: string; score: number; metadata: Record<string, unknown> }>> {
   try {
-    const results = await searchIndex.search(query, {
+    const results = await searchIndex.query({
+      data: query,
       topK: options?.limit ?? 5,
-      filter: options?.category ? `category = "${options.category}"` : undefined,
+      filter: options?.category ? `category = '${options.category}'` : undefined,
+      includeMetadata: true,
+      includeData: true,
     })
 
     return results
-      .filter((r) => r.score >= (options?.minScore ?? 0.5))
+      .filter((r) => (r.score ?? 0) >= (options?.minScore ?? 0.5))
       .map((r) => ({
-        id: r.id,
-        content: r.data as string,
-        score: r.score,
-        metadata: r.metadata ?? {},
+        id: r.id as string,
+        content: (r.data as string) || "",
+        score: r.score ?? 0,
+        metadata: (r.metadata as Record<string, unknown>) ?? {},
       }))
   } catch (error) {
     console.error("[SaintSal RAG] Search failed:", error)
