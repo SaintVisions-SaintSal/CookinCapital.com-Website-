@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { AnalyzerStepper } from "./analyzer-stepper"
 import { AnalyzerHeader } from "./analyzer-header"
 import { AnalyzerPropertyInfo } from "./analyzer-property-info"
@@ -13,7 +13,7 @@ import { AnalyzerSellingCosts } from "./analyzer-selling-costs"
 import { AnalyzerReview } from "./analyzer-review"
 import { AnalyzerResultsPanel } from "./analyzer-results-panel"
 import { Save, Send, Loader2, Check, Download } from "lucide-react"
-import type { DealData } from "./types"
+import type { DealData, Calculations } from "./types"
 
 const initialDealData: DealData = {
   address: "",
@@ -123,6 +123,91 @@ export function DealAnalyzer() {
   const [saved, setSaved] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+
+  const calculations: Calculations = useMemo(() => {
+    const d = dealData
+
+    // Total Rehab Cost
+    const totalRehabCost = Object.values(d.rehabCategories).reduce((sum, val) => sum + (val || 0), 0)
+
+    // Financing calculations
+    const pointsCost = (d.loanAmount * d.loanPoints) / 100
+    const monthlyInterestRate = d.interestRate / 100 / 12
+    const totalInterest = d.loanAmount * monthlyInterestRate * d.loanTermMonths
+
+    // Holding costs
+    const monthlyHolding =
+      d.monthlyTaxes +
+      d.monthlyInsurance +
+      d.monthlyUtilities +
+      d.monthlyHOA +
+      d.lawnCare +
+      d.security +
+      d.propertyManagement
+    const totalHoldingCosts = monthlyHolding * d.holdingPeriodMonths
+
+    // Buying costs
+    const totalBuyingCosts =
+      d.closingCostsBuying +
+      d.inspectionCosts +
+      d.appraisalCosts +
+      d.titleInsuranceBuying +
+      d.surveyFee +
+      d.attorneyFees +
+      d.recordingFees +
+      d.escrowFees +
+      d.otherBuyingCosts
+
+    // Selling costs
+    const agentCommission = (d.arv * d.agentCommissionPercent) / 100
+    const totalSellingCosts =
+      agentCommission +
+      d.closingCostsSelling +
+      d.titleInsuranceSelling +
+      d.transferTaxes +
+      d.homeWarranty +
+      d.concessions +
+      d.stagingCost +
+      d.photographyMarketing +
+      d.otherSellingCosts
+
+    // Total investment
+    const totalInvestment =
+      d.purchasePrice + totalRehabCost + totalBuyingCosts + totalHoldingCosts + pointsCost + totalInterest
+
+    // Profit calculations
+    const totalProfit = d.arv - totalInvestment - totalSellingCosts
+    const roi = totalInvestment > 0 ? (totalProfit / totalInvestment) * 100 : 0
+
+    // Additional metrics
+    const percentOfArv = d.arv > 0 ? (d.purchasePrice / d.arv) * 100 : 0
+    const maxAllowableOffer = d.arv * 0.7 - totalRehabCost
+    const equityAtPurchase = d.arv - d.purchasePrice - totalRehabCost
+    const cashNeeded = d.purchasePrice + totalRehabCost + totalBuyingCosts - d.loanAmount
+    const arvPerSqft = d.sqft > 0 ? d.arv / d.sqft : 0
+    const costPerSqft = d.sqft > 0 ? (d.purchasePrice + totalRehabCost) / d.sqft : 0
+    const profitPerSqft = d.sqft > 0 ? totalProfit / d.sqft : 0
+
+    return {
+      totalRehabCost,
+      pointsCost,
+      totalInterest,
+      monthlyHolding,
+      totalHoldingCosts,
+      totalBuyingCosts,
+      totalSellingCosts,
+      totalInvestment,
+      totalProfit,
+      roi,
+      percentOfArv,
+      maxAllowableOffer,
+      equityAtPurchase,
+      cashNeeded,
+      arvPerSqft,
+      costPerSqft,
+      profitPerSqft,
+    }
+  }, [dealData])
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -277,7 +362,7 @@ Holding Period.........: ${d.holdingPeriodMonths} months
       const response = await fetch("/api/submit-worksheet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dealData }),
+        body: JSON.stringify({ dealData, calculations }),
       })
       if (response.ok) {
         setSubmitted(true)
@@ -383,9 +468,9 @@ Holding Period.........: ${d.holdingPeriodMonths} months
       case 1:
         return <AnalyzerPricing data={dealData} onChange={updateDealData} />
       case 2:
-        return <AnalyzerRehab data={dealData} onChange={updateDealData} />
+        return <AnalyzerRehab data={dealData} onChange={updateDealData} calculations={calculations} />
       case 3:
-        return <AnalyzerFinancing data={dealData} onChange={updateDealData} />
+        return <AnalyzerFinancing data={dealData} onChange={updateDealData} calculations={calculations} />
       case 4:
         return <AnalyzerHoldingCosts data={dealData} onChange={updateDealData} />
       case 5:
@@ -393,7 +478,7 @@ Holding Period.........: ${d.holdingPeriodMonths} months
       case 6:
         return <AnalyzerSellingCosts data={dealData} onChange={updateDealData} />
       case 7:
-        return <AnalyzerReview data={dealData} />
+        return <AnalyzerReview data={dealData} calculations={calculations} />
       default:
         return null
     }
@@ -513,7 +598,7 @@ Holding Period.........: ${d.holdingPeriodMonths} months
         </div>
       </div>
 
-      <AnalyzerResultsPanel data={dealData} />
+      <AnalyzerResultsPanel data={dealData} calculations={calculations} />
     </div>
   )
 }
