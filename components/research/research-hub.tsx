@@ -86,7 +86,10 @@ export function ResearchHub() {
   const inputRef = useRef<HTMLInputElement>(null)
   const bottomInputRef = useRef<HTMLInputElement>(null)
 
+  const safeString = (str: string | undefined | null): string => str ?? ""
+
   const trackToGHL = async (query: string, eventType = "lead.captured") => {
+    if (!query) return
     try {
       await fetch("/api/saintsal/webhook", {
         method: "POST",
@@ -105,7 +108,7 @@ export function ResearchHub() {
   }
 
   const detectIntent = (query: string): string => {
-    const lowerQuery = query.toLowerCase()
+    const lowerQuery = safeString(query).toLowerCase()
     if (lowerQuery.includes("loan") || lowerQuery.includes("financing") || lowerQuery.includes("lending")) {
       return "lending"
     }
@@ -146,7 +149,7 @@ export function ResearchHub() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!input.trim()) return
+    if (!safeString(input).trim()) return
     trackToGHL(input, "lead.captured")
     handleSubmit(e)
   }
@@ -318,7 +321,12 @@ export function ResearchHub() {
                   >
                     {isRecording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
                   </button>
-                  <Button type="submit" size="sm" className="rounded-full px-6" disabled={isLoading || !input.trim()}>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    className="rounded-full px-6"
+                    disabled={isLoading || !safeString(input).trim()}
+                  >
                     {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Search"}
                   </Button>
                 </div>
@@ -567,7 +575,12 @@ export function ResearchHub() {
                 >
                   {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                 </button>
-                <Button type="submit" size="icon" className="rounded-full" disabled={isLoading || !input.trim()}>
+                <Button
+                  type="submit"
+                  size="icon"
+                  className="rounded-full"
+                  disabled={isLoading || !safeString(input).trim()}
+                >
                   {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </Button>
               </div>
