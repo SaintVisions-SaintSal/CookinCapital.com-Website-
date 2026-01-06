@@ -1,8 +1,8 @@
-// SaintSal RAG Protocol - Knowledge Base with Upstash Vector
-import { Index } from "@upstash/vector"
+// SaintSal RAG Protocol - Knowledge Base with Upstash Search
+import { Search } from "@upstash/search"
 
-// Initialize Upstash Vector for RAG
-const searchIndex = new Index({
+// Initialize Upstash Search for RAG
+const searchIndex = new Search({
   url: process.env.UPSTASH_SEARCH_REST_URL!,
   token: process.env.UPSTASH_SEARCH_REST_TOKEN!,
 })
@@ -32,7 +32,7 @@ export async function addToKnowledgeBase(doc: KnowledgeDocument): Promise<void> 
   try {
     await searchIndex.upsert({
       id: doc.id,
-      data: doc.content,
+      content: doc.content,
       metadata: {
         category: doc.category,
         title: doc.title,
@@ -49,18 +49,18 @@ export async function addToKnowledgeBase(doc: KnowledgeDocument): Promise<void> 
 // Bulk add documents
 export async function bulkAddToKnowledgeBase(docs: KnowledgeDocument[]): Promise<void> {
   try {
-    await searchIndex.upsert(
-      docs.map((doc) => ({
+    for (const doc of docs) {
+      await searchIndex.upsert({
         id: doc.id,
-        data: doc.content,
+        content: doc.content,
         metadata: {
           category: doc.category,
           title: doc.title,
           lastUpdated: doc.lastUpdated,
           ...doc.metadata,
         },
-      })),
-    )
+      })
+    }
   } catch (error) {
     console.error("[SaintSal RAG] Bulk add failed:", error)
     throw error
@@ -77,19 +77,16 @@ export async function searchKnowledgeBase(
   },
 ): Promise<Array<{ id: string; content: string; score: number; metadata: Record<string, unknown> }>> {
   try {
-    const results = await searchIndex.query({
-      data: query,
-      topK: options?.limit ?? 5,
-      filter: options?.category ? `category = '${options.category}'` : undefined,
-      includeMetadata: true,
-      includeData: true,
+    const results = await searchIndex.search(query, {
+      limit: options?.limit ?? 5,
     })
 
-    return results
-      .filter((r) => (r.score ?? 0) >= (options?.minScore ?? 0.5))
-      .map((r) => ({
+    return (results || [])
+      .filter((r: any) => (r.score ?? 0) >= (options?.minScore ?? 0.5))
+      .filter((r: any) => !options?.category || r.metadata?.category === options.category)
+      .map((r: any) => ({
         id: r.id as string,
-        content: (r.data as string) || "",
+        content: r.content || "",
         score: r.score ?? 0,
         metadata: (r.metadata as Record<string, unknown>) ?? {},
       }))
