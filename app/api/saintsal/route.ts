@@ -110,19 +110,8 @@ export async function POST(req: Request) {
 
     addMessageToSession(session.id, "user", userMessage).catch(console.error)
 
-    if (!process.env.XAI_API_KEY && !process.env.ANTHROPIC_API_KEY) {
-      return new Response(
-        JSON.stringify({
-          error:
-            "AI service not configured. Please add XAI_API_KEY or ANTHROPIC_API_KEY to your environment variables.",
-          sessionId: session.id,
-        }),
-        { status: 503, headers: { "Content-Type": "application/json" } },
-      )
-    }
-
     const result = streamText({
-      model: process.env.XAI_API_KEY ? "xai/grok-beta" : "anthropic/claude-sonnet-4-20250514",
+      model: "anthropic/claude-sonnet-4-20250514",
       system: enhancedSystemPrompt,
       messages,
       tools: {
