@@ -77,16 +77,64 @@ const QUICK_ACCESS = [
 ]
 
 export function ResearchHub() {
+  const [sessionId, setSessionId] = useState<string>("")
   const [searchCount, setSearchCount] = useState(0)
   const [isRecording, setIsRecording] = useState(false)
-  const [isPlayingAudio, setIsPlayingAudio] = useState(false)
-  const [showResults, setShowResults] = useState(false)
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const audioChunksRef = useRef<Blob[]>([])
+  const [isSpeaking, setIsSpeaking] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const bottomInputRef = useRef<HTMLInputElement>(null)
 
-  const safeString = (str: string | undefined | null): string => str ?? ""
+  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
+    api: "/api/research",
+    onFinish: () => {
+      // Increment search count
+      const newCount = searchCount + 1
+      setSearchCount(newCount)
+      localStorage.setItem("researchSearchCount", String(newCount))
+    },
+    body: {
+      sessionId,
+    },
+  })
+
+  // Load search count from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem("researchSearchCount")
+    if (saved) setSearchCount(Number.parseInt(saved))
+  }, [])
+
+  // Show results view when we have messages
+  useEffect(() => {
+    if (messages.length > 0) {
+      setShowResults(true)
+    }
+  }, [messages])
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!input || !input.trim()) return
+    trackToGHL(input, "lead.captured")
+    handleSubmit(e)
+  }
+
+  const handleTrendingClick = async (query: string) => {
+    trackToGHL(query, "lead.captured")
+
+    // Manually submit the query by creating a synthetic form event
+    const syntheticEvent = {
+      preventDefault: () => {},
+      target: { value: query },
+    } as any
+
+    // Update input via handleInputChange
+    handleInputChange(syntheticEvent)
+
+    // Wait for state update then submit
+    setTimeout(() => {
+      const submitEvent = new Event("submit", { bubbles: true, cancelable: true })
+      handleSubmit(submitEvent as any)
+    }, 0)
+  }
 
   const trackToGHL = async (query: string, eventType = "lead.captured") => {
     if (!query) return
@@ -108,7 +156,7 @@ export function ResearchHub() {
   }
 
   const detectIntent = (query: string): string => {
-    const lowerQuery = safeString(query).toLowerCase()
+    const lowerQuery = query.toLowerCase()
     if (lowerQuery.includes("loan") || lowerQuery.includes("financing") || lowerQuery.includes("lending")) {
       return "lending"
     }
@@ -124,94 +172,9 @@ export function ResearchHub() {
     return "general"
   }
 
-  const { messages, input, setInput, handleSubmit, isLoading, append } = useChat({
-    api: "/api/research",
-    onFinish: () => {
-      // Increment search count
-      const newCount = searchCount + 1
-      setSearchCount(newCount)
-      localStorage.setItem("researchSearchCount", String(newCount))
-    },
-  })
-
-  // Load search count from localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem("researchSearchCount")
-    if (saved) setSearchCount(Number.parseInt(saved))
-  }, [])
-
-  // Show results view when we have messages
-  useEffect(() => {
-    if (messages.length > 0) {
-      setShowResults(true)
-    }
-  }, [messages])
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!safeString(input).trim()) return
-    trackToGHL(input, "lead.captured")
-    handleSubmit(e)
-  }
-
-  const handleTrendingClick = (query: string) => {
-    setInput(query)
-    trackToGHL(query, "lead.captured")
-    append({ role: "user", content: query })
-  }
-
-  // Voice recording
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const mediaRecorder = new MediaRecorder(stream)
-      mediaRecorderRef.current = mediaRecorder
-      audioChunksRef.current = []
-
-      mediaRecorder.ondataavailable = (event) => {
-        audioChunksRef.current.push(event.data)
-      }
-
-      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" })
-        stream.getTracks().forEach((track) => track.stop())
-
-        // Send to transcription API
-        const formData = new FormData()
-        formData.append("audio", audioBlob)
-
-        try {
-          const response = await fetch("/api/voice/transcribe", {
-            method: "POST",
-            body: formData,
-          })
-          const { transcript } = await response.json()
-          if (transcript) {
-            setInput(transcript)
-          }
-        } catch (e) {
-          console.error("Transcription error:", e)
-        }
-      }
-
-      mediaRecorder.start()
-      setIsRecording(true)
-    } catch (e) {
-      console.error("Recording error:", e)
-    }
-  }
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current) {
-      mediaRecorderRef.current.stop()
-      setIsRecording(false)
-    }
-  }
-
-  // Text-to-speech
   const speakText = async (text: string) => {
     try {
-      setIsPlayingAudio(true)
+      setIsSpeaking(true)
       const response = await fetch("/api/voice/synthesize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -222,25 +185,23 @@ export function ResearchHub() {
         const audioBlob = await response.blob()
         const audioUrl = URL.createObjectURL(audioBlob)
         const audio = new Audio(audioUrl)
-        audio.onended = () => setIsPlayingAudio(false)
+        audio.onended = () => setIsSpeaking(false)
         audio.play()
       } else {
-        setIsPlayingAudio(false)
+        setIsSpeaking(false)
       }
     } catch (e) {
       console.error("Speech error:", e)
-      setIsPlayingAudio(false)
+      setIsSpeaking(false)
     }
   }
 
-  // Extract sources from message content
   const extractSources = (content: string) => {
     const urlRegex = /https?:\/\/[^\s)]+/g
     const matches = content.match(urlRegex) || []
     return [...new Set(matches)].slice(0, 5)
   }
 
-  // Get rating color
   const getRatingColor = (rating: string) => {
     switch (rating?.toUpperCase()) {
       case "A":
@@ -254,6 +215,45 @@ export function ResearchHub() {
       default:
         return "text-primary bg-primary/10 border-primary/30"
     }
+  }
+
+  const [showResults, setShowResults] = useState(false)
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      setIsRecording(true)
+
+      // Simulate recording for demo
+      setTimeout(async () => {
+        stopRecording()
+        // Simulate transcription
+        const response = await fetch("/api/voice/transcribe", {
+          method: "POST",
+          body: stream,
+        })
+        if (response.ok) {
+          const { transcript } = await response.json()
+          if (transcript) {
+            const syntheticEvent = {
+              preventDefault: () => {},
+              target: { value: transcript },
+            } as any
+            handleInputChange(syntheticEvent)
+            setTimeout(() => {
+              const submitEvent = new Event("submit", { bubbles: true, cancelable: true })
+              handleSubmit(submitEvent as any)
+            }, 0)
+          }
+        }
+      }, 3000)
+    } catch (error) {
+      console.error("Error accessing microphone:", error)
+    }
+  }
+
+  const stopRecording = () => {
+    setIsRecording(false)
   }
 
   // Landing view (no search yet)
@@ -306,9 +306,14 @@ export function ResearchHub() {
                   ref={inputRef}
                   type="text"
                   value={input}
-                  onChange={(e) => setInput(e.target.value)}
+                  onChange={handleInputChange}
                   placeholder="i need help finding real estate leads in Orange county ca"
                   className="h-14 w-full rounded-full bg-transparent pl-14 pr-32 text-foreground placeholder:text-muted-foreground focus:outline-none"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleSearch(e as any)
+                    }
+                  }}
                 />
                 <div className="absolute right-2 flex items-center gap-2">
                   <button
@@ -325,7 +330,7 @@ export function ResearchHub() {
                     type="submit"
                     size="sm"
                     className="rounded-full px-6"
-                    disabled={isLoading || !safeString(input).trim()}
+                    disabled={isLoading || !input || !input.trim()}
                   >
                     {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Search"}
                   </Button>
@@ -460,9 +465,9 @@ export function ResearchHub() {
                       <button
                         onClick={() => speakText(message.content)}
                         className="ml-auto rounded-full p-2 text-muted-foreground hover:bg-muted"
-                        disabled={isPlayingAudio}
+                        disabled={isSpeaking}
                       >
-                        {isPlayingAudio ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                        {isSpeaking ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
                       </button>
                     </div>
                     <div className="prose prose-invert max-w-none">
@@ -560,9 +565,14 @@ export function ResearchHub() {
                 ref={bottomInputRef}
                 type="text"
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={handleInputChange}
                 placeholder="Ask anything about your search..."
-                className="h-12 w-full rounded-full bg-transparent pl-5 pr-24 text-foreground placeholder:text-muted-foreground focus:outline-none"
+                className="w-full pl-4 pr-24 py-3 bg-muted/50 border border-border rounded-lg focus:outline-none focus:border-primary transition-colors"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !isLoading) {
+                    handleSearch(e as any)
+                  }
+                }}
               />
               <div className="absolute right-2 flex items-center gap-1">
                 <button
@@ -573,13 +583,13 @@ export function ResearchHub() {
                     isRecording ? "bg-red-500 text-white" : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                  {isRecording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
                 </button>
                 <Button
                   type="submit"
                   size="icon"
                   className="rounded-full"
-                  disabled={isLoading || !safeString(input).trim()}
+                  disabled={isLoading || !input || !input.trim()}
                 >
                   {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </Button>
