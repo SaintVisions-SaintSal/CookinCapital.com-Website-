@@ -8,10 +8,35 @@ import type { DealData, Calculations } from "./types"
 interface Props {
   data: DealData
   onChange: (updates: Partial<DealData>) => void
-  calculations: Calculations
+  calculations?: Calculations
+}
+
+const defaultCalculations: Calculations = {
+  totalRehabCost: 0,
+  totalLoanCosts: 0,
+  totalHoldingCosts: 0,
+  totalSellingCosts: 0,
+  totalProjectCosts: 0,
+  equityAtPurchase: 0,
+  cashOutOfPocket: 0,
+  totalProfit: 0,
+  roi: 0,
+  annualizedRoi: 0,
+  monthlyPayment: 0,
+  pointsCost: 0,
+  loanAmount: 0,
+  realtorCommission: 0,
+  closingCosts: 0,
+  transferTax: 0,
+  monthlyHoldingCost: 0,
+  ltvPercent: 0,
+  arvPercent: 0,
+  profitPerSqft: 0,
 }
 
 export function AnalyzerPricing({ data, onChange, calculations }: Props) {
+  const safeCalculations = calculations || defaultCalculations
+
   const formatCurrency = (value: number) => {
     return value ? value.toLocaleString() : ""
   }
@@ -20,7 +45,7 @@ export function AnalyzerPricing({ data, onChange, calculations }: Props) {
     return Number.parseInt(value.replace(/[^0-9]/g, "")) || 0
   }
 
-  const maxAllowableOffer = data.arv > 0 ? data.arv * 0.7 - calculations.totalRehabCost : 0
+  const maxAllowableOffer = data.arv > 0 ? data.arv * 0.7 - safeCalculations.totalRehabCost : 0
 
   return (
     <Card>
@@ -113,15 +138,15 @@ export function AnalyzerPricing({ data, onChange, calculations }: Props) {
               <div>
                 <p className="text-xs text-muted-foreground">Equity at Purchase</p>
                 <p
-                  className={`text-lg font-semibold ${calculations.equityAtPurchase >= 0 ? "text-green-500" : "text-red-500"}`}
+                  className={`text-lg font-semibold ${safeCalculations.equityAtPurchase >= 0 ? "text-green-500" : "text-red-500"}`}
                 >
-                  ${calculations.equityAtPurchase.toLocaleString()}
+                  ${safeCalculations.equityAtPurchase.toLocaleString()}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">All-In Cost</p>
                 <p className="text-lg font-semibold text-foreground">
-                  ${(data.purchasePrice + calculations.totalRehabCost).toLocaleString()}
+                  ${(data.purchasePrice + safeCalculations.totalRehabCost).toLocaleString()}
                 </p>
               </div>
             </div>

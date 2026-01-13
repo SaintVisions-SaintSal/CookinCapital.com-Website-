@@ -102,12 +102,11 @@ export async function searchKnowledgeBase(
   }
 
   try {
-    const results = await index.query({
-      query,
-      topK: options?.limit ?? 5,
+    const results = await index.search(query, {
+      limit: options?.limit ?? 5,
     })
 
-    return (results?.hits || [])
+    return (results || [])
       .filter((r: any) => (r.score ?? 0) >= (options?.minScore ?? 0.5))
       .filter((r: any) => !options?.category || r.metadata?.category === options.category)
       .map((r: any) => ({
