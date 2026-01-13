@@ -23,11 +23,14 @@ export function Header() {
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         <nav className="flex h-20 items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
-            <Image src="/logo.png" alt="CookinCapital" width={44} height={44} className="rounded-lg" />
-            <span className="text-xl font-semibold tracking-tight">
-              <span className="text-primary">Cookin</span>
-              <span className="text-foreground">Capital</span>
-            </span>
+            <Image src="/saintsal-logo.png" alt="SaintSal" width={48} height={48} className="rounded-xl" />
+            <div className="flex flex-col">
+              <span className="text-xl font-semibold tracking-tight">
+                <span className="text-primary">Cookin</span>
+                <span className="text-foreground">Capital</span>
+              </span>
+              <span className="text-[10px] font-medium tracking-widest text-primary/80 uppercase">by SaintSal™</span>
+            </div>
           </Link>
 
           {/* Desktop Navigation */}
