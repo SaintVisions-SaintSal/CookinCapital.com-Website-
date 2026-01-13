@@ -487,15 +487,63 @@ async function propertyRadarSearch(args: any) {
 }
 
 async function propertyRadarLookup(args: any) {
-  const response = await fetch(
-    `https://api.propertyradar.com/v1/properties/lookup?address=${encodeURIComponent(args.address)}`,
-    {
-      headers: {
-        Authorization: `Bearer ${process.env.PROPERTYRADAR_API_KEY}`,
-      },
+  // PropertyRadar's /lookup endpoint requires a RadarID (starts with "P"), not an address
+  // For address lookups, we use the search endpoint with address criteria
+  const response = await fetch("https://api.propertyradar.com/v1/properties", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.PROPERTYRADAR_API_KEY}`,
+      "Content-Type": "application/json",
     },
-  )
-  return response.json()
+    body: JSON.stringify({
+      Criteria: {
+        Address: args.address,
+      },
+      Fields: [
+        "RadarID",
+        "Address",
+        "City",
+        "State",
+        "ZipCode",
+        "County",
+        "PropertyType",
+        "Bedrooms",
+        "Bathrooms",
+        "SqFt",
+        "LotSizeSqFt",
+        "YearBuilt",
+        "EstimatedValue",
+        "EstimatedEquity",
+        "EstimatedEquityPercent",
+        "LastSaleDate",
+        "LastSalePrice",
+        "OwnerName",
+        "OwnerOccupied",
+        "MailingAddress",
+        "ForeclosureStatus",
+        "LoanBalance",
+        "LoanDate",
+        "LoanAmount",
+      ],
+      Limit: 1,
+    }),
+  })
+
+  const data = await response.json()
+
+  // Return the first matching property or error message
+  if (data.properties && data.properties.length > 0) {
+    return {
+      success: true,
+      property: data.properties[0],
+    }
+  }
+
+  return {
+    success: false,
+    error: "Property not found. Please check the address and try again.",
+    searchedAddress: args.address,
+  }
 }
 
 async function propertyRadarOwner(args: any) {

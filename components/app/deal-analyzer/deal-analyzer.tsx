@@ -12,7 +12,7 @@ import { AnalyzerBuyingCosts } from "./analyzer-buying-costs"
 import { AnalyzerSellingCosts } from "./analyzer-selling-costs"
 import { AnalyzerReview } from "./analyzer-review"
 import { AnalyzerResultsPanel } from "./analyzer-results-panel"
-import { Save, Send, Loader2, Check, Download } from "lucide-react"
+import { Save, Loader2, Check, Download, Sparkles } from "lucide-react"
 import type { DealData, Calculations } from "./types"
 
 const initialDealData: DealData = {
@@ -555,7 +555,8 @@ Holding Period.........: ${d.holdingPeriodMonths} months
                   Continue
                 </button>
               ) : (
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Save to Library */}
                   <button
                     onClick={handleSaveToLibrary}
                     disabled={saving || saved}
@@ -568,28 +569,32 @@ Holding Period.........: ${d.holdingPeriodMonths} months
                     ) : (
                       <Save className="h-4 w-4" />
                     )}
-                    {saved ? "Saved!" : "Save to Library"}
+                    {saved ? "Saved!" : "Save Deal"}
                   </button>
+
+                  {/* Download Worksheet */}
                   <button
                     onClick={handleDownloadWorksheet}
-                    className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-4 py-2.5 text-sm font-medium text-primary hover:bg-primary/20"
+                    className="flex items-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
                   >
                     <Download className="h-4 w-4" />
                     Download
                   </button>
+
+                  {/* Submit for Capital - Main CTA */}
                   <button
                     onClick={handleSubmitToTeam}
                     disabled={submitting || submitted}
-                    className="flex items-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted disabled:opacity-50"
+                    className="flex items-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
                   >
                     {submitting ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : submitted ? (
                       <Check className="h-4 w-4" />
                     ) : (
-                      <Send className="h-4 w-4" />
+                      <Sparkles className="h-4 w-4" />
                     )}
-                    {submitted ? "Submitted!" : "Submit to Team"}
+                    {submitted ? "Submitted!" : "Submit for Capital"}
                   </button>
                 </div>
               )}

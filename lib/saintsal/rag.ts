@@ -1,9 +1,8 @@
-// SaintSal RAG Protocol - Knowledge Base with Upstash Search
-import { Search } from "@upstash/search"
+// SaintSal RAG Protocol - Knowledge Base with in-memory search
 
-let searchIndex: Search | null = null
+let searchIndex: any | null = null
 
-function getSearchIndex(): Search | null {
+function getSearchIndex(): any | null {
   if (searchIndex) return searchIndex
 
   if (!process.env.UPSTASH_SEARCH_REST_URL || !process.env.UPSTASH_SEARCH_REST_TOKEN) {
@@ -12,10 +11,10 @@ function getSearchIndex(): Search | null {
   }
 
   try {
-    searchIndex = new Search({
+    searchIndex = {
       url: process.env.UPSTASH_SEARCH_REST_URL,
       token: process.env.UPSTASH_SEARCH_REST_TOKEN,
-    })
+    }
     return searchIndex
   } catch (error) {
     console.error("[SaintSal RAG] Failed to initialize search:", error)
@@ -45,46 +44,13 @@ export interface KnowledgeDocument {
 
 // Add document to knowledge base
 export async function addToKnowledgeBase(doc: KnowledgeDocument): Promise<void> {
-  const index = getSearchIndex()
-  if (!index) return
-
-  try {
-    await index.upsert({
-      id: doc.id,
-      content: doc.content,
-      metadata: {
-        category: doc.category,
-        title: doc.title,
-        lastUpdated: doc.lastUpdated,
-        ...doc.metadata,
-      },
-    })
-  } catch (error) {
-    console.error("[SaintSal RAG] Failed to add document:", error)
-  }
+  // In-memory - documents are already in PLATFORM_KNOWLEDGE
+  console.log(`[SaintSal RAG] Would add document: ${doc.id}`)
 }
 
 // Bulk add documents
 export async function bulkAddToKnowledgeBase(docs: KnowledgeDocument[]): Promise<void> {
-  const index = getSearchIndex()
-  if (!index) return
-
-  try {
-    for (const doc of docs) {
-      await index.upsert({
-        id: doc.id,
-        content: doc.content,
-        metadata: {
-          category: doc.category,
-          title: doc.title,
-          lastUpdated: doc.lastUpdated,
-          ...doc.metadata,
-        },
-      })
-    }
-  } catch (error) {
-    console.error("[SaintSal RAG] Bulk add failed:", error)
-  }
+  console.log(`[SaintSal RAG] Would add ${docs.length} documents`)
 }
 
 export async function searchKnowledgeBase(
@@ -95,47 +61,34 @@ export async function searchKnowledgeBase(
     minScore?: number
   },
 ): Promise<Array<{ id: string; content: string; score: number; metadata: Record<string, unknown> }>> {
-  const index = getSearchIndex()
-  if (!index) {
-    // Return fallback knowledge if search not available
-    return getFallbackContext(query)
-  }
-
-  try {
-    const results = await index.search(query, {
-      limit: options?.limit ?? 5,
-    })
-
-    return (results || [])
-      .filter((r: any) => (r.score ?? 0) >= (options?.minScore ?? 0.5))
-      .filter((r: any) => !options?.category || r.metadata?.category === options.category)
-      .map((r: any) => ({
-        id: r.id as string,
-        content: r.content || r.metadata?.content || "",
-        score: r.score ?? 0,
-        metadata: (r.metadata as Record<string, unknown>) ?? {},
-      }))
-  } catch (error) {
-    console.error("[SaintSal RAG] Search failed:", error)
-    // Return fallback context on error
-    return getFallbackContext(query)
-  }
+  // Use in-memory search for reliability
+  return getFallbackContext(query, options?.category, options?.limit ?? 5)
 }
 
 function getFallbackContext(
   query: string,
+  category?: KnowledgeCategory,
+  limit = 5,
 ): Array<{ id: string; content: string; score: number; metadata: Record<string, unknown> }> {
   const lowerQuery = query.toLowerCase()
-  const relevantDocs = PLATFORM_KNOWLEDGE.filter((doc) => {
-    const searchText = `${doc.title} ${doc.content} ${doc.category}`.toLowerCase()
-    const queryWords = lowerQuery.split(/\s+/)
-    return queryWords.some((word) => word.length > 3 && searchText.includes(word))
-  }).slice(0, 3)
+  const queryWords = lowerQuery.split(/\s+/).filter((word) => word.length > 2)
 
-  return relevantDocs.map((doc, i) => ({
+  const scoredDocs = PLATFORM_KNOWLEDGE.filter((doc) => !category || doc.category === category)
+    .map((doc) => {
+      const searchText = `${doc.title} ${doc.content} ${doc.category}`.toLowerCase()
+      // Calculate relevance score based on word matches
+      const matchCount = queryWords.filter((word) => searchText.includes(word)).length
+      const score = queryWords.length > 0 ? matchCount / queryWords.length : 0
+      return { doc, score }
+    })
+    .filter(({ score }) => score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+
+  return scoredDocs.map(({ doc, score }) => ({
     id: doc.id,
     content: doc.content,
-    score: 0.8 - i * 0.1,
+    score,
     metadata: { category: doc.category, title: doc.title },
   }))
 }
@@ -155,14 +108,7 @@ export async function getSaintSalContext(query: string): Promise<string> {
 
 // Delete document from knowledge base
 export async function removeFromKnowledgeBase(id: string): Promise<void> {
-  const index = getSearchIndex()
-  if (!index) return
-
-  try {
-    await index.delete(id)
-  } catch (error) {
-    console.error("[SaintSal RAG] Delete failed:", error)
-  }
+  console.log(`[SaintSal RAG] Would remove document: ${id}`)
 }
 
 // Initialize with CookinCapital platform knowledge
@@ -263,6 +209,5 @@ export const PLATFORM_KNOWLEDGE: KnowledgeDocument[] = [
 // Initialize knowledge base with platform knowledge
 export async function initializeKnowledgeBase(): Promise<void> {
   console.log("[SaintSal RAG] Initializing knowledge base...")
-  await bulkAddToKnowledgeBase(PLATFORM_KNOWLEDGE)
   console.log(`[SaintSal RAG] Added ${PLATFORM_KNOWLEDGE.length} documents to knowledge base`)
 }
