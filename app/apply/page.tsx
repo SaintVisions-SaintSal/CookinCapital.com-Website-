@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import {
   ArrowLeft,
   ArrowRight,
@@ -27,6 +28,8 @@ const STEPS = [
   { id: 3, name: "Owner Info", icon: User },
   { id: 4, name: "Review & Sign", icon: FileSignature },
 ]
+
+const CREDIT_PULL_URL = "https://member.myscoreiq.com/get-fico-max.aspx?offercode=4321396P"
 
 export default function ApplyPage() {
   const [currentStep, setCurrentStep] = useState(1)
@@ -191,13 +194,34 @@ export default function ApplyPage() {
             <CheckCircle2 className="h-8 w-8 text-green-500" />
           </div>
           <h1 className="text-2xl font-semibold text-foreground mb-2">Application Submitted!</h1>
-          <p className="text-muted-foreground mb-6">
-            Your application has been received and sent to our team at support@cookin.io
-          </p>
+          <p className="text-muted-foreground mb-6">Your application has been received and sent to our team.</p>
           <div className="bg-secondary rounded-lg p-4 mb-6">
             <p className="text-xs text-muted-foreground mb-1">Application ID</p>
             <p className="text-lg font-mono font-semibold text-primary">{applicationId}</p>
           </div>
+
+          {/* Credit Pull CTA */}
+          <div className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/30 rounded-lg p-4 mb-6">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <CreditCard className="h-5 w-5 text-primary" />
+              <span className="font-semibold text-foreground">Speed Up Your Approval</span>
+            </div>
+            <p className="text-sm text-muted-foreground mb-3">
+              Pull your FICO credit report now to expedite your application review.
+            </p>
+            <a
+              href="https://member.myscoreiq.com/get-fico-max.aspx?offercode=4321396P"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Button className="w-full bg-primary hover:bg-primary/90">
+                <CreditCard className="mr-2 h-4 w-4" />
+                Get Your FICO Score
+                <ExternalLink className="ml-2 h-3.5 w-3.5" />
+              </Button>
+            </a>
+          </div>
+
           <div className="space-y-3 text-left bg-card border border-border rounded-lg p-4 mb-6">
             <h3 className="font-medium text-foreground">What happens next?</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
@@ -207,7 +231,7 @@ export default function ApplyPage() {
               </li>
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                <span>We'll match you with the best funding options using SaintSal™</span>
+                <span>{"We'll match you with the best funding options using SaintSal™"}</span>
               </li>
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 shrink-0" />
@@ -221,8 +245,10 @@ export default function ApplyPage() {
                 Return Home
               </Button>
             </Link>
-            <Link href="/documents" className="flex-1">
-              <Button className="w-full bg-primary">Upload Documents</Button>
+            <Link href="/app/analyzer" className="flex-1">
+              <Button variant="outline" className="w-full bg-transparent">
+                Analyze Another Deal
+              </Button>
             </Link>
           </div>
           <p className="text-xs text-muted-foreground mt-6">
@@ -244,7 +270,7 @@ export default function ApplyPage() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
             <Link
               href="/"
@@ -254,14 +280,18 @@ export default function ApplyPage() {
               <span className="text-sm">Back to Home</span>
             </Link>
             <Link href="/" className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm">
-                C
-              </div>
-              <span className="text-lg font-semibold text-foreground">
-                Cookin<span className="text-primary">Cap</span>
-              </span>
+              <Image src="/images/cookincap-logo.png" alt="CookinCap" width={40} height={40} className="rounded-lg" />
+              <span className="text-lg font-semibold text-foreground">CookinCap</span>
             </Link>
-            <div className="w-24" />
+            <Link
+              href={CREDIT_PULL_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+            >
+              <CreditCard className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Pull Credit</span>
+            </Link>
           </div>
         </div>
       </header>
@@ -271,7 +301,7 @@ export default function ApplyPage() {
           {/* Progress Header */}
           <div className="mb-8">
             <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl text-center mb-2">
-              Working Capital Pre-Qualification
+              Working Capital Application
             </h1>
             <p className="text-center text-muted-foreground mb-6">Complete all steps to submit your application</p>
 
@@ -493,41 +523,9 @@ export default function ApplyPage() {
                           id="businessDescription"
                           value={formData.businessDescription}
                           onChange={(e) => updateField("businessDescription", e.target.value)}
-                          placeholder="Brief description of your business activities"
-                          className="mt-1.5 w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          placeholder="Describe your business and what you do..."
+                          className="mt-1.5 w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm resize-none"
                         />
-                      </div>
-                    </div>
-                    <div className="grid sm:grid-cols-3 gap-4 mt-4">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="homeBasedBusiness"
-                          checked={formData.homeBasedBusiness}
-                          onCheckedChange={(checked) => updateField("homeBasedBusiness", !!checked)}
-                        />
-                        <Label htmlFor="homeBasedBusiness" className="text-sm">
-                          Home Based Business?
-                        </Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="openJudgements"
-                          checked={formData.openJudgements}
-                          onCheckedChange={(checked) => updateField("openJudgements", !!checked)}
-                        />
-                        <Label htmlFor="openJudgements" className="text-sm">
-                          Open Judgements/Liens?
-                        </Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="openBankruptcies"
-                          checked={formData.openBankruptcies}
-                          onCheckedChange={(checked) => updateField("openBankruptcies", !!checked)}
-                        />
-                        <Label htmlFor="openBankruptcies" className="text-sm">
-                          Open Bankruptcies?
-                        </Label>
                       </div>
                     </div>
                   </div>
@@ -540,125 +538,73 @@ export default function ApplyPage() {
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="amountRequested">Amount Requested *</Label>
-                      <Input
-                        id="amountRequested"
-                        value={formData.amountRequested}
-                        onChange={(e) => updateField("amountRequested", e.target.value)}
-                        placeholder="$50,000"
-                        className="mt-1.5"
-                      />
+                      <div className="relative mt-1.5">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                        <Input
+                          id="amountRequested"
+                          value={formData.amountRequested}
+                          onChange={(e) => updateField("amountRequested", e.target.value)}
+                          placeholder="250,000"
+                          className="pl-7"
+                        />
+                      </div>
                     </div>
                     <div>
-                      <Label>When Are Funds Needed? *</Label>
+                      <Label>When Do You Need Funds? *</Label>
                       <select
                         value={formData.fundsNeeded}
                         onChange={(e) => updateField("fundsNeeded", e.target.value)}
                         className="mt-1.5 w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
                       >
-                        <option value="">Select timeline</option>
-                        <option value="asap">ASAP</option>
-                        <option value="30days">30 Days</option>
-                        <option value="60days">60+ Days</option>
+                        <option value="">Select timeframe</option>
+                        <option value="immediate">Immediately</option>
+                        <option value="1-2-weeks">1-2 Weeks</option>
+                        <option value="1-month">Within 1 Month</option>
+                        <option value="2-3-months">2-3 Months</option>
+                        <option value="just-exploring">Just Exploring</option>
                       </select>
                     </div>
                     <div className="sm:col-span-2">
-                      <Label htmlFor="useOfFunds">Desired Use of Funding Proceeds *</Label>
+                      <Label htmlFor="useOfFunds">Use of Funds *</Label>
                       <textarea
                         id="useOfFunds"
                         value={formData.useOfFunds}
                         onChange={(e) => updateField("useOfFunds", e.target.value)}
-                        placeholder="Working capital, equipment purchase, expansion, etc."
-                        className="mt-1.5 w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        placeholder="What will you use the funds for? (e.g., property acquisition, rehab costs, working capital...)"
+                        className="mt-1.5 w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm resize-none"
                       />
                     </div>
                   </div>
 
                   <div className="border-t border-border pt-6">
-                    <h3 className="font-medium text-foreground mb-4">Revenue Information</h3>
-                    <div className="grid sm:grid-cols-3 gap-4">
+                    <h3 className="font-medium text-foreground mb-4">Financial Information</h3>
+                    <div className="grid sm:grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="grossAnnualSales">Gross Annual Sales *</Label>
-                        <Input
-                          id="grossAnnualSales"
-                          value={formData.grossAnnualSales}
-                          onChange={(e) => updateField("grossAnnualSales", e.target.value)}
-                          placeholder="$500,000"
-                          className="mt-1.5"
-                        />
+                        <div className="relative mt-1.5">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                          <Input
+                            id="grossAnnualSales"
+                            value={formData.grossAnnualSales}
+                            onChange={(e) => updateField("grossAnnualSales", e.target.value)}
+                            placeholder="500,000"
+                            className="pl-7"
+                          />
+                        </div>
                       </div>
                       <div>
                         <Label htmlFor="grossMonthlySales">Gross Monthly Sales *</Label>
-                        <Input
-                          id="grossMonthlySales"
-                          value={formData.grossMonthlySales}
-                          onChange={(e) => updateField("grossMonthlySales", e.target.value)}
-                          placeholder="$40,000"
-                          className="mt-1.5"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="monthlyCCVolume">Monthly Credit Card Volume</Label>
-                        <Input
-                          id="monthlyCCVolume"
-                          value={formData.monthlyCCVolume}
-                          onChange={(e) => updateField("monthlyCCVolume", e.target.value)}
-                          placeholder="$15,000"
-                          className="mt-1.5"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="border-t border-border pt-6">
-                    <h3 className="font-medium text-foreground mb-4">Existing Debt</h3>
-                    <div className="grid sm:grid-cols-2 gap-4">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="currentCashAdvance"
-                          checked={formData.currentCashAdvance}
-                          onCheckedChange={(checked) => updateField("currentCashAdvance", !!checked)}
-                        />
-                        <Label htmlFor="currentCashAdvance" className="text-sm">
-                          Current Cash Advance or Business Loan?
-                        </Label>
-                      </div>
-                      {formData.currentCashAdvance && (
-                        <div>
-                          <Label htmlFor="cashAdvanceBalance">Outstanding Balance</Label>
+                        <div className="relative mt-1.5">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                           <Input
-                            id="cashAdvanceBalance"
-                            value={formData.cashAdvanceBalance}
-                            onChange={(e) => updateField("cashAdvanceBalance", e.target.value)}
-                            placeholder="$25,000"
-                            className="mt-1.5"
+                            id="grossMonthlySales"
+                            value={formData.grossMonthlySales}
+                            onChange={(e) => updateField("grossMonthlySales", e.target.value)}
+                            placeholder="40,000"
+                            className="pl-7"
                           />
                         </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Soft Credit Pull CTA */}
-                  <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-6">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                        <CreditCard className="h-6 w-6 text-primary" />
                       </div>
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-foreground">Soft Credit Check Required</h3>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Complete your soft credit pull to expedite your application. This will NOT affect your credit
-                          score.
-                        </p>
-                      </div>
-                      <a
-                        href="https://member.myscoreiq.com/get-fico-max.aspx?offercode=4321396P"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-colors shrink-0"
-                      >
-                        <span>Get Your FICO Score</span>
-                        <ExternalLink className="h-4 w-4" />
-                      </a>
                     </div>
                   </div>
                 </div>
@@ -674,35 +620,28 @@ export default function ApplyPage() {
                         id="ownerFirstName"
                         value={formData.ownerFirstName}
                         onChange={(e) => updateField("ownerFirstName", e.target.value)}
+                        placeholder="John"
                         className="mt-1.5"
                       />
                     </div>
                     <div className="sm:col-span-1">
-                      <Label htmlFor="ownerMI">MI</Label>
+                      <Label htmlFor="ownerMI">M.I.</Label>
                       <Input
                         id="ownerMI"
                         value={formData.ownerMI}
                         onChange={(e) => updateField("ownerMI", e.target.value)}
+                        placeholder="A"
                         className="mt-1.5"
                         maxLength={1}
                       />
                     </div>
-                    <div className="sm:col-span-2">
+                    <div className="sm:col-span-3">
                       <Label htmlFor="ownerLastName">Last Name *</Label>
                       <Input
                         id="ownerLastName"
                         value={formData.ownerLastName}
                         onChange={(e) => updateField("ownerLastName", e.target.value)}
-                        className="mt-1.5"
-                      />
-                    </div>
-                    <div className="sm:col-span-1">
-                      <Label htmlFor="ownershipPercent">% Owned *</Label>
-                      <Input
-                        id="ownershipPercent"
-                        value={formData.ownershipPercent}
-                        onChange={(e) => updateField("ownershipPercent", e.target.value)}
-                        placeholder="51%"
+                        placeholder="Smith"
                         className="mt-1.5"
                       />
                     </div>
@@ -712,39 +651,57 @@ export default function ApplyPage() {
                         id="ownerTitle"
                         value={formData.ownerTitle}
                         onChange={(e) => updateField("ownerTitle", e.target.value)}
-                        placeholder="CEO, President, Owner, etc."
+                        placeholder="CEO / Owner"
                         className="mt-1.5"
                       />
                     </div>
                     <div className="sm:col-span-3">
-                      <Label htmlFor="ownerDOB">Date of Birth *</Label>
+                      <Label htmlFor="ownershipPercent">Ownership % *</Label>
                       <Input
-                        id="ownerDOB"
-                        type="date"
-                        value={formData.ownerDOB}
-                        onChange={(e) => updateField("ownerDOB", e.target.value)}
+                        id="ownershipPercent"
+                        value={formData.ownershipPercent}
+                        onChange={(e) => updateField("ownershipPercent", e.target.value)}
+                        placeholder="100"
                         className="mt-1.5"
                       />
                     </div>
-                    <div className="sm:col-span-3">
-                      <Label htmlFor="ownerSSN">Social Security Number *</Label>
-                      <Input
-                        id="ownerSSN"
-                        type="password"
-                        value={formData.ownerSSN}
-                        onChange={(e) => updateField("ownerSSN", e.target.value)}
-                        placeholder="XXX-XX-XXXX"
-                        className="mt-1.5"
-                      />
-                    </div>
-                    <div className="sm:col-span-3">
-                      <Label htmlFor="ownerMobile">Mobile Phone *</Label>
-                      <Input
-                        id="ownerMobile"
-                        value={formData.ownerMobile}
-                        onChange={(e) => updateField("ownerMobile", e.target.value)}
-                        className="mt-1.5"
-                      />
+                  </div>
+
+                  <div className="border-t border-border pt-6">
+                    <h3 className="font-medium text-foreground mb-4">Contact & Personal Info</h3>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="ownerMobile">Mobile Phone *</Label>
+                        <Input
+                          id="ownerMobile"
+                          value={formData.ownerMobile}
+                          onChange={(e) => updateField("ownerMobile", e.target.value)}
+                          placeholder="(555) 123-4567"
+                          className="mt-1.5"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="ownerDOB">Date of Birth *</Label>
+                        <Input
+                          id="ownerDOB"
+                          type="date"
+                          value={formData.ownerDOB}
+                          onChange={(e) => updateField("ownerDOB", e.target.value)}
+                          className="mt-1.5"
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <Label htmlFor="ownerSSN">Social Security Number *</Label>
+                        <Input
+                          id="ownerSSN"
+                          value={formData.ownerSSN}
+                          onChange={(e) => updateField("ownerSSN", e.target.value)}
+                          placeholder="XXX-XX-XXXX"
+                          className="mt-1.5"
+                          type="password"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Your SSN is encrypted and secure</p>
+                      </div>
                     </div>
                   </div>
 
@@ -757,6 +714,7 @@ export default function ApplyPage() {
                           id="ownerAddress"
                           value={formData.ownerAddress}
                           onChange={(e) => updateField("ownerAddress", e.target.value)}
+                          placeholder="456 Oak Avenue"
                           className="mt-1.5"
                         />
                       </div>
@@ -766,6 +724,7 @@ export default function ApplyPage() {
                           id="ownerCity"
                           value={formData.ownerCity}
                           onChange={(e) => updateField("ownerCity", e.target.value)}
+                          placeholder="City"
                           className="mt-1.5"
                         />
                       </div>
@@ -775,6 +734,7 @@ export default function ApplyPage() {
                           id="ownerState"
                           value={formData.ownerState}
                           onChange={(e) => updateField("ownerState", e.target.value)}
+                          placeholder="CA"
                           className="mt-1.5"
                           maxLength={2}
                         />
@@ -785,107 +745,25 @@ export default function ApplyPage() {
                           id="ownerZip"
                           value={formData.ownerZip}
                           onChange={(e) => updateField("ownerZip", e.target.value)}
+                          placeholder="90210"
                           className="mt-1.5"
                         />
                       </div>
                     </div>
                   </div>
 
-                  {/* Co-Owner Section */}
+                  {/* Co-Owner Toggle */}
                   <div className="border-t border-border pt-6">
-                    <div className="flex items-center space-x-2 mb-4">
+                    <div className="flex items-center space-x-2">
                       <Checkbox
                         id="hasCoOwner"
                         checked={formData.hasCoOwner}
-                        onCheckedChange={(checked) => updateField("hasCoOwner", !!checked)}
+                        onCheckedChange={(checked) => updateField("hasCoOwner", checked as boolean)}
                       />
-                      <Label htmlFor="hasCoOwner" className="text-sm font-medium">
-                        Add Co-Owner/Partner (20%+ ownership)
+                      <Label htmlFor="hasCoOwner" className="cursor-pointer">
+                        Add a Co-Owner / Guarantor
                       </Label>
                     </div>
-                    {formData.hasCoOwner && (
-                      <div className="space-y-4 p-4 rounded-lg bg-secondary/30">
-                        <div className="grid sm:grid-cols-6 gap-4">
-                          <div className="sm:col-span-2">
-                            <Label htmlFor="coOwnerFirstName">First Name *</Label>
-                            <Input
-                              id="coOwnerFirstName"
-                              value={formData.coOwnerFirstName}
-                              onChange={(e) => updateField("coOwnerFirstName", e.target.value)}
-                              className="mt-1.5"
-                            />
-                          </div>
-                          <div className="sm:col-span-1">
-                            <Label htmlFor="coOwnerMI">MI</Label>
-                            <Input
-                              id="coOwnerMI"
-                              value={formData.coOwnerMI}
-                              onChange={(e) => updateField("coOwnerMI", e.target.value)}
-                              className="mt-1.5"
-                              maxLength={1}
-                            />
-                          </div>
-                          <div className="sm:col-span-2">
-                            <Label htmlFor="coOwnerLastName">Last Name *</Label>
-                            <Input
-                              id="coOwnerLastName"
-                              value={formData.coOwnerLastName}
-                              onChange={(e) => updateField("coOwnerLastName", e.target.value)}
-                              className="mt-1.5"
-                            />
-                          </div>
-                          <div className="sm:col-span-1">
-                            <Label htmlFor="coOwnershipPercent">% Owned *</Label>
-                            <Input
-                              id="coOwnershipPercent"
-                              value={formData.coOwnershipPercent}
-                              onChange={(e) => updateField("coOwnershipPercent", e.target.value)}
-                              placeholder="49%"
-                              className="mt-1.5"
-                            />
-                          </div>
-                          <div className="sm:col-span-3">
-                            <Label htmlFor="coOwnerTitle">Title *</Label>
-                            <Input
-                              id="coOwnerTitle"
-                              value={formData.coOwnerTitle}
-                              onChange={(e) => updateField("coOwnerTitle", e.target.value)}
-                              className="mt-1.5"
-                            />
-                          </div>
-                          <div className="sm:col-span-3">
-                            <Label htmlFor="coOwnerDOB">Date of Birth *</Label>
-                            <Input
-                              id="coOwnerDOB"
-                              type="date"
-                              value={formData.coOwnerDOB}
-                              onChange={(e) => updateField("coOwnerDOB", e.target.value)}
-                              className="mt-1.5"
-                            />
-                          </div>
-                          <div className="sm:col-span-3">
-                            <Label htmlFor="coOwnerSSN">Social Security Number *</Label>
-                            <Input
-                              id="coOwnerSSN"
-                              type="password"
-                              value={formData.coOwnerSSN}
-                              onChange={(e) => updateField("coOwnerSSN", e.target.value)}
-                              placeholder="XXX-XX-XXXX"
-                              className="mt-1.5"
-                            />
-                          </div>
-                          <div className="sm:col-span-3">
-                            <Label htmlFor="coOwnerMobile">Mobile Phone *</Label>
-                            <Input
-                              id="coOwnerMobile"
-                              value={formData.coOwnerMobile}
-                              onChange={(e) => updateField("coOwnerMobile", e.target.value)}
-                              className="mt-1.5"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               )}
@@ -894,196 +772,120 @@ export default function ApplyPage() {
               {currentStep === 4 && (
                 <div className="space-y-6">
                   {/* Summary */}
-                  <div className="grid sm:grid-cols-2 gap-6">
-                    <div className="rounded-lg bg-secondary/30 p-4">
-                      <h3 className="font-medium text-foreground mb-3">Business Summary</h3>
-                      <dl className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <dt className="text-muted-foreground">Business Name</dt>
-                          <dd className="text-foreground font-medium">{formData.businessLegalName || "—"}</dd>
-                        </div>
-                        <div className="flex justify-between">
-                          <dt className="text-muted-foreground">Entity Type</dt>
-                          <dd className="text-foreground font-medium">{formData.legalEntity || "—"}</dd>
-                        </div>
-                        <div className="flex justify-between">
-                          <dt className="text-muted-foreground">Annual Revenue</dt>
-                          <dd className="text-foreground font-medium">{formData.grossAnnualSales || "—"}</dd>
-                        </div>
-                      </dl>
-                    </div>
-                    <div className="rounded-lg bg-secondary/30 p-4">
-                      <h3 className="font-medium text-foreground mb-3">Funding Request</h3>
-                      <dl className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <dt className="text-muted-foreground">Amount Requested</dt>
-                          <dd className="text-primary font-semibold">{formData.amountRequested || "—"}</dd>
-                        </div>
-                        <div className="flex justify-between">
-                          <dt className="text-muted-foreground">Timeline</dt>
-                          <dd className="text-foreground font-medium">{formData.fundsNeeded || "—"}</dd>
-                        </div>
-                        <div className="flex justify-between">
-                          <dt className="text-muted-foreground">Primary Owner</dt>
-                          <dd className="text-foreground font-medium">
-                            {formData.ownerFirstName} {formData.ownerLastName}
-                          </dd>
-                        </div>
-                      </dl>
+                  <div className="rounded-lg bg-secondary/50 p-4 space-y-3">
+                    <h3 className="font-medium text-foreground">Application Summary</h3>
+                    <div className="grid sm:grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Business:</span>{" "}
+                        <span className="text-foreground">{formData.businessLegalName || "Not provided"}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Amount:</span>{" "}
+                        <span className="text-foreground text-primary font-semibold">
+                          ${Number(formData.amountRequested || 0).toLocaleString()}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Owner:</span>{" "}
+                        <span className="text-foreground">
+                          {formData.ownerFirstName} {formData.ownerLastName}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Email:</span>{" "}
+                        <span className="text-foreground">{formData.email || "Not provided"}</span>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Disclosures */}
-                  <div className="border-t border-border pt-6">
-                    <h3 className="font-medium text-foreground mb-4">Authorization & Disclosures</h3>
-                    <div className="rounded-lg bg-secondary/30 p-4 max-h-48 overflow-y-auto text-xs text-muted-foreground space-y-3">
-                      <p>
-                        By signing below, I/we authorize Saint Vision Group LLC and its affiliates, partners, and
-                        assigns ("Company") to: (1) obtain consumer credit reports and business credit reports on the
-                        undersigned and the Business; (2) verify information provided in this application; (3) share
-                        information with potential lenders and funding sources for the purpose of obtaining financing.
-                      </p>
-                      <p>
-                        I/we certify that all information provided is true and correct. I/we understand that any
-                        misrepresentation may result in denial of this application and/or civil or criminal penalties.
-                        I/we authorize the Company to contact me/us via phone, email, or text message regarding this
-                        application and related services.
-                      </p>
-                      <p>
-                        This authorization shall remain in effect until revoked in writing. I/we understand that the
-                        Company acts as a broker and does not directly fund loans. Terms, rates, and approval are
-                        subject to lender requirements and underwriting criteria.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
+                  {/* Terms */}
+                  <div className="space-y-4">
                     <div className="flex items-start space-x-3">
                       <Checkbox
                         id="agreeToTerms"
                         checked={formData.agreeToTerms}
-                        onCheckedChange={(checked) => updateField("agreeToTerms", !!checked)}
-                        className="mt-0.5"
+                        onCheckedChange={(checked) => updateField("agreeToTerms", checked as boolean)}
+                        className="mt-1"
                       />
-                      <Label htmlFor="agreeToTerms" className="text-sm leading-relaxed">
-                        I have read and agree to the terms and conditions above, and certify that all information
-                        provided is accurate and complete. I authorize Saint Vision Group LLC to obtain my credit report
-                        for the purpose of evaluating this application. *
+                      <Label
+                        htmlFor="agreeToTerms"
+                        className="text-sm text-muted-foreground cursor-pointer leading-relaxed"
+                      >
+                        I certify that all information provided is true and accurate. I authorize CookinCap and its
+                        lending partners to verify my business and personal information for the purpose of this
+                        application.
+                      </Label>
+                    </div>
+
+                    <div className="flex items-start space-x-3">
+                      <Checkbox
+                        id="agreeToCreditPull"
+                        checked={formData.agreeToCreditPull}
+                        onCheckedChange={(checked) => updateField("agreeToCreditPull", checked as boolean)}
+                        className="mt-1"
+                      />
+                      <Label
+                        htmlFor="agreeToCreditPull"
+                        className="text-sm text-muted-foreground cursor-pointer leading-relaxed"
+                      >
+                        I authorize CookinCap to obtain my credit report for the purpose of evaluating my application.
                       </Label>
                     </div>
                   </div>
 
+                  {/* Signature */}
                   <div className="border-t border-border pt-6">
-                    <h3 className="font-medium text-foreground mb-4">Electronic Signature</h3>
-                    <p className="text-sm text-muted-foreground mb-6">
-                      Use your mouse, finger, or stylus to sign below. Your signature will be timestamped and legally
-                      binding.
-                    </p>
-
-                    <div className="space-y-6">
-                      <SignaturePad label="Owner Signature" required={true} onSignatureChange={handleOwnerSignature} />
-
-                      {formData.hasCoOwner && (
-                        <SignaturePad
-                          label="Co-Owner Signature"
-                          required={true}
-                          onSignatureChange={handleCoOwnerSignature}
-                        />
-                      )}
-                    </div>
+                    <SignaturePad onSignatureChange={handleOwnerSignature} label="Owner Signature" required />
                   </div>
 
-                  <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
-                    <div className="flex items-start gap-3">
-                      <CreditCard className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-foreground">Soft Credit Check (Recommended)</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          We will request your credit report as part of the funding process. You can complete a soft
-                          credit check now to speed up your approval. This does <strong>NOT</strong> affect your credit
-                          score.
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-2 italic">
-                          Note: A credit report will be required before final funding approval.
-                        </p>
-                      </div>
-                      <a
-                        href="https://member.myscoreiq.com/get-fico-max.aspx?offercode=4321396P"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground font-medium text-xs hover:bg-primary/90 transition-colors shrink-0"
-                      >
-                        <span>Get My Score</span>
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
+                  {/* Co-Owner Signature if applicable */}
+                  {formData.hasCoOwner && (
+                    <div className="border-t border-border pt-6">
+                      <SignaturePad onSignatureChange={handleCoOwnerSignature} label="Co-Owner Signature" required />
                     </div>
-                  </div>
+                  )}
                 </div>
               )}
             </div>
 
-            {/* Navigation Buttons */}
-            <div className="bg-secondary/30 px-6 py-4 border-t border-border">
-              <div className="flex items-center justify-between">
-                <Button
-                  variant="outline"
-                  onClick={prevStep}
-                  disabled={currentStep === 1}
-                  className="gap-2 bg-transparent"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  Previous
+            {/* Navigation */}
+            <div className="px-6 py-4 bg-secondary/30 border-t border-border flex items-center justify-between">
+              <Button variant="outline" onClick={prevStep} disabled={currentStep === 1} className="bg-transparent">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Previous
+              </Button>
+
+              {currentStep < 4 ? (
+                <Button onClick={nextStep} className="bg-primary hover:bg-primary/90">
+                  Next
+                  <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Shield className="h-4 w-4 text-primary" />
-                  <span>Your data is encrypted and secure</span>
-                </div>
-                {currentStep < 4 ? (
-                  <Button onClick={nextStep} className="gap-2 bg-primary hover:bg-primary/90">
-                    Next
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={handleSubmit}
-                    disabled={!canSubmit || isSubmitting}
-                    className="gap-2 bg-primary hover:bg-primary/90"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Submitting...
-                      </>
-                    ) : (
-                      <>
-                        Submit Application
-                        <CheckCircle2 className="h-4 w-4" />
-                      </>
-                    )}
-                  </Button>
-                )}
-              </div>
+              ) : (
+                <Button
+                  onClick={handleSubmit}
+                  disabled={!canSubmit || isSubmitting}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="mr-2 h-4 w-4" />
+                      Submit Application
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
           </div>
 
-          {/* Trust Badges */}
-          <div className="flex flex-wrap justify-center gap-6 mt-8 pt-8 border-t border-border">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
-              <span>SSL Encrypted</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
-              <span>NMLS Licensed</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
-              <span>No Hard Credit Pull</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
-              <span>Saint Vision Group</span>
-            </div>
+          {/* Security badge */}
+          <div className="mt-6 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+            <Shield className="h-3.5 w-3.5" />
+            <span>Your information is encrypted and secure</span>
           </div>
         </div>
       </main>

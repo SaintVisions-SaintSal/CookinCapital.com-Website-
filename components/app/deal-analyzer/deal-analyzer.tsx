@@ -603,7 +603,7 @@ Holding Period.........: ${d.holdingPeriodMonths} months
         </div>
       </div>
 
-      <AnalyzerResultsPanel data={dealData} calculations={calculations} />
+      {currentStep === 7 && <AnalyzerResultsPanel data={dealData} calculations={calculations} />}
     </div>
   )
 }

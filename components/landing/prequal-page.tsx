@@ -3,7 +3,7 @@
 import { useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { ArrowLeft, Shield, Clock, CheckCircle2, Phone } from "lucide-react"
+import { ArrowLeft, Shield, Clock, CheckCircle2, Phone, CreditCard, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 export function PreQualPage() {
@@ -75,6 +75,25 @@ export function PreQualPage() {
                   <div className="text-sm text-muted-foreground">SaintSal™ matches you with the right lender</div>
                 </div>
               </div>
+            </div>
+
+            <div className="p-4 rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/30">
+              <div className="flex items-center gap-2 mb-2">
+                <CreditCard className="h-4 w-4 text-primary" />
+                <span className="font-medium text-foreground">Pull Your Credit Report</span>
+              </div>
+              <p className="text-sm text-muted-foreground mb-3">
+                Get your FICO score to speed up the approval process.
+              </p>
+              <a
+                href="https://member.myscoreiq.com/get-fico-max.aspx?offercode=4321396P"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-primary font-medium text-sm hover:underline"
+              >
+                Get Your FICO Score
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
             </div>
 
             {/* Contact info */}

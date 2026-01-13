@@ -23,9 +23,10 @@ export function Header() {
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         <nav className="flex h-20 items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
-            <Image src="/logo.png" alt="CookinCap" width={44} height={44} className="rounded-lg" />
-            <span className="text-xl font-semibold tracking-tight text-foreground">
-              Cookin<span className="text-primary">Cap</span>
+            <Image src="/logo.png" alt="CookinCapital" width={44} height={44} className="rounded-lg" />
+            <span className="text-xl font-semibold tracking-tight">
+              <span className="text-primary">Cookin</span>
+              <span className="text-foreground">Capital</span>
             </span>
           </Link>
 
@@ -43,7 +44,7 @@ export function Header() {
           </div>
 
           <div className="hidden items-center gap-3 lg:flex">
-            <Link href="/login">
+            <Link href="/auth/login">
               <Button variant="ghost" className="text-sm font-medium">
                 Sign In
               </Button>
@@ -105,7 +106,7 @@ export function Header() {
                 </Link>
               ))}
               <div className="mt-4 flex flex-col gap-3">
-                <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
+                <Link href="/auth/login" onClick={() => setMobileMenuOpen(false)}>
                   <Button variant="ghost" className="w-full justify-center">
                     Sign In
                   </Button>

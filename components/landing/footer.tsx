@@ -1,4 +1,5 @@
 import Link from "next/link"
+import Image from "next/image"
 import { MapPin, Phone } from "lucide-react"
 
 const footerLinks = {
@@ -35,11 +36,10 @@ export function Footer() {
           {/* Brand */}
           <div className="col-span-2 sm:col-span-4 lg:col-span-2">
             <Link href="/" className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-                <span className="font-serif text-xl font-bold text-primary-foreground">C</span>
-              </div>
-              <span className="text-xl font-semibold tracking-tight text-foreground">
-                Cookin<span className="text-primary">Cap</span>
+              <Image src="/logo.png" alt="CookinCapital" width={44} height={44} className="rounded-lg" />
+              <span className="text-xl font-semibold tracking-tight">
+                <span className="text-primary">Cookin'</span>
+                <span className="text-white">Capital</span>
               </span>
             </Link>
             <p className="mt-4 max-w-xs text-sm text-muted-foreground leading-relaxed">

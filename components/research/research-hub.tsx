@@ -1,123 +1,450 @@
 "use client"
 
 import type React from "react"
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import {
-  Search,
-  Mic,
-  MicOff,
   Send,
   Sparkles,
-  DollarSign,
-  Home,
-  Users,
-  ArrowRight,
   Loader2,
-  FileText,
-  MessageSquare,
-  ImageIcon,
-  BarChart3,
+  Copy,
+  Check,
+  ExternalLink,
+  Globe,
+  Building2,
+  Calculator,
+  DollarSign,
+  MapPin,
+  Search,
+  Users,
+  User,
+  MessageCircle,
+  Mic,
+  Camera,
+  Upload,
+  X,
+  Wand2,
 } from "lucide-react"
-import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 // ===========================================
 // SAINTSAL™ RESEARCH COMMAND CENTER
-// Full Arsenal UI | HACP™ Protocol
+// Mobile-First • ChatGPT/Claude Feel
+// With ElevenLabs Voice Integration
 // ===========================================
+
+interface FileAttachment {
+  id: string
+  file: File
+  preview?: string
+  type: "image" | "document"
+}
 
 interface Message {
   id: string
   role: "user" | "assistant"
   content: string
-  type: "text" | "image" | "property" | "lead" | "research" | "deal" | "trading"
-  data?: any
   timestamp: Date
-  tool?: string
+  sources?: Array<{ title: string; url: string }>
+  images?: string[]
+  attachments?: FileAttachment[]
 }
 
-// Tool categories for sidebar
-const TOOL_CATEGORIES = [
+const SAINTSAL_FEATURES = [
+  "BUY / PASS / RENEGOTIATE signals",
+  "A-F Deal Grading with ROI analysis",
+  "Risk flags & next best moves",
+  "Full audit trail of sources",
+]
+
+const QUICK_ACTIONS = [
+  { label: "Properties", href: "/app/properties", icon: Building2, desc: "Find motivated sellers" },
+  { label: "Analyzer", href: "/app/analyzer", icon: Calculator, desc: "Run the numbers" },
+  { label: "Capital", href: "/capital", icon: DollarSign, desc: "Get funded fast" },
   {
-    name: "Search & Research",
-    icon: Search,
-    tools: [
-      { label: "Web Search", prompt: "Search for ", tool: "tavily_search" },
-      { label: "Deep Research", prompt: "Do deep research on ", tool: "tavily_research" },
-      { label: "Extract URL", prompt: "Extract content from ", tool: "tavily_extract" },
-      { label: "Crawl Website", prompt: "Crawl website ", tool: "tavily_crawl" },
-    ],
-  },
-  {
-    name: "Real Estate",
-    icon: Home,
-    tools: [
-      { label: "Property Lookup", prompt: "Look up property at ", tool: "property_radar_lookup" },
-      { label: "Foreclosures", prompt: "Find foreclosures in ", tool: "property_radar_foreclosures" },
-      { label: "Analyze Deal", prompt: "Analyze deal: purchase $200k, ARV $300k, rehab $30k", tool: "analyze_deal" },
-      { label: "Lending Calc", prompt: "Calculate loan: $500k at 12% for 12 months", tool: "calculate_lending_terms" },
-    ],
-  },
-  {
-    name: "Leads & CRM",
-    icon: Users,
-    tools: [
-      { label: "Create Contact", prompt: "Create contact: ", tool: "ghl_create_contact" },
-      { label: "Search Contacts", prompt: "Search contacts for ", tool: "ghl_search_contacts" },
-      { label: "Create Opportunity", prompt: "Create opportunity for ", tool: "ghl_create_opportunity" },
-      { label: "Add Note", prompt: "Add note to contact: ", tool: "ghl_add_note" },
-    ],
-  },
-  {
-    name: "Trading",
-    icon: BarChart3,
-    tools: [
-      { label: "Stock Quote", prompt: "Get quote for AAPL", tool: "alpaca_get_quote" },
-      { label: "Portfolio", prompt: "Show my positions", tool: "alpaca_get_positions" },
-      { label: "Account", prompt: "Show trading account", tool: "alpaca_get_account" },
-    ],
-  },
-  {
-    name: "Media & Comms",
-    icon: ImageIcon,
-    tools: [
-      { label: "Generate Image", prompt: "Generate image of ", tool: "generate_image_flux" },
-      { label: "Send Email", prompt: "Send email to: ", tool: "send_email" },
-      { label: "Send SMS", prompt: "Send SMS to +1234567890: ", tool: "send_sms" },
-    ],
-  },
-  {
-    name: "AI Models",
-    icon: MessageSquare,
-    tools: [
-      { label: "Ask Perplexity", prompt: "Research with Perplexity: ", tool: "ask_perplexity" },
-      { label: "Ask Grok", prompt: "Ask Grok: ", tool: "ask_grok" },
-      { label: "Ask Groq", prompt: "Ask Groq: ", tool: "ask_groq" },
-    ],
+    label: "Get SaintSal",
+    href: "https://www.saintsal.ai/pricing",
+    icon: Sparkles,
+    desc: "Full access",
+    external: true,
   },
 ]
 
-// Quick start actions for landing
-const QUICK_START = [
-  { icon: Search, label: "Search Web", prompt: "Search for " },
-  { icon: Home, label: "Property Lookup", prompt: "Look up property at " },
-  { icon: Users, label: "Enrich Lead", prompt: "Find info about " },
-  { icon: DollarSign, label: "Analyze Deal", prompt: "Analyze deal: " },
-  { icon: BarChart3, label: "Stock Quote", prompt: "Get quote for " },
-  { icon: ImageIcon, label: "Generate Image", prompt: "Generate image of " },
+const QUICK_PROMPTS = [
+  "Search properties in LA",
+  "Analyze a fix & flip deal",
+  "Find property owner",
+  "Compare loan options",
 ]
+
+// Code block component
+function CodeBlock({ code, language }: { code: string; language?: string }) {
+  const [copied, setCopied] = useState(false)
+
+  const copyCode = () => {
+    navigator.clipboard.writeText(code)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div className="relative group my-3 rounded-xl overflow-hidden border border-border/60 bg-[#0d0d0d]">
+      <div className="flex items-center justify-between px-3 py-2 bg-[#1a1a1a] border-b border-border/40">
+        <span className="text-xs text-muted-foreground font-mono">{language || "code"}</span>
+        <button
+          onClick={copyCode}
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+        </button>
+      </div>
+      <pre className="p-3 overflow-x-auto text-xs">
+        <code className="text-foreground/90 font-mono whitespace-pre">{code}</code>
+      </pre>
+    </div>
+  )
+}
+
+// Rich content renderer - mobile optimized
+function RichContent({ content, sources }: { content: string; sources?: Array<{ title: string; url: string }> }) {
+  const renderContent = () => {
+    const lines = content.split("\n")
+    const elements: React.ReactNode[] = []
+    let inCodeBlock = false
+    let codeContent = ""
+    let codeLanguage = ""
+    let listItems: string[] = []
+    let listType: "ul" | "ol" | null = null
+
+    const flushList = () => {
+      if (listItems.length > 0) {
+        const ListTag = listType === "ol" ? "ol" : "ul"
+        elements.push(
+          <ListTag
+            key={elements.length}
+            className={cn("my-2 ml-5 text-sm", listType === "ol" ? "list-decimal" : "list-disc")}
+          >
+            {listItems.map((item, i) => (
+              <li key={i} className="text-foreground/90 mb-1">
+                {renderInline(item)}
+              </li>
+            ))}
+          </ListTag>,
+        )
+        listItems = []
+        listType = null
+      }
+    }
+
+    lines.forEach((line) => {
+      if (line.startsWith("```")) {
+        if (inCodeBlock) {
+          elements.push(<CodeBlock key={elements.length} code={codeContent.trim()} language={codeLanguage} />)
+          codeContent = ""
+          codeLanguage = ""
+          inCodeBlock = false
+        } else {
+          flushList()
+          inCodeBlock = true
+          codeLanguage = line.slice(3).trim()
+        }
+        return
+      }
+
+      if (inCodeBlock) {
+        codeContent += line + "\n"
+        return
+      }
+
+      if (line.startsWith("### ")) {
+        flushList()
+        elements.push(
+          <h3 key={elements.length} className="text-base font-semibold text-foreground mt-3 mb-2">
+            {renderInline(line.slice(4))}
+          </h3>,
+        )
+        return
+      }
+      if (line.startsWith("## ")) {
+        flushList()
+        elements.push(
+          <h2 key={elements.length} className="text-lg font-bold text-foreground mt-4 mb-2">
+            {renderInline(line.slice(3))}
+          </h2>,
+        )
+        return
+      }
+      if (line.startsWith("# ")) {
+        flushList()
+        elements.push(
+          <h1 key={elements.length} className="text-xl font-bold text-foreground mt-4 mb-3">
+            {renderInline(line.slice(2))}
+          </h1>,
+        )
+        return
+      }
+
+      if (line.match(/^[-*]\s/)) {
+        if (listType !== "ul") flushList()
+        listType = "ul"
+        listItems.push(line.slice(2))
+        return
+      }
+      if (line.match(/^\d+\.\s/)) {
+        if (listType !== "ol") flushList()
+        listType = "ol"
+        listItems.push(line.replace(/^\d+\.\s/, ""))
+        return
+      }
+
+      if (line.startsWith("> ")) {
+        flushList()
+        elements.push(
+          <blockquote
+            key={elements.length}
+            className="border-l-2 border-amber-500/50 pl-3 my-3 italic text-foreground/80 text-sm"
+          >
+            {renderInline(line.slice(2))}
+          </blockquote>,
+        )
+        return
+      }
+
+      if (line.trim() === "") {
+        flushList()
+        return
+      }
+
+      flushList()
+      elements.push(
+        <p key={elements.length} className="text-foreground/90 mb-2 leading-relaxed text-sm">
+          {renderInline(line)}
+        </p>,
+      )
+    })
+
+    flushList()
+    return elements
+  }
+
+  const renderInline = (text: string): React.ReactNode => {
+    const parts = text.split(/(`[^`]+`)/)
+    return parts.map((part, i) => {
+      if (part.startsWith("`") && part.endsWith("`")) {
+        return (
+          <code key={i} className="px-1 py-0.5 bg-muted rounded text-xs font-mono text-amber-500">
+            {part.slice(1, -1)}
+          </code>
+        )
+      }
+      const boldParts = part.split(/(\*\*[^*]+\*\*)/)
+      if (boldParts.length > 1) {
+        return boldParts.map((bp, j) => {
+          if (bp.startsWith("**") && bp.endsWith("**")) {
+            return (
+              <strong key={j} className="font-semibold text-foreground">
+                {bp.slice(2, -2)}
+              </strong>
+            )
+          }
+          return bp
+        })
+      }
+      return part
+    })
+  }
+
+  return (
+    <div className="prose-invert max-w-none">
+      {renderContent()}
+      {sources && sources.length > 0 && (
+        <div className="mt-4 pt-3 border-t border-border/40">
+          <h4 className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1">
+            <Globe className="h-3 w-3" /> Sources
+          </h4>
+          <div className="flex flex-wrap gap-1.5">
+            {sources.slice(0, 4).map((source, i) => (
+              <a
+                key={i}
+                href={source.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 px-2 py-1 bg-muted/50 hover:bg-muted rounded-md text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ExternalLink className="h-2.5 w-2.5" />
+                {source.title?.slice(0, 20) || new URL(source.url).hostname}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function AddressAutocomplete({
+  onSelect,
+}: {
+  onSelect: (address: string) => void
+}) {
+  const [query, setQuery] = useState("")
+  const [suggestions, setSuggestions] = useState<
+    Array<{
+      address: string
+      city: string
+      state: string
+      zip: string
+      full: string
+    }>
+  >([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [showDropdown, setShowDropdown] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Debounced search
+  useEffect(() => {
+    if (query.length < 2) {
+      setSuggestions([])
+      return
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearching(true)
+      try {
+        // Use Nominatim (OpenStreetMap) for free geocoding
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&countrycodes=us&addressdetails=1&limit=5&q=${encodeURIComponent(query)}`,
+        )
+        const data = await response.json()
+
+        const formatted = data
+          .filter((item: any) => item.address)
+          .map((item: any) => {
+            const addr = item.address
+            const street = [addr.house_number, addr.road].filter(Boolean).join(" ")
+            const city = addr.city || addr.town || addr.village || addr.municipality || ""
+            const state = addr.state || ""
+            const zip = addr.postcode || ""
+
+            return {
+              address: street || item.display_name.split(",")[0],
+              city,
+              state,
+              zip,
+              full: `${street ? street + ", " : ""}${city}${city && state ? ", " : ""}${state}${zip ? " " + zip : ""}`,
+            }
+          })
+          .filter((item: any) => item.city || item.address)
+
+        setSuggestions(formatted)
+        setShowDropdown(formatted.length > 0)
+      } catch (error) {
+        console.error("Geocoding error:", error)
+        setSuggestions([])
+      } finally {
+        setIsSearching(false)
+      }
+    }, 300)
+
+    return () => clearTimeout(timer)
+  }, [query])
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node) &&
+        inputRef.current &&
+        !inputRef.current.contains(e.target as Node)
+      ) {
+        setShowDropdown(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  const handleSelect = (suggestion: (typeof suggestions)[0]) => {
+    setQuery(suggestion.full)
+    setShowDropdown(false)
+    onSelect(suggestion.full)
+  }
+
+  return (
+    <div className="relative w-full">
+      <div className="relative">
+        <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500" />
+        <input
+          ref={inputRef}
+          type="text"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value)
+            setShowDropdown(true)
+          }}
+          onFocus={() => suggestions.length > 0 && setShowDropdown(true)}
+          placeholder="Enter address, city, state, or zip..."
+          className="w-full h-14 pl-12 pr-12 bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl text-white placeholder:text-gray-500 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 transition-all text-base"
+        />
+        {isSearching ? (
+          <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-amber-500 animate-spin" />
+        ) : query.length > 0 ? (
+          <button
+            onClick={() => {
+              setQuery("")
+              setSuggestions([])
+              inputRef.current?.focus()
+            }}
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
+          >
+            ×
+          </button>
+        ) : (
+          <Search className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500" />
+        )}
+      </div>
+
+      {/* Dropdown */}
+      {showDropdown && suggestions.length > 0 && (
+        <div
+          ref={dropdownRef}
+          className="absolute top-full left-0 right-0 mt-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl overflow-hidden shadow-2xl z-50"
+        >
+          {suggestions.map((suggestion, i) => (
+            <button
+              key={i}
+              onClick={() => handleSelect(suggestion)}
+              className="w-full flex items-start gap-3 px-4 py-3 hover:bg-[#222] transition-colors text-left border-b border-[#222] last:border-0"
+            >
+              <MapPin className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-white font-medium truncate">{suggestion.address || suggestion.city}</p>
+                <p className="text-xs text-gray-500 truncate">
+                  {suggestion.city && suggestion.address ? `${suggestion.city}, ` : ""}
+                  {suggestion.state} {suggestion.zip}
+                </p>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export function ResearchHub() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [activeTool, setActiveTool] = useState<string | null>(null)
-  const [isRecording, setIsRecording] = useState(false)
-  const [sidebarOpen, setSidebarOpen] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const [attachments, setAttachments] = useState<FileAttachment[]>([])
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -127,437 +454,450 @@ export function ResearchHub() {
     scrollToBottom()
   }, [messages])
 
-  useEffect(() => {
-    if (inputRef.current) {
-      inputRef.current.style.height = "auto"
-      inputRef.current.style.height = inputRef.current.scrollHeight + "px"
-    }
-  }, [input])
-
-  // Detect intent from query to determine which tool to use
-  const detectIntent = (query: string): { tool: string; type: Message["type"] } => {
-    const q = query.toLowerCase()
-
-    if (q.includes("generate image") || q.includes("create image") || q.includes("make image")) {
-      return { tool: "generate_image_flux", type: "image" }
-    }
-    if (q.includes("property") || q.match(/\d+\s+\w+\s+(st|street|ave|avenue|blvd|dr|rd|ln|way|ct)/i)) {
-      return { tool: "property_radar_lookup", type: "property" }
-    }
-    if (q.includes("foreclosure") || q.includes("distressed")) {
-      return { tool: "property_radar_foreclosures", type: "property" }
-    }
-    if (q.includes("create contact") || q.includes("add to crm") || q.includes("save lead")) {
-      return { tool: "ghl_create_contact", type: "lead" }
-    }
-    if (q.includes("analyze deal") || q.includes("mao") || q.includes("arv") || q.includes("roi")) {
-      return { tool: "analyze_deal", type: "deal" }
-    }
-    if (q.includes("lending") || q.includes("loan") || q.includes("payment") || q.includes("calculate loan")) {
-      return { tool: "calculate_lending_terms", type: "deal" }
-    }
-    if (q.includes("stock") || q.includes("quote") || q.includes("price of") || q.includes("trading")) {
-      return { tool: "alpaca_get_quote", type: "trading" }
-    }
-    if (q.includes("positions") || q.includes("portfolio")) {
-      return { tool: "alpaca_get_positions", type: "trading" }
-    }
-    if (q.includes("send sms") || q.includes("text message")) {
-      return { tool: "send_sms", type: "text" }
-    }
-    if (q.includes("send email")) {
-      return { tool: "send_email", type: "text" }
-    }
-    if (q.includes("crawl") || q.includes("scrape website")) {
-      return { tool: "tavily_crawl", type: "research" }
-    }
-    if (q.includes("extract") || q.includes("get content from")) {
-      return { tool: "tavily_extract", type: "research" }
-    }
-    if (q.includes("research") || q.includes("deep dive")) {
-      return { tool: "tavily_research", type: "research" }
-    }
-    if (q.includes("perplexity")) {
-      return { tool: "ask_perplexity", type: "research" }
-    }
-    if (q.includes("grok")) {
-      return { tool: "ask_grok", type: "research" }
-    }
-    if (q.includes("groq")) {
-      return { tool: "ask_groq", type: "research" }
-    }
-
-    // Default to search
-    return { tool: "tavily_search", type: "research" }
-  }
-
-  // Build tool arguments from natural language query
-  const buildToolArgs = (tool: string, query: string): Record<string, any> => {
-    if (
-      tool === "tavily_search" ||
-      tool === "tavily_research" ||
-      tool === "ask_perplexity" ||
-      tool === "ask_grok" ||
-      tool === "ask_groq"
-    ) {
-      return { query }
-    }
-    if (tool === "property_radar_lookup") {
-      const addressMatch = query.match(/(\d+\s+.+?(?:st|street|ave|avenue|blvd|dr|rd|ln|way|ct).+?)(?:\?|$)/i)
-      return { address: addressMatch?.[1] || query }
-    }
-    if (tool === "property_radar_foreclosures") {
-      const locationMatch = query.match(/in\s+(.+?)(?:\?|$)/i)
-      return { location: locationMatch?.[1] || "Orange County, CA" }
-    }
-    if (tool === "generate_image_flux") {
-      const prompt = query.replace(/generate image|create image|make image/gi, "").trim()
-      return { prompt: prompt || query }
-    }
-    if (tool === "analyze_deal") {
-      const purchaseMatch = query.match(/purchase[:\s]*\$?([\d,]+)/i)
-      const arvMatch = query.match(/arv[:\s]*\$?([\d,]+)/i)
-      const rehabMatch = query.match(/rehab[:\s]*\$?([\d,]+)/i)
-      return {
-        purchase_price: purchaseMatch ? Number.parseInt(purchaseMatch[1].replace(/,/g, "")) : 200000,
-        arv: arvMatch ? Number.parseInt(arvMatch[1].replace(/,/g, "")) : 300000,
-        rehab_cost: rehabMatch ? Number.parseInt(rehabMatch[1].replace(/,/g, "")) : 30000,
-      }
-    }
-    if (tool === "calculate_lending_terms") {
-      const amountMatch = query.match(/\$?([\d,]+k?)/i)
-      const rateMatch = query.match(/(\d+(?:\.\d+)?)\s*%/i)
-      const termMatch = query.match(/(\d+)\s*months?/i)
-      let amount = 500000
-      if (amountMatch) {
-        amount = Number.parseInt(amountMatch[1].replace(/,/g, ""))
-        if (amountMatch[1].toLowerCase().includes("k")) amount *= 1000
-      }
-      return {
-        loan_amount: amount,
-        interest_rate: rateMatch ? Number.parseFloat(rateMatch[1]) : 12,
-        term_months: termMatch ? Number.parseInt(termMatch[1]) : 12,
-      }
-    }
-    if (tool === "alpaca_get_quote") {
-      const symbolMatch = query.match(/(?:quote|price of|stock)\s+(\w+)/i)
-      return { symbol: symbolMatch?.[1]?.toUpperCase() || "AAPL" }
-    }
-    return { query }
-  }
-
-  // Format response based on tool type
-  const formatResponse = (tool: string, data: any): string => {
-    if (tool.includes("tavily") && data.answer) {
-      return data.answer
-    }
-    if (tool === "analyze_deal") {
-      return `## Deal Analysis\n\n**Signal: ${data.signal}**\n\n- MAO: $${data.mao?.toLocaleString()}\n- Purchase: $${data.purchase_price?.toLocaleString()}\n- ARV: $${data.arv?.toLocaleString()}\n- Rehab: $${data.rehab_cost?.toLocaleString()}\n- Net Profit: $${data.net_profit?.toLocaleString()}\n- ROI: ${data.roi}`
-    }
-    if (tool === "calculate_lending_terms") {
-      return `## Lending Terms\n\n**${data.loan_type?.toUpperCase()} Loan**\n\n- Loan Amount: $${data.loan_amount?.toLocaleString()}\n- Interest Rate: ${data.interest_rate}\n- Term: ${data.term_months} months\n- Monthly (Interest Only): $${data.monthly_interest_only?.toLocaleString()}\n- Monthly (P&I): $${data.monthly_pi?.toLocaleString()}\n- Points: ${data.points}\n- Origination Fee: $${data.origination_fee?.toLocaleString()}\n- Total Cost: $${data.total_cost?.toLocaleString()}`
-    }
-    if (tool === "alpaca_get_quote" && data.quote) {
-      return `## Stock Quote: ${data.symbol}\n\n- Bid: $${data.quote.bp}\n- Ask: $${data.quote.ap}\n- Bid Size: ${data.quote.bs}\n- Ask Size: ${data.quote.as}`
-    }
-    if (tool === "ask_perplexity" || tool === "ask_grok" || tool === "ask_groq") {
-      return data.choices?.[0]?.message?.content || JSON.stringify(data, null, 2)
-    }
-    return JSON.stringify(data, null, 2)
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault()
-    if (!input.trim() || isLoading) return
+    e.stopPropagation()
+    setIsDragging(true)
+  }, [])
 
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.currentTarget === e.target) {
+      setIsDragging(false)
+    }
+  }, [])
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }, [])
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+
+    const files = Array.from(e.dataTransfer.files)
+    processFiles(files)
+  }, [])
+
+  const processFiles = (files: File[]) => {
+    const newAttachments: FileAttachment[] = files
+      .filter((file) => file.type.startsWith("image/") || file.type === "application/pdf")
+      .slice(0, 4) // Max 4 attachments
+      .map((file) => {
+        const attachment: FileAttachment = {
+          id: Math.random().toString(36).substr(2, 9),
+          file,
+          type: file.type.startsWith("image/") ? "image" : "document",
+        }
+
+        // Create preview for images
+        if (file.type.startsWith("image/")) {
+          attachment.preview = URL.createObjectURL(file)
+        }
+
+        return attachment
+      })
+
+    setAttachments((prev) => [...prev, ...newAttachments].slice(0, 4))
+  }
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      processFiles(Array.from(e.target.files))
+    }
+  }
+
+  const removeAttachment = (id: string) => {
+    setAttachments((prev) => {
+      const attachment = prev.find((a) => a.id === id)
+      if (attachment?.preview) {
+        URL.revokeObjectURL(attachment.preview)
+      }
+      return prev.filter((a) => a.id !== id)
+    })
+  }
+
+  const handleGenerateImage = async () => {
+    if (!input?.trim()) return
+
+    setIsGeneratingImage(true)
+    const prompt = input.trim()
+
+    // Add user message
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
-      content: input,
-      type: "text",
+      content: `Generate image: ${prompt}`,
       timestamp: new Date(),
     }
-
     setMessages((prev) => [...prev, userMessage])
-    const query = input
     setInput("")
-    setIsLoading(true)
 
     try {
-      const { tool, type } = detectIntent(query)
-      setActiveTool(tool)
-
-      const toolArgs = buildToolArgs(tool, query)
-
-      // Call MCP endpoint
-      const response = await fetch("/api/mcp", {
+      const res = await fetch("/api/mcp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          method: "tools/call",
-          params: { name: tool, arguments: toolArgs },
+          query: `generate an image of: ${prompt}`,
+          tool: "fal_generate_image",
         }),
       })
 
-      const data = await response.json()
-
-      let content = ""
-      let parsedData = null
-
-      try {
-        parsedData = JSON.parse(data.content?.[0]?.text || "{}")
-        content = formatResponse(tool, parsedData)
-      } catch {
-        content = data.content?.[0]?.text || JSON.stringify(data)
-      }
+      const data = await res.json()
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content,
-        type,
-        data: parsedData,
+        content: data.response || "Here's the generated image:",
         timestamp: new Date(),
-        tool,
+        images: data.images || [],
       }
 
       setMessages((prev) => [...prev, assistantMessage])
-    } catch (error) {
-      console.error("Error:", error)
-      const errorMessage: Message = {
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: "Sorry, I couldn't generate that image. Please try again.",
+          timestamp: new Date(),
+        },
+      ])
+    } finally {
+      setIsGeneratingImage(false)
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if ((!input?.trim() && attachments.length === 0) || isLoading) return
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: "user",
+      content: input.trim(),
+      timestamp: new Date(),
+      attachments: attachments.length > 0 ? [...attachments] : undefined,
+    }
+
+    setMessages((prev) => [...prev, userMessage])
+    setInput("")
+    setAttachments([])
+    setIsLoading(true)
+
+    try {
+      const attachmentData = await Promise.all(
+        (userMessage.attachments || []).map(async (att) => {
+          const buffer = await att.file.arrayBuffer()
+          const base64 = Buffer.from(buffer).toString("base64")
+          return {
+            type: att.type,
+            name: att.file.name,
+            data: base64,
+            mimeType: att.file.type,
+          }
+        }),
+      )
+
+      const res = await fetch("/api/mcp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: userMessage.content,
+          attachments: attachmentData,
+        }),
+      })
+
+      const data = await res.json()
+
+      const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
-        type: "text",
+        content: data.response || data.error || "I couldn't process that request.",
         timestamp: new Date(),
+        sources: data.sources,
+        images: data.images,
       }
-      setMessages((prev) => [...prev, errorMessage])
+
+      setMessages((prev) => [...prev, assistantMessage])
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: "Sorry, there was an error processing your request. Please try again.",
+          timestamp: new Date(),
+        },
+      ])
     } finally {
       setIsLoading(false)
-      setActiveTool(null)
     }
   }
 
-  const handleToolClick = (prompt: string) => {
-    setInput(prompt)
-    inputRef.current?.focus()
-  }
-
-  const renderMessage = (message: Message) => {
-    if (message.role === "user") {
-      return (
-        <div key={message.id} className="flex justify-end mb-6">
-          <div className="max-w-[80%] bg-gradient-to-r from-primary/20 to-primary/10 border border-primary/30 rounded-2xl px-5 py-4">
-            <p className="text-foreground/90">{message.content}</p>
-          </div>
-        </div>
-      )
-    }
-
-    return (
-      <div key={message.id} className="flex justify-start mb-6">
-        <div className="max-w-[90%]">
-          <div className="bg-card border border-border/60 rounded-2xl overflow-hidden">
-            {message.tool && (
-              <div className="bg-gradient-to-r from-primary/10 to-primary/5 px-4 py-2 border-b border-border/60 flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-primary" />
-                <span className="text-primary text-xs font-mono">{message.tool}</span>
-              </div>
-            )}
-            <div className="p-5">
-              {message.type === "image" && message.data?.output?.[0] && (
-                <img
-                  src={message.data.output[0] || "/placeholder.svg"}
-                  alt="Generated"
-                  className="rounded-xl w-full max-w-lg mb-4"
-                />
-              )}
-              <div className="text-foreground/90 whitespace-pre-wrap text-sm leading-relaxed">{message.content}</div>
-              {message.type === "deal" && message.data && (
-                <div className="mt-4 flex gap-2">
-                  <Button size="sm" className="gap-2">
-                    <FileText className="h-4 w-4" />
-                    Export Report
-                  </Button>
-                  <Button size="sm" variant="outline" className="gap-2 bg-transparent">
-                    <Users className="h-4 w-4" />
-                    Save to CRM
-                  </Button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
+  const hasMessages = messages.length > 0
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      {/* Background effects */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-      </div>
-
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-background/90 backdrop-blur-xl border-b border-border/40">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <Image src="/logo.png" alt="CookinCap" width={40} height={40} className="rounded-xl shadow-lg" />
-            <div>
-              <h1 className="text-foreground font-bold text-lg">
-                SaintSal™ <span className="text-primary">Research</span>
-              </h1>
-              <p className="text-muted-foreground text-xs">Command Center • 35+ Tools</p>
-            </div>
-          </Link>
-          <div className="flex items-center gap-2 text-xs">
-            <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded">HACP™</span>
-            <Link href="/auth/login">
-              <Button variant="outline" size="sm">
-                Sign In
-              </Button>
-            </Link>
+    <div
+      className="flex flex-col h-[100dvh] bg-[#0a0a0a]"
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
+      {isDragging && (
+        <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center">
+          <div className="border-2 border-dashed border-amber-500 rounded-3xl p-12 text-center">
+            <Upload className="h-16 w-16 text-amber-500 mx-auto mb-4" />
+            <p className="text-xl font-semibold text-white">Drop files here</p>
+            <p className="text-sm text-gray-400 mt-2">Images and PDFs supported</p>
           </div>
         </div>
+      )}
+
+      <header className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-[#1a1a1a]">
+        <div className="flex items-center gap-3">
+          <Image src="/logo.png" alt="SaintSal" width={36} height={36} className="rounded-full" />
+          <div>
+            <h1 className="text-white font-semibold text-base">SaintSal™</h1>
+            <p className="text-[10px] text-gray-500">Command Center</p>
+          </div>
+        </div>
+        <Link href="/auth/login" className="text-sm text-amber-500 hover:text-amber-400 transition-colors">
+          Sign In
+        </Link>
       </header>
 
-      {/* Main Layout */}
-      <div className="flex pt-16">
-        {/* Sidebar - Tool Categories */}
-        <aside className="fixed left-0 top-16 bottom-0 w-64 bg-card/50 border-r border-border/40 overflow-y-auto p-4 hidden lg:block">
-          {TOOL_CATEGORIES.map((category, i) => (
-            <div key={i} className="mb-6">
-              <h3 className="text-muted-foreground text-xs font-semibold mb-2 px-2 flex items-center gap-2">
-                <category.icon className="h-4 w-4" />
-                {category.name}
-              </h3>
-              <div className="space-y-1">
-                {category.tools.map((tool, j) => (
-                  <button
-                    key={j}
-                    onClick={() => handleToolClick(tool.prompt)}
-                    className="w-full text-left px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-all flex items-center justify-between group"
-                  >
-                    <span>{tool.label}</span>
-                    <ArrowRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
-                  </button>
-                ))}
-              </div>
+      <div className="flex-1 overflow-y-auto overscroll-contain">
+        {!hasMessages ? (
+          <div className="flex flex-col items-center justify-center min-h-full px-6 py-12">
+            <div className="mb-6">
+              <Image
+                src="/logo.png"
+                alt="SaintSal"
+                width={80}
+                height={80}
+                className="rounded-2xl shadow-lg shadow-amber-500/20"
+              />
             </div>
-          ))}
-        </aside>
 
-        {/* Main Content */}
-        <main className="flex-1 lg:ml-64 pb-48 px-6">
-          <div className="max-w-4xl mx-auto pt-8">
-            {/* Welcome State */}
-            {messages.length === 0 && (
-              <div className="text-center py-16">
-                <div className="w-24 h-24 bg-gradient-to-br from-primary to-primary/80 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-primary/30">
-                  <Sparkles className="h-10 w-10 text-primary-foreground" />
+            <h2 className="text-2xl font-bold text-white mb-2">
+              Ask SaintSal<span className="text-amber-500">™</span> Anything
+            </h2>
+
+            <p className="text-gray-400 text-sm text-center mb-8 max-w-xs">
+              Research properties, analyze deals, explore lending options, or get investment guidance.
+            </p>
+
+            <div className="flex flex-wrap justify-center gap-2 max-w-md">
+              {QUICK_PROMPTS.map((prompt) => (
+                <button
+                  key={prompt}
+                  onClick={() => setInput(prompt)}
+                  className="px-4 py-2 bg-[#1a1a1a] hover:bg-[#222] border border-[#2a2a2a] hover:border-amber-500/30 rounded-full text-sm text-gray-300 hover:text-white transition-all"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="max-w-2xl mx-auto px-4 py-4 space-y-4">
+            {messages.map((message) => (
+              <div key={message.id} className={cn("flex gap-3", message.role === "user" ? "justify-end" : "")}>
+                {message.role === "assistant" && (
+                  <Image src="/logo.png" alt="SaintSal" width={32} height={32} className="rounded-full flex-shrink-0" />
+                )}
+                <div
+                  className={cn(
+                    "max-w-[85%] rounded-2xl px-4 py-3",
+                    message.role === "user" ? "bg-amber-600 text-white" : "bg-[#1a1a1a] border border-[#2a2a2a]",
+                  )}
+                >
+                  {message.attachments && message.attachments.length > 0 && (
+                    <div className="flex gap-2 mb-2 flex-wrap">
+                      {message.attachments.map(
+                        (att) =>
+                          att.preview && (
+                            <img
+                              key={att.id}
+                              src={att.preview || "/placeholder.svg"}
+                              alt="Attachment"
+                              className="h-20 w-20 object-cover rounded-lg"
+                            />
+                          ),
+                      )}
+                    </div>
+                  )}
+
+                  {message.role === "assistant" ? (
+                    <>
+                      <RichContent content={message.content} sources={message.sources} />
+                      {message.images && message.images.length > 0 && (
+                        <div className="mt-3 grid gap-2">
+                          {message.images.map((img, i) => (
+                            <img
+                              key={i}
+                              src={img || "/placeholder.svg"}
+                              alt={`Generated image ${i + 1}`}
+                              className="w-full rounded-xl border border-[#2a2a2a]"
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-sm">{message.content}</p>
+                  )}
                 </div>
-                <h2 className="text-4xl font-bold text-foreground mb-3">Research Command Center</h2>
-                <p className="text-muted-foreground mb-2 max-w-lg mx-auto">
-                  35+ tools at your command. Search, research, enrich leads, analyze deals, generate images, trade
-                  stocks - all in one place.
-                </p>
-                <p className="text-primary/70 text-sm mb-8">Powered by HACP™ Protocol • US Patent #10,290,222</p>
+              </div>
+            ))}
 
-                {/* Quick Start Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-w-2xl mx-auto">
-                  {QUICK_START.map((item, i) => (
-                    <button
-                      key={i}
-                      onClick={() => handleToolClick(item.prompt)}
-                      className="p-4 bg-card hover:bg-muted/50 border border-border/60 hover:border-primary/30 rounded-xl text-left transition-all group"
-                    >
-                      <item.icon className="h-6 w-6 text-primary mb-2" />
-                      <span className="text-muted-foreground text-sm group-hover:text-foreground transition-colors">
-                        {item.label}
-                      </span>
-                    </button>
-                  ))}
+            {isLoading && (
+              <div className="flex gap-3">
+                <Image src="/logo.png" alt="SaintSal" width={32} height={32} className="rounded-full flex-shrink-0" />
+                <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl px-4 py-3">
+                  <div className="flex gap-1">
+                    <span
+                      className="w-2 h-2 bg-amber-500 rounded-full animate-bounce"
+                      style={{ animationDelay: "0ms" }}
+                    />
+                    <span
+                      className="w-2 h-2 bg-amber-500 rounded-full animate-bounce"
+                      style={{ animationDelay: "150ms" }}
+                    />
+                    <span
+                      className="w-2 h-2 bg-amber-500 rounded-full animate-bounce"
+                      style={{ animationDelay: "300ms" }}
+                    />
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* Messages */}
-            <div className="space-y-2">
-              {messages.map(renderMessage)}
-              {isLoading && (
-                <div className="flex justify-start mb-6">
-                  <div className="bg-card border border-border/60 rounded-2xl px-5 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex gap-1">
-                        <div
-                          className="w-2 h-2 bg-primary rounded-full animate-bounce"
-                          style={{ animationDelay: "0ms" }}
-                        />
-                        <div
-                          className="w-2 h-2 bg-primary rounded-full animate-bounce"
-                          style={{ animationDelay: "150ms" }}
-                        />
-                        <div
-                          className="w-2 h-2 bg-primary rounded-full animate-bounce"
-                          style={{ animationDelay: "300ms" }}
-                        />
-                      </div>
-                      <span className="text-muted-foreground text-sm">
-                        {activeTool ? `Running ${activeTool}...` : "Processing..."}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
+            <div ref={messagesEndRef} />
           </div>
-        </main>
+        )}
       </div>
 
-      {/* Input Area */}
-      <div className="fixed bottom-0 left-0 lg:left-64 right-0 bg-gradient-to-t from-background via-background to-transparent pt-8 pb-6 px-6">
-        <div className="max-w-4xl mx-auto">
-          <form onSubmit={handleSubmit} className="relative">
-            <div className="bg-card border border-border/60 focus-within:border-primary/50 rounded-2xl overflow-hidden transition-all shadow-xl">
-              <textarea
-                ref={inputRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault()
-                    handleSubmit(e)
-                  }
-                }}
-                placeholder="Search, research, lookup properties, enrich leads, analyze deals..."
-                className="w-full bg-transparent text-foreground placeholder-muted-foreground px-5 py-4 pr-32 resize-none focus:outline-none min-h-[56px] max-h-[200px]"
-                rows={1}
-              />
-              <div className="absolute right-3 bottom-3 flex items-center gap-2">
+      {attachments.length > 0 && (
+        <div className="flex-shrink-0 border-t border-[#1a1a1a] bg-[#0d0d0d] px-4 py-2">
+          <div className="max-w-2xl mx-auto flex gap-2 flex-wrap">
+            {attachments.map((att) => (
+              <div key={att.id} className="relative group">
+                {att.preview ? (
+                  <img
+                    src={att.preview || "/placeholder.svg"}
+                    alt="Preview"
+                    className="h-16 w-16 object-cover rounded-lg border border-[#2a2a2a]"
+                  />
+                ) : (
+                  <div className="h-16 w-16 bg-[#1a1a1a] rounded-lg border border-[#2a2a2a] flex items-center justify-center">
+                    <span className="text-xs text-gray-500">PDF</span>
+                  </div>
+                )}
                 <button
-                  type="button"
-                  onClick={() => setIsRecording(!isRecording)}
-                  className={cn(
-                    "p-2 rounded-full transition-colors",
-                    isRecording ? "bg-red-500 text-white" : "text-muted-foreground hover:text-foreground",
-                  )}
+                  onClick={() => removeAttachment(att.id)}
+                  className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                 >
-                  {isRecording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                  <X className="h-3 w-3 text-white" />
                 </button>
-                <Button type="submit" disabled={!input.trim() || isLoading} className="rounded-xl px-4">
-                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                </Button>
               </div>
-            </div>
-          </form>
-          <p className="text-center text-xs text-muted-foreground mt-3">
-            SaintSal™ Research Command Center • CookinCapital
-          </p>
+            ))}
+          </div>
         </div>
+      )}
+
+      <div className="flex-shrink-0 border-t border-[#1a1a1a] bg-[#0a0a0a] px-4 py-3 pb-safe">
+        <form id="chat-form" onSubmit={handleSubmit} className="max-w-2xl mx-auto">
+          <div className="relative flex items-center">
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/*,.pdf"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="absolute left-4 text-gray-500 hover:text-amber-500 transition-colors"
+            >
+              <Camera className="h-5 w-5" />
+            </button>
+
+            <input
+              ref={inputRef}
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Ask anything..."
+              className="w-full h-12 pl-12 pr-28 bg-[#1a1a1a] border border-[#2a2a2a] rounded-full text-white placeholder:text-gray-500 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 transition-all text-sm"
+            />
+
+            <div className="absolute right-2 flex items-center gap-1">
+              <button
+                type="button"
+                onClick={handleGenerateImage}
+                disabled={!input?.trim() || isLoading || isGeneratingImage}
+                className="h-8 w-8 rounded-full bg-transparent hover:bg-[#222] flex items-center justify-center text-gray-500 hover:text-amber-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                title="Generate image"
+              >
+                {isGeneratingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+              </button>
+
+              <button
+                type="button"
+                className="h-8 w-8 rounded-full bg-transparent hover:bg-[#222] flex items-center justify-center text-gray-500 hover:text-gray-300 transition-all"
+              >
+                <Mic className="h-4 w-4" />
+              </button>
+
+              <button
+                type="submit"
+                disabled={(!input?.trim() && attachments.length === 0) || isLoading}
+                className="h-8 w-8 rounded-full bg-amber-600 hover:bg-amber-500 flex items-center justify-center text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+        </form>
+
+        <p className="text-center text-[10px] text-gray-600 mt-2">
+          SaintSal™ can make mistakes. Verify important information.
+        </p>
       </div>
+
+      <nav className="flex-shrink-0 md:hidden border-t border-[#1a1a1a] bg-[#0a0a0a]">
+        <div className="flex justify-around py-2">
+          {[
+            { icon: MessageCircle, label: "Chat", href: "/research", active: true },
+            { icon: Building2, label: "Property", href: "/app/properties" },
+            { icon: Calculator, label: "Deals", href: "/app/analyzer" },
+            { icon: Users, label: "Leads", href: "/app/opportunities" },
+            { icon: DollarSign, label: "Loans", href: "/capital" },
+            { icon: User, label: "Account", href: "/app/settings" },
+          ].map((item) => (
+            <Link
+              key={item.label}
+              href={item.href}
+              className={cn(
+                "flex flex-col items-center gap-0.5 px-3 py-1",
+                item.active ? "text-amber-500" : "text-gray-500 hover:text-gray-300",
+              )}
+            >
+              <item.icon className="h-5 w-5" />
+              <span className="text-[10px]">{item.label}</span>
+            </Link>
+          ))}
+        </div>
+      </nav>
     </div>
   )
 }
