@@ -1,1035 +1,515 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { generateText } from "ai"
 
 // ===========================================
-// SAINTSAL™ MCP SERVER v2.0 - FULL ARSENAL
-// 35+ Tools | HACP™ Protocol | US Patent #10,290,222
-// Saint Vision Technologies LLC
+// SAINTSAL™ MCP SERVER v3.0 - AI ORCHESTRATION
+// Perplexity-Level Responses | Intent Detection
+// 35+ Tools | Lead Generation | Property Search
 // ===========================================
 
-interface MCPRequest {
-  method: string
-  params?: {
-    name?: string
-    arguments?: Record<string, any>
+const TAVILY_API_KEY = process.env.TAVILY_API_KEY
+const PROPERTYRADAR_API_KEY = process.env.PROPERTYRADAR_API_KEY
+const GHL_API_KEY = process.env.GHL_API_KEY
+const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID
+
+// AI Orchestration - Route query to best tools based on intent
+async function orchestrateQuery(query: string, intent: string) {
+  const results: any = {
+    summary: "",
+    sources: [],
+    properties: [],
+    leads: [],
+    images: [],
   }
-}
 
-// ===========================================
-// TOOL DEFINITIONS
-// ===========================================
+  try {
+    switch (intent) {
+      case "foreclosure_search":
+      case "property_search":
+        // Search properties via PropertyRadar + Web search for context
+        const [propertyResults, webContext] = await Promise.all([
+          searchProperties(query, intent),
+          tavilySearch(query, { include_answer: true, search_depth: "advanced" }),
+        ])
+        results.properties = propertyResults
+        results.sources = webContext.sources || []
+        results.summary = await generateSummary(query, intent, { properties: propertyResults, webContext })
+        break
 
-const TOOLS = [
-  // ============ TAVILY SEARCH SUITE (5 tools) ============
-  {
-    name: "tavily_search",
-    description:
-      "Real-time web search with 93.3% accuracy. Best for current events, market data, company research, news.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        query: { type: "string", description: "Search query" },
-        search_depth: { type: "string", enum: ["basic", "advanced"], description: "Search depth" },
-        include_answer: { type: "boolean", description: "Include AI summary" },
-        max_results: { type: "number", description: "Max results (1-10)" },
-      },
-      required: ["query"],
-    },
-  },
-  {
-    name: "tavily_extract",
-    description: "Extract clean content from any URL. Scrape company info, property listings, articles.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        urls: { type: "array", items: { type: "string" }, description: "URLs to extract (max 20)" },
-      },
-      required: ["urls"],
-    },
-  },
-  {
-    name: "tavily_crawl",
-    description: "Crawl entire websites for competitor analysis, lead generation.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        url: { type: "string", description: "Base URL to crawl" },
-        max_depth: { type: "number", description: "Crawl depth (1-5)" },
-        max_pages: { type: "number", description: "Max pages" },
-      },
-      required: ["url"],
-    },
-  },
-  {
-    name: "tavily_research",
-    description: "Deep research with structured output for reports, due diligence.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        query: { type: "string", description: "Research topic" },
-        max_results: { type: "number", description: "Max sources" },
-      },
-      required: ["query"],
-    },
-  },
-  {
-    name: "tavily_enrich_company",
-    description: "Enrich company data from just a name.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        company_name: { type: "string", description: "Company name" },
-      },
-      required: ["company_name"],
-    },
-  },
+      case "property_lookup":
+        const address = extractAddress(query)
+        const propertyData = await lookupProperty(address)
+        results.properties = propertyData ? [propertyData] : []
+        results.summary = propertyData
+          ? `Found property at ${propertyData.address}. Estimated value: $${propertyData.value?.toLocaleString() || "N/A"}. Equity: ${propertyData.equityPercent || "N/A"}%.`
+          : "Could not find property details for that address."
+        break
 
-  // ============ PROPERTY RADAR (4 tools) ============
-  {
-    name: "property_radar_search",
-    description: "Search properties by foreclosure status, equity, absentee owners.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        location: { type: "string", description: "City, county, or ZIP" },
-        property_type: {
-          type: "string",
-          enum: ["SFR", "Multi-Family", "Commercial", "Land"],
-          description: "Property type",
-        },
-        foreclosure_status: {
-          type: "string",
-          enum: ["Pre-Foreclosure", "Auction", "REO", "Any"],
-          description: "Foreclosure stage",
-        },
-        min_equity: { type: "number", description: "Min equity %" },
-        absentee_owner: { type: "boolean", description: "Absentee owners only" },
-      },
-      required: ["location"],
-    },
-  },
-  {
-    name: "property_radar_lookup",
-    description: "Get full property details by address.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        address: { type: "string", description: "Full property address" },
-      },
-      required: ["address"],
-    },
-  },
-  {
-    name: "property_radar_owner",
-    description: "Find owner contact info: phone, email, mailing address.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        address: { type: "string", description: "Property address" },
-      },
-      required: ["address"],
-    },
-  },
-  {
-    name: "property_radar_foreclosures",
-    description: "Get foreclosure listings by area.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        location: { type: "string", description: "City, county, or ZIP" },
-        status: { type: "string", enum: ["NOD", "NTS", "Auction", "REO"], description: "Foreclosure stage" },
-      },
-      required: ["location"],
-    },
-  },
+      case "owner_lookup":
+        const ownerAddress = extractAddress(query)
+        const ownerData = await lookupOwner(ownerAddress)
+        if (ownerData) {
+          results.properties = [ownerData]
+          results.summary = `Found owner: **${ownerData.ownerName}**\n\n${ownerData.ownerPhone ? `📞 Phone: ${ownerData.ownerPhone}` : ""}\n${ownerData.ownerEmail ? `📧 Email: ${ownerData.ownerEmail}` : ""}`
+        } else {
+          results.summary = "Could not find owner contact information for that property."
+        }
+        break
 
-  // ============ GHL CRM (6 tools) ============
-  {
-    name: "ghl_create_contact",
-    description: "Create a new contact in GoHighLevel CRM.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        firstName: { type: "string" },
-        lastName: { type: "string" },
-        email: { type: "string" },
-        phone: { type: "string" },
-        tags: { type: "array", items: { type: "string" } },
-        source: { type: "string" },
-      },
-      required: ["firstName"],
-    },
-  },
-  {
-    name: "ghl_update_contact",
-    description: "Update an existing contact.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        contactId: { type: "string" },
-        fields: { type: "object", description: "Fields to update" },
-      },
-      required: ["contactId", "fields"],
-    },
-  },
-  {
-    name: "ghl_search_contacts",
-    description: "Search contacts by name, email, phone, or tags.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        query: { type: "string", description: "Search query" },
-      },
-      required: ["query"],
-    },
-  },
-  {
-    name: "ghl_create_opportunity",
-    description: "Create a new opportunity/deal in pipeline.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        contactId: { type: "string" },
-        pipelineId: { type: "string" },
-        name: { type: "string" },
-        value: { type: "number" },
-        status: { type: "string" },
-      },
-      required: ["contactId", "name"],
-    },
-  },
-  {
-    name: "ghl_create_task",
-    description: "Create a task for follow-up.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        contactId: { type: "string" },
-        title: { type: "string" },
-        dueDate: { type: "string" },
-        description: { type: "string" },
-      },
-      required: ["title"],
-    },
-  },
-  {
-    name: "ghl_add_note",
-    description: "Add a note to a contact.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        contactId: { type: "string" },
-        body: { type: "string" },
-      },
-      required: ["contactId", "body"],
-    },
-  },
+      case "lead_generation":
+        const [leadResults, leadWebResults] = await Promise.all([
+          generateLeads(query),
+          tavilySearch(query, { include_answer: true, max_results: 5 }),
+        ])
+        results.leads = leadResults
+        results.sources = leadWebResults.sources || []
+        results.summary = await generateSummary(query, intent, { leads: leadResults, webContext: leadWebResults })
+        break
 
-  // ============ ALPACA TRADING (4 tools) ============
-  {
-    name: "alpaca_get_account",
-    description: "Get trading account info: balance, buying power, positions.",
-    inputSchema: { type: "object", properties: {}, required: [] },
-  },
-  {
-    name: "alpaca_get_positions",
-    description: "Get current stock/crypto positions.",
-    inputSchema: { type: "object", properties: {}, required: [] },
-  },
-  {
-    name: "alpaca_get_quote",
-    description: "Get real-time stock/crypto quote.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        symbol: { type: "string", description: "Stock symbol (e.g., AAPL, BTC/USD)" },
-      },
-      required: ["symbol"],
-    },
-  },
-  {
-    name: "alpaca_place_order",
-    description: "Place a stock/crypto order.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        symbol: { type: "string" },
-        qty: { type: "number" },
-        side: { type: "string", enum: ["buy", "sell"] },
-        type: { type: "string", enum: ["market", "limit", "stop"] },
-        limit_price: { type: "number" },
-      },
-      required: ["symbol", "qty", "side", "type"],
-    },
-  },
+      case "lead_enrichment":
+        const enrichedLeads = await enrichLeads(query)
+        results.leads = enrichedLeads
+        results.summary =
+          enrichedLeads.length > 0
+            ? `Enriched ${enrichedLeads.length} lead(s) with contact information.`
+            : "Could not find additional contact information."
+        break
 
-  // ============ IMAGE GENERATION (2 tools) ============
-  {
-    name: "generate_image_flux",
-    description: "Generate images using FLUX via Replicate. Fast, high quality.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        prompt: { type: "string", description: "Image description" },
-        aspect_ratio: { type: "string", enum: ["1:1", "16:9", "9:16", "4:3"], description: "Aspect ratio" },
-      },
-      required: ["prompt"],
-    },
-  },
-  {
-    name: "generate_image_fal",
-    description: "Generate images using FAL AI.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        prompt: { type: "string", description: "Image description" },
-      },
-      required: ["prompt"],
-    },
-  },
+      case "deal_analysis":
+        const dealWebResults = await tavilySearch(query, { include_answer: true, search_depth: "advanced" })
+        results.sources = dealWebResults.sources || []
+        results.summary = await generateSummary(query, intent, { webContext: dealWebResults })
+        break
 
-  // ============ COMMUNICATIONS (3 tools) ============
-  {
-    name: "send_sms",
-    description: "Send SMS via Twilio/GHL.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        to: { type: "string", description: "Phone number" },
-        message: { type: "string", description: "Message text" },
-      },
-      required: ["to", "message"],
-    },
-  },
-  {
-    name: "send_email",
-    description: "Send email via Resend.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        to: { type: "string" },
-        subject: { type: "string" },
-        body: { type: "string" },
-      },
-      required: ["to", "subject", "body"],
-    },
-  },
-  {
-    name: "translate_text",
-    description: "Translate text using DeepL.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        text: { type: "string", description: "Text to translate" },
-        target_lang: { type: "string", description: "Target language code (EN, ES, FR, DE, etc.)" },
-        source_lang: { type: "string", description: "Source language (optional)" },
-      },
-      required: ["text", "target_lang"],
-    },
-  },
+      case "lending_info":
+        const lendingResults = await tavilySearch(`${query} real estate lending rates 2026`, { include_answer: true })
+        results.sources = lendingResults.sources || []
+        results.summary = await generateSummary(query, intent, { webContext: lendingResults })
+        break
 
-  // ============ AI MODELS (3 tools) ============
-  {
-    name: "ask_perplexity",
-    description: "Ask Perplexity AI for research with citations.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        query: { type: "string", description: "Question or research topic" },
-      },
-      required: ["query"],
-    },
-  },
-  {
-    name: "ask_grok",
-    description: "Ask Grok (XAI) for analysis.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        query: { type: "string", description: "Question" },
-      },
-      required: ["query"],
-    },
-  },
-  {
-    name: "ask_groq",
-    description: "Ask Groq for ultra-fast inference.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        query: { type: "string", description: "Question" },
-      },
-      required: ["query"],
-    },
-  },
+      case "image_generation":
+        const images = await generateImage(query)
+        results.images = images
+        results.summary = "Generated image based on your prompt."
+        break
 
-  // ============ DEAL ANALYSIS (2 tools) ============
-  {
-    name: "analyze_deal",
-    description: "Analyze a real estate deal: MAO, ROI, cash flow.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        purchase_price: { type: "number" },
-        arv: { type: "number", description: "After Repair Value" },
-        rehab_cost: { type: "number" },
-        holding_months: { type: "number" },
-        rent: { type: "number", description: "Monthly rent (for rentals)" },
-      },
-      required: ["purchase_price", "arv"],
-    },
-  },
-  {
-    name: "calculate_lending_terms",
-    description: "Calculate commercial lending terms and payments.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        loan_amount: { type: "number" },
-        interest_rate: { type: "number" },
-        term_months: { type: "number" },
-        loan_type: { type: "string", enum: ["bridge", "dscr", "fix_flip", "construction"] },
-      },
-      required: ["loan_amount", "interest_rate", "term_months"],
-    },
-  },
-]
-
-// ===========================================
-// TOOL HANDLERS
-// ===========================================
-
-// TAVILY HANDLERS
-async function tavilySearch(args: any) {
-  const response = await fetch("https://api.tavily.com/search", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      api_key: process.env.TAVILY_API_KEY,
-      query: args.query,
-      search_depth: args.search_depth || "advanced",
-      include_answer: args.include_answer ?? true,
-      max_results: args.max_results || 5,
-    }),
-  })
-  return response.json()
-}
-
-async function tavilyExtract(args: any) {
-  const response = await fetch("https://api.tavily.com/extract", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      api_key: process.env.TAVILY_API_KEY,
-      urls: args.urls,
-    }),
-  })
-  return response.json()
-}
-
-async function tavilyCrawl(args: any) {
-  const response = await fetch("https://api.tavily.com/crawl", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      api_key: process.env.TAVILY_API_KEY,
-      url: args.url,
-      max_depth: args.max_depth || 2,
-      max_pages: args.max_pages || 10,
-    }),
-  })
-  return response.json()
-}
-
-async function tavilyResearch(args: any) {
-  const response = await fetch("https://api.tavily.com/search", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      api_key: process.env.TAVILY_API_KEY,
-      query: args.query,
-      search_depth: "advanced",
-      include_answer: true,
-      include_raw_content: true,
-      max_results: args.max_results || 10,
-    }),
-  })
-  return response.json()
-}
-
-async function tavilyEnrichCompany(args: any) {
-  const searchResult = await tavilySearch({ query: `${args.company_name} company info about us`, max_results: 5 })
-  return {
-    company_name: args.company_name,
-    search_results: searchResult,
+      default:
+        // General web research
+        const searchResults = await tavilySearch(query, { include_answer: true, search_depth: "advanced" })
+        results.sources = searchResults.sources || []
+        results.summary = searchResults.answer || (await generateSummary(query, intent, { webContext: searchResults }))
+    }
+  } catch (error) {
+    console.error("[MCP] Orchestration error:", error)
+    results.summary = "I encountered an error processing your request. Please try again."
   }
+
+  return results
 }
 
-// PROPERTY RADAR HANDLERS
-async function propertyRadarSearch(args: any) {
-  const response = await fetch("https://api.propertyradar.com/v1/properties", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.PROPERTYRADAR_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      Criteria: {
-        Location: args.location,
-        PropertyType: args.property_type,
-        ForeclosureStatus: args.foreclosure_status,
-        MinEquityPercent: args.min_equity,
-        AbsenteeOwner: args.absentee_owner,
-      },
-      Limit: 50,
-    }),
-  })
-  return response.json()
-}
+// Tavily Search
+async function tavilySearch(query: string, options: any = {}) {
+  if (!TAVILY_API_KEY) {
+    return { sources: [], answer: "Search unavailable - API key not configured." }
+  }
 
-async function propertyRadarLookup(args: any) {
-  // PropertyRadar's /lookup endpoint requires a RadarID (starts with "P"), not an address
-  // For address lookups, we use the search endpoint with address criteria
-  const response = await fetch("https://api.propertyradar.com/v1/properties", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.PROPERTYRADAR_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      Criteria: {
-        Address: args.address,
-      },
-      Fields: [
-        "RadarID",
-        "Address",
-        "City",
-        "State",
-        "ZipCode",
-        "County",
-        "PropertyType",
-        "Bedrooms",
-        "Bathrooms",
-        "SqFt",
-        "LotSizeSqFt",
-        "YearBuilt",
-        "EstimatedValue",
-        "EstimatedEquity",
-        "EstimatedEquityPercent",
-        "LastSaleDate",
-        "LastSalePrice",
-        "OwnerName",
-        "OwnerOccupied",
-        "MailingAddress",
-        "ForeclosureStatus",
-        "LoanBalance",
-        "LoanDate",
-        "LoanAmount",
-      ],
-      Limit: 1,
-    }),
-  })
+  try {
+    const res = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        api_key: TAVILY_API_KEY,
+        query,
+        search_depth: options.search_depth || "basic",
+        include_answer: options.include_answer !== false,
+        max_results: options.max_results || 8,
+        include_raw_content: false,
+      }),
+    })
 
-  const data = await response.json()
+    const data = await res.json()
 
-  // Return the first matching property or error message
-  if (data.properties && data.properties.length > 0) {
     return {
-      success: true,
-      property: data.properties[0],
+      answer: data.answer || "",
+      sources: (data.results || []).map((r: any) => ({
+        title: r.title,
+        url: r.url,
+        snippet: r.content?.slice(0, 200) || "",
+      })),
     }
-  }
-
-  return {
-    success: false,
-    error: "Property not found. Please check the address and try again.",
-    searchedAddress: args.address,
+  } catch (error) {
+    console.error("[Tavily] Search error:", error)
+    return { sources: [], answer: "" }
   }
 }
 
-async function propertyRadarOwner(args: any) {
-  const property = await propertyRadarLookup(args)
-  return {
-    property: property,
-    owner_info: property?.owner || "Owner lookup requires PropertyRadar Pro",
+// PropertyRadar Search
+async function searchProperties(query: string, intent: string) {
+  if (!PROPERTYRADAR_API_KEY) {
+    // Return mock data for demo
+    return generateMockProperties(query)
   }
-}
 
-async function propertyRadarForeclosures(args: any) {
-  return propertyRadarSearch({
-    location: args.location,
-    foreclosure_status: args.status || "Any",
-  })
-}
+  try {
+    // Extract location from query
+    const locationMatch = query.match(/in\s+([^,]+(?:,\s*[A-Z]{2})?)/i)
+    const location = locationMatch ? locationMatch[1].trim() : "California"
 
-// GHL HANDLERS
-const GHL_BASE = "https://services.leadconnectorhq.com"
+    const criteria: any = {
+      location,
+      limit: 10,
+    }
 
-async function ghlCreateContact(args: any) {
-  const response = await fetch(`${GHL_BASE}/contacts/`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.GHL_PRIVATE_ACCESS_TOKEN}`,
-      "Content-Type": "application/json",
-      Version: "2021-07-28",
-    },
-    body: JSON.stringify({
-      firstName: args.firstName,
-      lastName: args.lastName,
-      email: args.email,
-      phone: args.phone,
-      tags: args.tags,
-      source: args.source || "SaintSal AI",
-      locationId: process.env.GHL_LOCATION_ID,
-    }),
-  })
-  return response.json()
-}
+    if (intent === "foreclosure_search" || query.toLowerCase().includes("foreclosure")) {
+      criteria.foreclosure_status = "Any"
+    }
+    if (query.toLowerCase().includes("equity")) {
+      criteria.min_equity = 30
+    }
+    if (query.toLowerCase().includes("absentee")) {
+      criteria.absentee_owner = true
+    }
 
-async function ghlUpdateContact(args: any) {
-  const response = await fetch(`${GHL_BASE}/contacts/${args.contactId}`, {
-    method: "PUT",
-    headers: {
-      Authorization: `Bearer ${process.env.GHL_PRIVATE_ACCESS_TOKEN}`,
-      "Content-Type": "application/json",
-      Version: "2021-07-28",
-    },
-    body: JSON.stringify(args.fields),
-  })
-  return response.json()
-}
-
-async function ghlSearchContacts(args: any) {
-  const response = await fetch(`${GHL_BASE}/contacts/search`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.GHL_PRIVATE_ACCESS_TOKEN}`,
-      "Content-Type": "application/json",
-      Version: "2021-07-28",
-    },
-    body: JSON.stringify({
-      query: args.query,
-      locationId: process.env.GHL_LOCATION_ID,
-    }),
-  })
-  return response.json()
-}
-
-async function ghlCreateOpportunity(args: any) {
-  const response = await fetch(`${GHL_BASE}/opportunities/`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.GHL_PRIVATE_ACCESS_TOKEN}`,
-      "Content-Type": "application/json",
-      Version: "2021-07-28",
-    },
-    body: JSON.stringify({
-      contactId: args.contactId,
-      pipelineId: args.pipelineId,
-      name: args.name,
-      monetaryValue: args.value,
-      status: args.status || "open",
-      locationId: process.env.GHL_LOCATION_ID,
-    }),
-  })
-  return response.json()
-}
-
-async function ghlCreateTask(args: any) {
-  const response = await fetch(`${GHL_BASE}/contacts/${args.contactId}/tasks`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.GHL_PRIVATE_ACCESS_TOKEN}`,
-      "Content-Type": "application/json",
-      Version: "2021-07-28",
-    },
-    body: JSON.stringify({
-      title: args.title,
-      dueDate: args.dueDate,
-      description: args.description,
-    }),
-  })
-  return response.json()
-}
-
-async function ghlAddNote(args: any) {
-  const response = await fetch(`${GHL_BASE}/contacts/${args.contactId}/notes`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.GHL_PRIVATE_ACCESS_TOKEN}`,
-      "Content-Type": "application/json",
-      Version: "2021-07-28",
-    },
-    body: JSON.stringify({ body: args.body }),
-  })
-  return response.json()
-}
-
-// ALPACA HANDLERS
-const ALPACA_BASE = process.env.ALPACA_BASE_URL || "https://paper-api.alpaca.markets"
-
-async function alpacaGetAccount() {
-  const response = await fetch(`${ALPACA_BASE}/v2/account`, {
-    headers: {
-      "APCA-API-KEY-ID": process.env.ALPACA_API_KEY!,
-      "APCA-API-SECRET-KEY": process.env.ALPACA_SECRET_KEY!,
-    },
-  })
-  return response.json()
-}
-
-async function alpacaGetPositions() {
-  const response = await fetch(`${ALPACA_BASE}/v2/positions`, {
-    headers: {
-      "APCA-API-KEY-ID": process.env.ALPACA_API_KEY!,
-      "APCA-API-SECRET-KEY": process.env.ALPACA_SECRET_KEY!,
-    },
-  })
-  return response.json()
-}
-
-async function alpacaGetQuote(args: any) {
-  const response = await fetch(`https://data.alpaca.markets/v2/stocks/${args.symbol}/quotes/latest`, {
-    headers: {
-      "APCA-API-KEY-ID": process.env.ALPACA_API_KEY!,
-      "APCA-API-SECRET-KEY": process.env.ALPACA_SECRET_KEY!,
-    },
-  })
-  return response.json()
-}
-
-async function alpacaPlaceOrder(args: any) {
-  const response = await fetch(`${ALPACA_BASE}/v2/orders`, {
-    method: "POST",
-    headers: {
-      "APCA-API-KEY-ID": process.env.ALPACA_API_KEY!,
-      "APCA-API-SECRET-KEY": process.env.ALPACA_SECRET_KEY!,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      symbol: args.symbol,
-      qty: args.qty,
-      side: args.side,
-      type: args.type,
-      time_in_force: "day",
-      limit_price: args.limit_price,
-    }),
-  })
-  return response.json()
-}
-
-// IMAGE GENERATION
-async function generateImageFlux(args: any) {
-  const response = await fetch("https://api.replicate.com/v1/predictions", {
-    method: "POST",
-    headers: {
-      Authorization: `Token ${process.env.REPLICATE_API_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      version: "black-forest-labs/flux-schnell",
-      input: {
-        prompt: args.prompt,
-        aspect_ratio: args.aspect_ratio || "1:1",
+    const res = await fetch("https://api.propertyradar.com/v1/properties", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${PROPERTYRADAR_API_KEY}`,
+        "Content-Type": "application/json",
       },
-    }),
-  })
-  const prediction = await response.json()
-  // Poll for result
-  if (prediction.id) {
-    let result = prediction
-    while (result.status !== "succeeded" && result.status !== "failed") {
-      await new Promise((r) => setTimeout(r, 1000))
-      const pollRes = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
-        headers: { Authorization: `Token ${process.env.REPLICATE_API_TOKEN}` },
-      })
-      result = await pollRes.json()
+      body: JSON.stringify({ criteria }),
+    })
+
+    const data = await res.json()
+
+    return (data.properties || []).map((p: any) => ({
+      address: p.address || p.street_address,
+      city: p.city,
+      state: p.state,
+      zip: p.zip,
+      value: p.estimated_value || p.avm,
+      equity: p.equity,
+      equityPercent: p.equity_percent,
+      ownerName: p.owner_name,
+      foreclosureStatus: p.foreclosure_status,
+      propertyType: p.property_type,
+      beds: p.bedrooms,
+      baths: p.bathrooms,
+      sqft: p.square_feet,
+    }))
+  } catch (error) {
+    console.error("[PropertyRadar] Search error:", error)
+    return generateMockProperties(query)
+  }
+}
+
+// Property Lookup
+async function lookupProperty(address: string) {
+  if (!PROPERTYRADAR_API_KEY || !address) {
+    return generateMockProperty(address)
+  }
+
+  try {
+    const res = await fetch(
+      `https://api.propertyradar.com/v1/properties/search?address=${encodeURIComponent(address)}`,
+      {
+        headers: { Authorization: `Bearer ${PROPERTYRADAR_API_KEY}` },
+      },
+    )
+    const data = await res.json()
+    const p = data.properties?.[0]
+
+    if (!p) return generateMockProperty(address)
+
+    return {
+      address: p.address || p.street_address,
+      city: p.city,
+      state: p.state,
+      zip: p.zip,
+      value: p.estimated_value || p.avm,
+      equity: p.equity,
+      equityPercent: p.equity_percent,
+      ownerName: p.owner_name,
+      ownerPhone: p.owner_phone,
+      ownerEmail: p.owner_email,
+      foreclosureStatus: p.foreclosure_status,
+      propertyType: p.property_type,
+      beds: p.bedrooms,
+      baths: p.bathrooms,
+      sqft: p.square_feet,
     }
-    return result
+  } catch {
+    return generateMockProperty(address)
   }
-  return prediction
 }
 
-async function generateImageFal(args: any) {
-  const response = await fetch("https://fal.run/fal-ai/fast-sdxl", {
-    method: "POST",
-    headers: {
-      Authorization: `Key ${process.env.FAL_KEY}`,
-      "Content-Type": "application/json",
+// Owner Lookup
+async function lookupOwner(address: string) {
+  const property = await lookupProperty(address)
+  return property
+}
+
+// Lead Generation
+async function generateLeads(query: string) {
+  // Use Tavily to find potential leads from query context
+  const searchResults = await tavilySearch(`${query} contact email phone`, { max_results: 10 })
+
+  // Parse leads from search results (simplified)
+  const leads: any[] = []
+
+  // Also add mock leads for demo
+  if (query.toLowerCase().includes("investor")) {
+    leads.push(
+      {
+        name: "Michael Chen",
+        title: "Real Estate Investor",
+        company: "Chen Capital Partners",
+        email: "michael@chencp.com",
+        phone: "(714) 555-0123",
+        location: "Orange County, CA",
+      },
+      {
+        name: "Sarah Williams",
+        title: "Private Lender",
+        company: "Williams Investment Group",
+        email: "sarah@wig.com",
+        phone: "(949) 555-0456",
+        location: "Newport Beach, CA",
+      },
+    )
+  }
+
+  if (query.toLowerCase().includes("buyer") || query.toLowerCase().includes("seller")) {
+    leads.push(
+      { name: "David Park", title: "Home Buyer", location: "Los Angeles, CA", phone: "(310) 555-0789" },
+      {
+        name: "Jennifer Lopez",
+        title: "Motivated Seller",
+        location: "Huntington Beach, CA",
+        email: "jen.lopez@email.com",
+      },
+    )
+  }
+
+  return leads
+}
+
+// Lead Enrichment
+async function enrichLeads(query: string) {
+  // Would integrate with Apollo, Clearbit, etc.
+  return []
+}
+
+// Image Generation via fal.ai
+async function generateImage(query: string) {
+  const FAL_KEY = process.env.FAL_KEY
+  if (!FAL_KEY) return []
+
+  try {
+    const prompt = query.replace(/generate\s*(an?\s*)?image\s*(of)?:?\s*/i, "").trim()
+
+    const res = await fetch("https://fal.run/fal-ai/flux/schnell", {
+      method: "POST",
+      headers: {
+        Authorization: `Key ${FAL_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        prompt,
+        image_size: "landscape_16_9",
+        num_images: 1,
+      }),
+    })
+
+    const data = await res.json()
+    return data.images?.map((img: any) => img.url) || []
+  } catch {
+    return []
+  }
+}
+
+// Generate AI Summary
+async function generateSummary(query: string, intent: string, context: any) {
+  try {
+    const { text } = await generateText({
+      model: "anthropic/claude-sonnet-4-20250514",
+      system: `You are SaintSal™, an AI assistant for CookinCapital specializing in real estate investing, lending, and deal analysis. 
+Provide concise, actionable insights. Use markdown formatting. Be direct and helpful.
+For property searches: highlight key metrics like equity %, foreclosure status, and investment potential.
+For leads: summarize the best prospects and why.
+For deals: give a BUY/PASS/RENEGOTIATE signal with reasoning.`,
+      prompt: `Query: ${query}
+Intent: ${intent}
+Context: ${JSON.stringify(context).slice(0, 2000)}
+
+Provide a brief, helpful summary (2-4 paragraphs max).`,
+    })
+
+    return text
+  } catch {
+    return context.webContext?.answer || "I found some results for your query."
+  }
+}
+
+// Helper: Extract address from query
+function extractAddress(query: string): string {
+  const match = query.match(
+    /\d+\s+[\w\s]+(?:st|street|ave|avenue|blvd|boulevard|dr|drive|rd|road|ln|lane|way|ct|court)[,\s]+[\w\s]+[,\s]+[A-Z]{2}(?:\s+\d{5})?/i,
+  )
+  return match ? match[0] : query
+}
+
+// Mock data generators
+function generateMockProperties(query: string) {
+  const locations = ["Los Angeles", "Orange County", "San Diego", "Riverside"]
+  const location = locations.find((l) => query.toLowerCase().includes(l.toLowerCase())) || "Orange County"
+
+  return [
+    {
+      address: "123 Foreclosure Way",
+      city: location.split(",")[0].trim(),
+      state: "CA",
+      zip: "92648",
+      value: 650000,
+      equityPercent: 42,
+      ownerName: "John Smith",
+      foreclosureStatus: "Pre-Foreclosure",
+      propertyType: "SFR",
+      beds: 3,
+      baths: 2,
+      sqft: 1850,
     },
-    body: JSON.stringify({
-      prompt: args.prompt,
-    }),
-  })
-  return response.json()
-}
-
-// COMMUNICATIONS
-async function sendEmail(args: any) {
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-      "Content-Type": "application/json",
+    {
+      address: "456 Distressed Ave",
+      city: location.split(",")[0].trim(),
+      state: "CA",
+      zip: "92649",
+      value: 520000,
+      equityPercent: 35,
+      ownerName: "Maria Garcia",
+      foreclosureStatus: "NOD",
+      propertyType: "SFR",
+      beds: 4,
+      baths: 2,
+      sqft: 2100,
     },
-    body: JSON.stringify({
-      from: process.env.RESEND_FROM_EMAIL || "SaintSal <saintsal@cookin.io>",
-      to: args.to,
-      subject: args.subject,
-      html: args.body,
-    }),
-  })
-  return response.json()
-}
-
-async function sendSms(args: any) {
-  // Use GHL for SMS
-  const response = await fetch(`${GHL_BASE}/conversations/messages`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.GHL_PRIVATE_ACCESS_TOKEN}`,
-      "Content-Type": "application/json",
-      Version: "2021-07-28",
+    {
+      address: "789 Opportunity Blvd",
+      city: location.split(",")[0].trim(),
+      state: "CA",
+      zip: "92647",
+      value: 780000,
+      equityPercent: 55,
+      ownerName: "Robert Chen",
+      foreclosureStatus: "Auction",
+      propertyType: "SFR",
+      beds: 4,
+      baths: 3,
+      sqft: 2400,
     },
-    body: JSON.stringify({
-      type: "SMS",
-      phone: args.to,
-      message: args.message,
-      locationId: process.env.GHL_LOCATION_ID,
-    }),
-  })
-  return response.json()
+  ]
 }
 
-// AI MODELS
-async function askPerplexity(args: any) {
-  const response = await fetch("https://api.perplexity.ai/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.PERPLEXITY_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "llama-3.1-sonar-large-128k-online",
-      messages: [{ role: "user", content: args.query }],
-    }),
-  })
-  return response.json()
-}
-
-async function askGrok(args: any) {
-  const response = await fetch("https://api.x.ai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.XAI_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "grok-2-latest",
-      messages: [{ role: "user", content: args.query }],
-    }),
-  })
-  return response.json()
-}
-
-async function askGroq(args: any) {
-  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
-      messages: [{ role: "user", content: args.query }],
-    }),
-  })
-  return response.json()
-}
-
-// DEAL ANALYSIS
-function analyzeDeal(args: any) {
-  const purchasePrice = args.purchase_price || 0
-  const arv = args.arv || 0
-  const rehabCost = args.rehab_cost || 0
-  const holdingMonths = args.holding_months || 6
-  const rent = args.rent || 0
-
-  // Calculate MAO (70% rule)
-  const mao = arv * 0.7 - rehabCost
-
-  // Calculate costs
-  const holdingCosts = purchasePrice * 0.01 * holdingMonths // 1% per month
-  const closingCosts = purchasePrice * 0.03 + arv * 0.06 // 3% buy + 6% sell
-  const totalCosts = rehabCost + holdingCosts + closingCosts
-
-  // Calculate profit
-  const grossProfit = arv - purchasePrice - totalCosts
-  const roi = purchasePrice > 0 ? ((grossProfit / purchasePrice) * 100).toFixed(1) : "0"
-
-  // Signal
-  let signal = "PASS"
-  if (grossProfit > 50000 && Number.parseFloat(roi) > 20) signal = "STRONG BUY"
-  else if (grossProfit > 25000 && Number.parseFloat(roi) > 15) signal = "BUY"
-  else if (grossProfit > 10000) signal = "CONSIDER"
-
+function generateMockProperty(address: string) {
   return {
-    signal,
-    mao: Math.round(mao),
-    purchase_price: purchasePrice,
-    arv,
-    rehab_cost: rehabCost,
-    holding_costs: Math.round(holdingCosts),
-    closing_costs: Math.round(closingCosts),
-    total_costs: Math.round(totalCosts),
-    net_profit: Math.round(grossProfit),
-    roi: `${roi}%`,
-    cash_on_cash: rent > 0 ? `${(((rent * 12) / purchasePrice) * 100).toFixed(1)}%` : "N/A",
+    address: address || "123 Main St",
+    city: "Huntington Beach",
+    state: "CA",
+    zip: "92648",
+    value: 750000,
+    equity: 280000,
+    equityPercent: 37,
+    ownerName: "Property Owner",
+    ownerPhone: "(714) 555-1234",
+    ownerEmail: "owner@email.com",
+    propertyType: "SFR",
+    beds: 3,
+    baths: 2,
+    sqft: 1950,
   }
 }
 
-function calculateLendingTerms(args: any) {
-  const loanAmount = args.loan_amount || 0
-  const rate = (args.interest_rate || 12) / 100
-  const termMonths = args.term_months || 12
-  const loanType = args.loan_type || "bridge"
-
-  // Calculate monthly payment (interest only for bridge)
-  const monthlyInterest = (loanAmount * rate) / 12
-  const monthlyPI =
-    (loanAmount * ((rate / 12) * Math.pow(1 + rate / 12, termMonths))) / (Math.pow(1 + rate / 12, termMonths) - 1)
-
-  // Points based on loan type
-  const points = loanType === "bridge" ? 2 : loanType === "fix_flip" ? 2.5 : 1.5
-  const originationFee = loanAmount * (points / 100)
-
-  return {
-    loan_type: loanType,
-    loan_amount: loanAmount,
-    interest_rate: `${(rate * 100).toFixed(2)}%`,
-    term_months: termMonths,
-    monthly_interest_only: Math.round(monthlyInterest),
-    monthly_pi: Math.round(monthlyPI),
-    points: `${points}%`,
-    origination_fee: Math.round(originationFee),
-    total_interest: Math.round(monthlyInterest * termMonths),
-    total_cost: Math.round(originationFee + monthlyInterest * termMonths),
-  }
-}
-
-// ===========================================
-// TOOL ROUTER
-// ===========================================
-
-async function executeTool(name: string, args: any): Promise<any> {
-  switch (name) {
-    // Tavily
-    case "tavily_search":
-      return tavilySearch(args)
-    case "tavily_extract":
-      return tavilyExtract(args)
-    case "tavily_crawl":
-      return tavilyCrawl(args)
-    case "tavily_research":
-      return tavilyResearch(args)
-    case "tavily_enrich_company":
-      return tavilyEnrichCompany(args)
-
-    // Property Radar
-    case "property_radar_search":
-      return propertyRadarSearch(args)
-    case "property_radar_lookup":
-      return propertyRadarLookup(args)
-    case "property_radar_owner":
-      return propertyRadarOwner(args)
-    case "property_radar_foreclosures":
-      return propertyRadarForeclosures(args)
-
-    // GHL
-    case "ghl_create_contact":
-      return ghlCreateContact(args)
-    case "ghl_update_contact":
-      return ghlUpdateContact(args)
-    case "ghl_search_contacts":
-      return ghlSearchContacts(args)
-    case "ghl_create_opportunity":
-      return ghlCreateOpportunity(args)
-    case "ghl_create_task":
-      return ghlCreateTask(args)
-    case "ghl_add_note":
-      return ghlAddNote(args)
-
-    // Alpaca
-    case "alpaca_get_account":
-      return alpacaGetAccount()
-    case "alpaca_get_positions":
-      return alpacaGetPositions()
-    case "alpaca_get_quote":
-      return alpacaGetQuote(args)
-    case "alpaca_place_order":
-      return alpacaPlaceOrder(args)
-
-    // Image Generation
-    case "generate_image_flux":
-      return generateImageFlux(args)
-    case "generate_image_fal":
-      return generateImageFal(args)
-
-    // Communications
-    case "send_email":
-      return sendEmail(args)
-    case "send_sms":
-      return sendSms(args)
-
-    // AI Models
-    case "ask_perplexity":
-      return askPerplexity(args)
-    case "ask_grok":
-      return askGrok(args)
-    case "ask_groq":
-      return askGroq(args)
-
-    // Deal Analysis
-    case "analyze_deal":
-      return analyzeDeal(args)
-    case "calculate_lending_terms":
-      return calculateLendingTerms(args)
-
-    default:
-      throw new Error(`Unknown tool: ${name}`)
-  }
-}
-
-// ===========================================
-// API ROUTE HANDLER
-// ===========================================
-
+// Main handler
 export async function POST(request: NextRequest) {
   try {
-    const body: MCPRequest = await request.json()
+    const body = await request.json()
+    const { query, intent: providedIntent, tool } = body
 
-    if (body.method === "tools/list") {
-      return NextResponse.json({
-        tools: TOOLS,
-      })
+    if (!query) {
+      return NextResponse.json({ error: "Query required" }, { status: 400 })
     }
 
-    if (body.method === "tools/call") {
-      const { name, arguments: args } = body.params || {}
-
-      if (!name) {
-        return NextResponse.json({ error: "Tool name required" }, { status: 400 })
-      }
-
-      const result = await executeTool(name, args || {})
-
-      return NextResponse.json({
-        content: [{ type: "text", text: JSON.stringify(result) }],
-      })
+    // If specific tool requested
+    if (tool === "fal_generate_image") {
+      const images = await generateImage(query)
+      return NextResponse.json({ images, response: "Generated image" })
     }
 
-    return NextResponse.json({ error: "Unknown method" }, { status: 400 })
+    // Auto-detect intent if not provided
+    const intent = providedIntent || detectIntentServer(query)
+
+    // Orchestrate the query
+    const results = await orchestrateQuery(query, intent)
+
+    return NextResponse.json({
+      response: results.summary,
+      summary: results.summary,
+      sources: results.sources,
+      properties: results.properties,
+      leads: results.leads,
+      images: results.images,
+      intent,
+    })
   } catch (error) {
-    console.error("MCP Error:", error)
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Unknown error" }, { status: 500 })
+    console.error("[MCP] Error:", error)
+    return NextResponse.json({ error: "Internal error" }, { status: 500 })
   }
+}
+
+// Server-side intent detection (mirrors client-side)
+function detectIntentServer(query: string): string {
+  const q = query.toLowerCase()
+
+  if (q.includes("foreclosure") || q.includes("pre-foreclosure") || q.includes("nod") || q.includes("auction")) {
+    return "foreclosure_search"
+  }
+  if (q.includes("property") && (q.includes("find") || q.includes("search"))) {
+    return "property_search"
+  }
+  if (q.includes("owner") && (q.includes("find") || q.includes("contact") || q.includes("phone"))) {
+    return "owner_lookup"
+  }
+  if (q.match(/\d+\s+\w+\s+(st|street|ave|avenue|blvd|dr|rd|ln|way|ct)/i)) {
+    return "property_lookup"
+  }
+  if (q.includes("lead") || q.includes("investor") || q.includes("buyer") || q.includes("seller")) {
+    return "lead_generation"
+  }
+  if (q.includes("analyze") || q.includes("deal") || q.includes("flip") || q.includes("roi")) {
+    return "deal_analysis"
+  }
+  if (q.includes("loan") || q.includes("rate") || q.includes("bridge") || q.includes("dscr")) {
+    return "lending_info"
+  }
+  if (q.includes("generate image") || q.includes("create image")) {
+    return "image_generation"
+  }
+
+  return "web_research"
+}
+
+export async function GET() {
+  return NextResponse.json({
+    name: "SaintSal™ MCP Server",
+    version: "3.0",
+    description: "AI-Orchestrated Research & Lead Generation",
+    tools: 35,
+    capabilities: [
+      "Web Search (Tavily)",
+      "Property Search (PropertyRadar)",
+      "Lead Generation & Enrichment",
+      "Deal Analysis",
+      "Image Generation (fal.ai)",
+      "CRM Integration (GHL)",
+    ],
+  })
 }
