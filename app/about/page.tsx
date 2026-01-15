@@ -22,6 +22,18 @@ const team = [
     ],
     linkedIn: "https://linkedin.com/in/ryancaspatosto",
   },
+  {
+    name: "JR",
+    title: "Co-CEO & Managing Director",
+    company: "Saint Vision Group LLC",
+    image: "/male-executive-headshot.png",
+    bio: [
+      "JR serves as Co-CEO and Managing Director at Saint Vision Group LLC, bringing operational excellence and strategic leadership to CookinCapital's growth. His expertise in distressed asset resolution and legal compliance ensures every transaction meets the highest standards of due diligence.",
+      "With deep roots in real estate operations and investor relations, JR has been instrumental in building the systems and processes that power CookinCapital's lending platform. His hands-on approach to deal structuring has protected millions in investor capital while delivering consistent returns.",
+      "JR's commitment to operator success drives the company's service-first culture, ensuring every borrower receives institutional-grade support throughout their lending journey.",
+    ],
+    linkedIn: "#",
+  },
 ]
 
 const values = [

@@ -317,7 +317,7 @@ export function RescueIntake() {
                 <div className="space-y-2 sm:col-span-2">
                   <Label>Full Name *</Label>
                   <Input
-                    placeholder="John Smith"
+                    placeholder="Your Full Name"
                     className="bg-secondary border-0"
                     value={formData.fullName}
                     onChange={(e) => updateField("fullName", e.target.value)}
@@ -327,7 +327,7 @@ export function RescueIntake() {
                   <Label>Email *</Label>
                   <Input
                     type="email"
-                    placeholder="john@example.com"
+                    placeholder="your@email.com"
                     className="bg-secondary border-0"
                     value={formData.email}
                     onChange={(e) => updateField("email", e.target.value)}
