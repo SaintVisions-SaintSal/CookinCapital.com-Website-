@@ -223,16 +223,26 @@ function PropertyCard({ property }: { property: PropertyResult }) {
       {property.ownerName && (
         <div className="pt-3 border-t border-[#222]">
           <p className="text-xs text-gray-500 mb-2">Owner Contact</p>
-          <div className="flex items-center gap-3">
-            <p className="text-sm text-white font-medium">{property.ownerName}</p>
+          <p className="text-sm text-white font-medium mb-2">{property.ownerName}</p>
+          <div className="flex flex-col gap-1">
             {property.ownerPhone && (
-              <a href={`tel:${property.ownerPhone}`} className="text-amber-500 hover:text-amber-400">
+              <a
+                href={`tel:${property.ownerPhone}`}
+                className="flex items-center gap-2 px-2 py-1.5 -mx-2 text-sm text-amber-500 hover:bg-amber-500/10 rounded-lg transition-all active:scale-95"
+                aria-label={`Call owner at ${property.ownerPhone}`}
+              >
                 <Phone className="h-4 w-4" />
+                <span>{property.ownerPhone}</span>
               </a>
             )}
             {property.ownerEmail && (
-              <a href={`mailto:${property.ownerEmail}`} className="text-amber-500 hover:text-amber-400">
+              <a
+                href={`mailto:${property.ownerEmail}`}
+                className="flex items-center gap-2 px-2 py-1.5 -mx-2 text-sm text-amber-500 hover:bg-amber-500/10 rounded-lg transition-all active:scale-95 truncate"
+                aria-label={`Email owner at ${property.ownerEmail}`}
+              >
                 <Mail className="h-4 w-4" />
+                <span className="truncate">{property.ownerEmail}</span>
               </a>
             )}
           </div>
@@ -269,28 +279,30 @@ function LeadCard({ lead }: { lead: LeadResult }) {
         </div>
       </div>
 
-      <div className="mt-3 space-y-2">
+      <div className="mt-3 space-y-1">
         {lead.phone && (
           <a
             href={`tel:${lead.phone}`}
-            className="flex items-center gap-2 text-sm text-gray-300 hover:text-amber-500 transition-colors"
+            className="flex items-center gap-2 px-3 py-2 -mx-3 text-sm text-gray-300 hover:text-amber-500 hover:bg-amber-500/10 rounded-lg transition-all active:scale-95"
+            aria-label={`Call ${lead.name} at ${lead.phone}`}
           >
-            <Phone className="h-3.5 w-3.5" />
-            {lead.phone}
+            <Phone className="h-4 w-4 text-amber-500" />
+            <span className="font-medium">{lead.phone}</span>
           </a>
         )}
         {lead.email && (
           <a
             href={`mailto:${lead.email}`}
-            className="flex items-center gap-2 text-sm text-gray-300 hover:text-amber-500 transition-colors truncate"
+            className="flex items-center gap-2 px-3 py-2 -mx-3 text-sm text-gray-300 hover:text-amber-500 hover:bg-amber-500/10 rounded-lg transition-all active:scale-95 truncate"
+            aria-label={`Email ${lead.name} at ${lead.email}`}
           >
-            <Mail className="h-3.5 w-3.5" />
-            {lead.email}
+            <Mail className="h-4 w-4 text-amber-500" />
+            <span className="font-medium truncate">{lead.email}</span>
           </a>
         )}
         {lead.location && (
-          <p className="flex items-center gap-2 text-sm text-gray-500">
-            <MapPin className="h-3.5 w-3.5" />
+          <p className="flex items-center gap-2 px-3 py-2 -mx-3 text-sm text-gray-500">
+            <MapPin className="h-4 w-4" />
             {lead.location}
           </p>
         )}
