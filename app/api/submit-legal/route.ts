@@ -80,7 +80,7 @@ Equity Position:        $${equity ? equity.toLocaleString() : "0"}
                            END OF INTAKE
 ================================================================================
          Submitted via CookinCap Legal Services Portal
-            FlipEffective Legal - darren@flipeffective.com
+            CookinCap Legal - support@cookin.io
         CookinCap | Saint Vision Group | Powered by SaintSal™ + HACP™
              438 Main St, Huntington Beach, CA 92648 | 949-997-2097
 ================================================================================
@@ -109,11 +109,9 @@ Equity Position:        $${equity ? equity.toLocaleString() : "0"}
       console.error("[v0] GHL webhook error:", ghlError)
     }
 
-    // Send to Darren via Resend
     try {
       await sendEmail({
-        to: "darren@flipeffective.com",
-        cc: "support@cookin.io",
+        to: "support@cookin.io",
         subject: `${data.urgencyLevel === "Urgent" || data.urgencyLevel === "Critical" ? "🚨 URGENT: " : ""}New Legal Case: ${data.caseType || "General"} - ${data.fullName || "Unknown"} - ${caseId}`,
         text: emailContent,
       })
@@ -133,8 +131,8 @@ Equity Position:        $${equity ? equity.toLocaleString() : "0"}
 
 Dear ${data.fullName?.split(" ")[0] || "Valued Client"},
 
-We have received your legal services request and Darren from FlipEffective
-Legal is personally reviewing your case.
+We have received your legal services request and our legal team
+is personally reviewing your case.
 
 --------------------------------------------------------------------------------
                            CASE DETAILS
@@ -146,24 +144,24 @@ Property:               ${data.propertyAddress || "N/A"}
 Submitted:              ${timestamp}
 
 --------------------------------------------------------------------------------
-                       YOUR LEGAL SPECIALIST
+                       YOUR LEGAL TEAM
 --------------------------------------------------------------------------------
 
-Darren - FlipEffective Legal
-Email: darren@flipeffective.com
-Phone: (833) 524-2464
+CookinCap Legal Services
+Email: support@cookin.io
+Phone: (949) 997-2097
 
-Darren specializes in foreclosure defense, loan modifications, bankruptcy
-workouts, and real estate legal protection. He will be reaching out to you
-as soon as he reviews your case.
+Our team specializes in foreclosure defense, loan modifications, bankruptcy
+workouts, and real estate legal protection. We will be reaching out to you
+as soon as we review your case.
 
 --------------------------------------------------------------------------------
                          WHAT HAPPENS NEXT
 --------------------------------------------------------------------------------
 
-1. Darren will review your case details within 24 hours
-2. He will contact you directly to discuss your options
-3. Together, you'll create a strategy to protect your interests
+1. Our legal team will review your case details within 24 hours
+2. We will contact you directly to discuss your options
+3. Together, we'll create a strategy to protect your interests
 
 ${
   data.urgencyLevel === "Urgent" || data.urgencyLevel === "Critical"
@@ -173,25 +171,25 @@ ${
 ================================================================================
 
 Your case has been flagged as ${data.urgencyLevel?.toUpperCase()}. 
-Darren will contact you within the next few hours.
+Our team will contact you within the next few hours.
 `
     : ""
 }
 
-We understand you may be going through a difficult time. Darren and the
-CookinCapital team are here to help you navigate your options and protect
+We understand you may be going through a difficult time. The
+CookinCapital team is here to help you navigate your options and protect
 your property and your family's future.
 
 ================================================================================
                       CookinCapital Legal Services
-                     Powered by FlipEffective Legal
+                     Powered by SaintSal™ + HACP™
         CookinCap | Saint Vision Group | Powered by SaintSal™ + HACP™
              438 Main St, Huntington Beach, CA 92648 | 949-997-2097
 ================================================================================
 `
         await sendEmail({
           to: data.email,
-          subject: `Legal Case Received - Darren Will Contact You Soon - ${caseId}`,
+          subject: `Legal Case Received - We Will Contact You Soon - ${caseId}`,
           text: clientConfirmation,
         })
         console.log("[v0] Client confirmation sent to:", data.email)
@@ -203,7 +201,7 @@ your property and your family's future.
     return NextResponse.json({
       success: true,
       caseId,
-      message: "Case submitted successfully to FlipEffective Legal Services",
+      message: "Case submitted successfully to CookinCap Legal Services",
     })
   } catch (error) {
     console.error("Legal submission error:", error)

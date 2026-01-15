@@ -179,7 +179,17 @@ async function searchProperties(query: string, intent: string) {
       body: JSON.stringify({ criteria }),
     })
 
+    if (!res.ok) {
+      console.error(`[PropertyRadar] API error: ${res.status}`)
+      return generateMockProperties(query)
+    }
+
     const data = await res.json()
+
+    if (data.error) {
+      console.error(`[PropertyRadar] ${data.error}`)
+      return generateMockProperties(query)
+    }
 
     return (data.properties || []).map((p: any) => ({
       address: p.address || p.street_address,
@@ -215,7 +225,19 @@ async function lookupProperty(address: string) {
         headers: { Authorization: `Bearer ${PROPERTYRADAR_API_KEY}` },
       },
     )
+
+    if (!res.ok) {
+      console.error(`[PropertyRadar] API error: ${res.status}`)
+      return generateMockProperty(address)
+    }
+
     const data = await res.json()
+
+    if (data.error) {
+      console.error(`[PropertyRadar] ${data.error}`)
+      return generateMockProperty(address)
+    }
+
     const p = data.properties?.[0]
 
     if (!p) return generateMockProperty(address)
@@ -237,7 +259,8 @@ async function lookupProperty(address: string) {
       baths: p.bathrooms,
       sqft: p.square_feet,
     }
-  } catch {
+  } catch (error) {
+    console.error("[PropertyRadar] Lookup error:", error)
     return generateMockProperty(address)
   }
 }

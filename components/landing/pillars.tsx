@@ -31,7 +31,7 @@ const pillars = [
     icon: Scale,
     title: "Legal Help & Protection",
     description:
-      "Foreclosure prevention, bankruptcy workout, arrears stabilization. FlipEffective's legal framework integrated directly into your deal flow.",
+      "Foreclosure prevention, bankruptcy workout, arrears stabilization. CookinCap's legal framework integrated directly into your deal flow.",
     cta: "Get Legal Help",
     href: "/app/legal",
   },

@@ -14,7 +14,6 @@ const footerLinks = {
     { label: "About", href: "/about" },
     { label: "Apply Now", href: "/apply" },
     { label: "SaintVisionGroup", href: "https://saintvisiongroup.com", external: true },
-    { label: "FlipEffective", href: "https://flipeffective.com", external: true },
   ],
   resources: [
     { label: "Cookin.io", href: "https://cookin.io", external: true },

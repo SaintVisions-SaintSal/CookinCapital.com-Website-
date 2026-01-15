@@ -22,18 +22,6 @@ const team = [
     ],
     linkedIn: "https://linkedin.com/in/ryancaspatosto",
   },
-  {
-    name: "Darren Brown",
-    title: "Coach & Trainer",
-    company: "Flip Effective LLC",
-    image: "/images/screenshot-202025-11-25-20at-2010.png",
-    bio: [
-      "Darren Brown is a big thinker and visionary leader, serving as a Coach & Trainer in conjunction with Flip Effective LLC—a trailblazing firm specializing in the acquisition, management, and resolution of distressed residential real estate and mortgage assets across the United States.",
-      "With a deep understanding of market dynamics and an innovative approach to financial solutions, Darren has positioned Flip Effective as a transformative force in the real estate investment landscape. His approach blends analytical precision with creative problem-solving, enabling the firm to capitalize on unprecedented market opportunities while helping communities thrive.",
-      "Under Darren's forward-thinking approach to training, Flip Effective has successfully managed and co-invested in multiple institutional investment funds, raising over $1 billion in debt and equity financing. His strategic guidance has facilitated the acquisition, management, and resolution of distressed residential assets exceeding $3 billion in value since the financial crisis of 2007-2019.",
-    ],
-    linkedIn: "https://linkedin.com/in/darrenbrown",
-  },
 ]
 
 const values = [

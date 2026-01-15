@@ -80,7 +80,7 @@ export function RescueIntake() {
             </div>
             <div>
               <h2 className="text-2xl font-bold text-foreground">Case Submitted Successfully</h2>
-              <p className="text-muted-foreground mt-2">Your case has been sent to our legal team at FlipEffective.</p>
+              <p className="text-muted-foreground mt-2">Your case has been sent to our legal team.</p>
             </div>
             <div className="bg-background/50 rounded-lg p-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wider">Case Reference</p>
@@ -91,7 +91,7 @@ export function RescueIntake() {
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-start gap-2">
                   <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
-                  Darren from FlipEffective Legal will review your case within 24-48 hours
+                  JR from CookinCap Legal will review your case within 24-48 hours
                 </li>
                 <li className="flex items-start gap-2">
                   <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
@@ -105,15 +105,15 @@ export function RescueIntake() {
             </div>
             <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
               <Button variant="outline" asChild>
-                <a href="tel:+18005551234">
+                <a href="tel:+19499972097">
                   <Phone className="mr-2 h-4 w-4" />
                   Call Now
                 </a>
               </Button>
               <Button variant="outline" asChild>
-                <a href="mailto:darren@flipeffective.com">
+                <a href="mailto:support@cookin.io">
                   <Mail className="mr-2 h-4 w-4" />
-                  darren@flipeffective.com
+                  support@cookin.io
                 </a>
               </Button>
             </div>
@@ -377,7 +377,7 @@ export function RescueIntake() {
                     <div>
                       <p className="font-medium text-foreground">Urgent Case Flagged</p>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Your case will be prioritized. Darren will contact you within 24 hours.
+                        Your case will be prioritized. JR will contact you within 24 hours.
                       </p>
                     </div>
                   </div>
@@ -455,29 +455,14 @@ export function RescueIntake() {
 
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
-                  <Sparkles className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                  <Sparkles className="h-5 w-5 text-primary shrink-0" />
                   <div>
-                    <p className="font-medium text-foreground">Submitting to FlipEffective Legal</p>
+                    <p className="font-medium text-foreground">Submitting to CookinCap Legal</p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Your case will be reviewed by Darren at darren@flipeffective.com. SaintSal will analyze viability
-                      and recommend pathways.
+                      Your case will be reviewed by JR at support@cookin.io. SaintSal will analyze viability and
+                      recommend next steps.
                     </p>
                   </div>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  <span className="text-sm text-muted-foreground">Case information complete</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  <span className="text-sm text-muted-foreground">Financial details provided</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  <span className="text-sm text-muted-foreground">Contact information verified</span>
                 </div>
               </div>
 
@@ -485,11 +470,7 @@ export function RescueIntake() {
                 <Button variant="outline" onClick={() => setStep(3)}>
                   Back
                 </Button>
-                <Button
-                  className="bg-primary text-primary-foreground"
-                  onClick={handleSubmit}
-                  disabled={isSubmitting || !formData.fullName || !formData.email || !formData.phone}
-                >
+                <Button onClick={handleSubmit} disabled={isSubmitting} className="bg-primary text-primary-foreground">
                   {isSubmitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -498,7 +479,7 @@ export function RescueIntake() {
                   ) : (
                     <>
                       <Scale className="mr-2 h-4 w-4" />
-                      Submit to FlipEffective Legal
+                      Submit to CookinCap Legal
                     </>
                   )}
                 </Button>
@@ -508,66 +489,65 @@ export function RescueIntake() {
         )}
       </div>
 
-      {/* Right: Info panel */}
+      {/* Right: Info Sidebar */}
       <div className="space-y-6">
-        <Card className="border-primary/30">
+        <Card>
           <CardContent className="p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
                 <Scale className="h-5 w-5 text-primary" />
               </div>
-              <span className="font-semibold text-foreground">FlipEffective Legal Services</span>
+              <div>
+                <span className="font-semibold text-foreground">CookinCap Legal Services</span>
+                <p className="text-xs text-muted-foreground">Powered by SaintSal™</p>
+              </div>
             </div>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Our legal services program helps homeowners facing foreclosure or bankruptcy by negotiating with lenders,
-              rolling arrears into loans, and finding alternative funding paths.
+            <p className="text-sm text-muted-foreground">
+              Get expert help with foreclosure prevention, bankruptcy workouts, and arrears stabilization.
             </p>
-            <div className="mt-4 pt-4 border-t border-border">
-              <p className="text-xs text-muted-foreground">Direct Contact:</p>
-              <a href="mailto:darren@flipeffective.com" className="text-sm text-primary hover:underline">
-                darren@flipeffective.com
-              </a>
-            </div>
+            <a href="mailto:support@cookin.io" className="text-sm text-primary hover:underline">
+              support@cookin.io
+            </a>
           </CardContent>
         </Card>
 
         <Card>
           <CardContent className="p-6">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">How It Works</p>
-            <ul className="space-y-3 text-sm text-muted-foreground">
-              <li className="flex items-start gap-2">
-                <span className="text-primary font-semibold">1.</span>
-                Submit your case details
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-primary font-semibold">2.</span>
-                SaintSal assesses viability
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-primary font-semibold">3.</span>
-                Darren reviews & contacts you
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-primary font-semibold">4.</span>
-                We negotiate on your behalf
-              </li>
-            </ul>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-yellow-500/5 border-yellow-500/30">
-          <CardContent className="p-4">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-yellow-500 shrink-0" />
-              <p className="text-sm text-muted-foreground">
-                <span className="font-medium text-foreground">Facing a deadline?</span> Contact Darren immediately at{" "}
-                <a href="mailto:darren@flipeffective.com" className="text-primary hover:underline">
-                  darren@flipeffective.com
-                </a>
-              </p>
+            <h3 className="font-semibold text-foreground mb-4">How it works</h3>
+            <div className="space-y-4 text-sm">
+              <div className="flex items-start gap-3">
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/20 text-xs font-medium text-primary shrink-0">
+                  1
+                </div>
+                <p className="text-muted-foreground">Submit your case details</p>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/20 text-xs font-medium text-primary shrink-0">
+                  2
+                </div>
+                <p className="text-muted-foreground">JR reviews & contacts you</p>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/20 text-xs font-medium text-primary shrink-0">
+                  3
+                </div>
+                <p className="text-muted-foreground">Together, we create a solution</p>
+              </div>
             </div>
           </CardContent>
         </Card>
+
+        <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-yellow-500 shrink-0" />
+            <div>
+              <span className="font-medium text-foreground">Facing a deadline?</span> Contact JR immediately at{" "}
+              <a href="mailto:support@cookin.io" className="text-primary hover:underline">
+                support@cookin.io
+              </a>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )

@@ -30,6 +30,8 @@ import {
   Zap,
   Target,
   BarChart3,
+  Check,
+  Bookmark,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -175,24 +177,50 @@ function detectIntent(query: string): string {
 }
 
 // Property Card Component
-function PropertyCard({ property }: { property: PropertyResult }) {
+function PropertyCard({ property, onSave }: { property: PropertyResult; onSave?: (property: PropertyResult) => void }) {
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const res = await fetch("/api/saved-research", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          item_type: "property",
+          data: property,
+        }),
+      })
+      if (res.ok) {
+        setSaved(true)
+        const savedProps = JSON.parse(localStorage.getItem("savedProperties") || "[]")
+        savedProps.push({ ...property, savedAt: new Date().toISOString() })
+        localStorage.setItem("savedProperties", JSON.stringify(savedProps))
+        onSave?.(property)
+      }
+    } catch (e) {
+      const savedProps = JSON.parse(localStorage.getItem("savedProperties") || "[]")
+      savedProps.push({ ...property, savedAt: new Date().toISOString() })
+      localStorage.setItem("savedProperties", JSON.stringify(savedProps))
+      setSaved(true)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <div className="bg-[#111] border border-[#222] rounded-xl p-4 hover:border-amber-500/30 transition-all">
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
-            <Home className="h-5 w-5 text-amber-500" />
-          </div>
-          <div>
-            <p className="font-semibold text-white text-sm">{property.address}</p>
-            <p className="text-xs text-gray-500">
-              {property.city}, {property.state} {property.zip}
-            </p>
-          </div>
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-white text-sm truncate">{property.address}</p>
+          <p className="text-xs text-gray-400">
+            {property.city}, {property.state} {property.zip}
+          </p>
         </div>
-        {property.foreclosureStatus && (
-          <span className="px-2 py-1 bg-red-500/20 text-red-400 text-xs rounded-full font-medium">
-            {property.foreclosureStatus}
+        {property.propertyType && (
+          <span className="px-2 py-0.5 bg-amber-500/20 text-amber-500 text-[10px] font-medium rounded-full whitespace-nowrap">
+            {property.propertyType}
           </span>
         )}
       </div>
@@ -256,8 +284,22 @@ function PropertyCard({ property }: { property: PropertyResult }) {
         >
           Analyze Deal
         </Link>
-        <button className="px-3 py-2 bg-[#1a1a1a] hover:bg-[#222] text-white text-xs rounded-lg transition-colors">
-          Save
+        <button
+          onClick={handleSave}
+          disabled={saving || saved}
+          className={cn(
+            "px-3 py-2 text-xs rounded-lg transition-colors flex items-center gap-1",
+            saved ? "bg-green-500/20 text-green-400 cursor-default" : "bg-[#1a1a1a] hover:bg-[#222] text-white",
+          )}
+        >
+          {saving ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : saved ? (
+            <Check className="h-3 w-3" />
+          ) : (
+            <Bookmark className="h-3 w-3" />
+          )}
+          {saved ? "Saved" : "Save"}
         </button>
       </div>
     </div>
@@ -265,7 +307,40 @@ function PropertyCard({ property }: { property: PropertyResult }) {
 }
 
 // Lead Card Component
-function LeadCard({ lead }: { lead: LeadResult }) {
+function LeadCard({ lead, onSave }: { lead: LeadResult; onSave?: (lead: LeadResult) => void }) {
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const res = await fetch("/api/saved-research", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          item_type: "lead",
+          data: lead,
+        }),
+      })
+      if (res.ok) {
+        setSaved(true)
+        // Also save to localStorage as fallback
+        const savedLeads = JSON.parse(localStorage.getItem("savedLeads") || "[]")
+        savedLeads.push({ ...lead, savedAt: new Date().toISOString() })
+        localStorage.setItem("savedLeads", JSON.stringify(savedLeads))
+        onSave?.(lead)
+      }
+    } catch (e) {
+      // Fallback to localStorage
+      const savedLeads = JSON.parse(localStorage.getItem("savedLeads") || "[]")
+      savedLeads.push({ ...lead, savedAt: new Date().toISOString() })
+      localStorage.setItem("savedLeads", JSON.stringify(savedLeads))
+      setSaved(true)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <div className="bg-[#111] border border-[#222] rounded-xl p-4 hover:border-amber-500/30 transition-all">
       <div className="flex items-start gap-3">
@@ -309,11 +384,27 @@ function LeadCard({ lead }: { lead: LeadResult }) {
       </div>
 
       <div className="flex gap-2 mt-3">
-        <button className="flex-1 py-2 bg-amber-500 hover:bg-amber-600 text-black text-xs font-semibold rounded-lg transition-colors">
-          Add to CRM
-        </button>
-        <button className="px-3 py-2 bg-[#1a1a1a] hover:bg-[#222] text-white text-xs rounded-lg transition-colors">
-          Enrich
+        <button
+          onClick={handleSave}
+          disabled={saving || saved}
+          className={cn(
+            "flex-1 py-2 text-xs font-semibold rounded-lg transition-colors flex items-center justify-center gap-1",
+            saved ? "bg-green-500/20 text-green-400 cursor-default" : "bg-amber-500 hover:bg-amber-600 text-black",
+          )}
+        >
+          {saving ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : saved ? (
+            <>
+              <Check className="h-3 w-3" />
+              Saved
+            </>
+          ) : (
+            <>
+              <Bookmark className="h-3 w-3" />
+              Save Lead
+            </>
+          )}
         </button>
       </div>
     </div>

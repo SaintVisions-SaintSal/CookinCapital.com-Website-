@@ -20,33 +20,34 @@ export function Header() {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
-      <div className="mx-auto max-w-7xl px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <nav className="flex h-20 items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-3 flex-shrink-0 min-w-fit">
             <Image src="/saintsal-logo.png" alt="SaintSal" width={48} height={48} className="rounded-xl" />
             <div className="flex flex-col">
-              <span className="text-xl font-semibold tracking-tight">
+              <span className="text-xl font-semibold tracking-tight whitespace-nowrap">
                 <span className="text-primary">Cookin</span>
                 <span className="text-foreground">Capital</span>
               </span>
-              <span className="text-[10px] font-medium tracking-widest text-primary/80 uppercase">by SaintSal™</span>
+              <span className="text-[10px] font-medium tracking-widest text-primary/80 uppercase whitespace-nowrap">
+                by SaintSal™
+              </span>
             </div>
           </Link>
 
-          {/* Desktop Navigation */}
-          <div className="hidden items-center gap-8 lg:flex">
+          <div className="hidden items-center gap-6 lg:flex ml-12">
             {navItems.map((item) => (
               <Link
                 key={item.label}
                 href={item.href}
-                className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground whitespace-nowrap"
               >
                 {item.label}
               </Link>
             ))}
           </div>
 
-          <div className="hidden items-center gap-3 lg:flex">
+          <div className="hidden items-center gap-3 lg:flex ml-auto">
             <Link href="/auth/login">
               <Button variant="ghost" className="text-sm font-medium">
                 Sign In

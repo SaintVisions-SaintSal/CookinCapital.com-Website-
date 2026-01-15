@@ -415,19 +415,19 @@ export function InvestmentPage() {
 
             <div className="rounded-xl border border-border bg-card p-6 text-center">
               <div className="mx-auto h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center text-2xl font-bold text-primary">
-                DB
+                JR
               </div>
-              <h3 className="mt-4 text-lg font-semibold text-foreground">Darren Brown</h3>
+              <h3 className="mt-4 text-lg font-semibold text-foreground">JR</h3>
               <p className="text-sm text-primary">Managing Director</p>
               <p className="mt-2 text-sm text-muted-foreground">
                 Distressed asset resolution, legal compliance, and operational leadership
               </p>
               <a
-                href="tel:+19496747735"
+                href="tel:+19499972097"
                 className="mt-4 inline-flex items-center gap-2 text-sm text-primary hover:underline"
               >
                 <Phone className="h-4 w-4" />
-                949-674-7735
+                949-997-2097
               </a>
             </div>
           </div>
