@@ -32,6 +32,14 @@ import {
   BarChart3,
   Check,
   Bookmark,
+  AlertTriangle,
+  Calendar,
+  Copy,
+  ChevronDown,
+  ChevronUp,
+  BedDouble,
+  Bath,
+  Ruler,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -56,21 +64,64 @@ interface SearchResult {
 }
 
 interface PropertyResult {
+  // Basic Property Info
+  radarId?: string
   address: string
   city: string
   state: string
   zip: string
-  value?: number
-  equity?: number
-  equityPercent?: number
-  ownerName?: string
-  ownerPhone?: string
-  ownerEmail?: string
-  foreclosureStatus?: string
+  county?: string
   propertyType?: string
+
+  // Property Details
   beds?: number
   baths?: number
   sqft?: number
+  lotSize?: number
+  yearBuilt?: number
+  units?: number
+
+  // Valuation & Equity
+  value?: number
+  equity?: number
+  equityPercent?: number
+  availableEquity?: number
+
+  // Owner Information
+  ownerName?: string
+  ownerPhone?: string
+  ownerEmail?: string
+  ownerAddress?: string
+  ownerCity?: string
+  ownerState?: string
+  ownerZip?: string
+  yearsOwned?: number
+
+  // Distress Signals
+  foreclosureStatus?: string
+  foreclosureAuctionDate?: string
+  foreclosureOpeningBid?: number
+  taxDefaultYears?: number
+  taxDefaultAmount?: number
+  inDivorce?: boolean
+  divorceRecordingDate?: string
+  inBankruptcy?: boolean
+  bankruptcyStatus?: string
+  bankruptcyChapter?: string
+  hasLiens?: boolean
+  lienAmount?: number
+  isVacant?: boolean
+  isDeceased?: boolean
+
+  // Transfer Info
+  transferType?: string
+  transferDate?: string
+  transferAmount?: number
+
+  // Loan Info
+  loanBalance?: number
+  loanRate?: number
+  loanType?: string
 }
 
 interface LeadResult {
@@ -176,10 +227,11 @@ function detectIntent(query: string): string {
   return "web_research"
 }
 
-// Property Card Component
 function PropertyCard({ property, onSave }: { property: PropertyResult; onSave?: (property: PropertyResult) => void }) {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [expanded, setExpanded] = useState(false)
+  const [copied, setCopied] = useState<string | null>(null)
 
   const handleSave = async () => {
     setSaving(true)
@@ -209,97 +261,316 @@ function PropertyCard({ property, onSave }: { property: PropertyResult; onSave?:
     }
   }
 
-  return (
-    <div className="bg-[#111] border border-[#222] rounded-xl p-4 hover:border-amber-500/30 transition-all">
-      <div className="flex items-start justify-between gap-2 mb-3">
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-white text-sm truncate">{property.address}</p>
-          <p className="text-xs text-gray-400">
-            {property.city}, {property.state} {property.zip}
-          </p>
-        </div>
-        {property.propertyType && (
-          <span className="px-2 py-0.5 bg-amber-500/20 text-amber-500 text-[10px] font-medium rounded-full whitespace-nowrap">
-            {property.propertyType}
-          </span>
-        )}
-      </div>
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text)
+    setCopied(label)
+    setTimeout(() => setCopied(null), 2000)
+  }
 
-      <div className="grid grid-cols-3 gap-3 mb-3">
-        {property.value && (
-          <div className="text-center p-2 bg-[#0a0a0a] rounded-lg">
-            <p className="text-xs text-gray-500">Value</p>
-            <p className="text-sm font-semibold text-white">${(property.value / 1000).toFixed(0)}K</p>
-          </div>
-        )}
-        {property.equityPercent !== undefined && (
-          <div className="text-center p-2 bg-[#0a0a0a] rounded-lg">
-            <p className="text-xs text-gray-500">Equity</p>
-            <p className={cn("text-sm font-semibold", property.equityPercent > 30 ? "text-green-400" : "text-white")}>
-              {property.equityPercent}%
+  // Determine distress level and badge
+  const getDistressBadge = () => {
+    if (property.foreclosureStatus) {
+      const status = property.foreclosureStatus.toUpperCase()
+      if (status === "NTS" || status === "AUCTION") return { label: "AUCTION", color: "bg-red-500" }
+      if (status === "NOD") return { label: "PRE-FORECLOSURE", color: "bg-orange-500" }
+      if (status === "REO") return { label: "BANK OWNED", color: "bg-purple-500" }
+    }
+    if (property.taxDefaultYears && property.taxDefaultYears > 0) return { label: "TAX DEFAULT", color: "bg-red-400" }
+    if (property.inBankruptcy) return { label: "BANKRUPTCY", color: "bg-red-600" }
+    if (property.inDivorce) return { label: "DIVORCE", color: "bg-orange-400" }
+    if (property.hasLiens) return { label: "LIENS", color: "bg-yellow-500" }
+    if (property.isVacant) return { label: "VACANT", color: "bg-blue-500" }
+    if (property.isDeceased) return { label: "PROBATE", color: "bg-purple-400" }
+    if (property.transferType === "Death" || property.transferType === "Inheritance")
+      return { label: "INHERITED", color: "bg-purple-400" }
+    if ((property.equityPercent || 0) > 50) return { label: "HIGH EQUITY", color: "bg-green-500" }
+    return null
+  }
+
+  const distressBadge = getDistressBadge()
+
+  return (
+    <div className="bg-gradient-to-b from-[#141414] to-[#0a0a0a] border border-[#2a2a2a] rounded-2xl overflow-hidden hover:border-amber-500/40 transition-all shadow-xl">
+      {/* Header with Address and Status */}
+      <div className="p-4 border-b border-[#222]">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <MapPin className="h-4 w-4 text-amber-500 flex-shrink-0" />
+              <h3 className="font-bold text-white text-base truncate">{property.address}</h3>
+            </div>
+            <p className="text-sm text-gray-400 ml-6">
+              {property.city}, {property.state} {property.zip}
+              {property.county && <span className="text-gray-500"> • {property.county} County</span>}
             </p>
           </div>
-        )}
-        {property.sqft && (
-          <div className="text-center p-2 bg-[#0a0a0a] rounded-lg">
-            <p className="text-xs text-gray-500">Sq Ft</p>
-            <p className="text-sm font-semibold text-white">{property.sqft.toLocaleString()}</p>
+          <div className="flex flex-col items-end gap-1">
+            {distressBadge && (
+              <span className={cn("px-2 py-0.5 text-[10px] font-bold text-white rounded-full", distressBadge.color)}>
+                {distressBadge.label}
+              </span>
+            )}
+            {property.propertyType && (
+              <span className="px-2 py-0.5 bg-[#222] text-gray-400 text-[10px] font-medium rounded-full">
+                {property.propertyType}
+              </span>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
+      {/* Key Metrics Grid */}
+      <div className="grid grid-cols-4 divide-x divide-[#222] bg-[#0d0d0d]">
+        <div className="p-3 text-center">
+          <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">Value</p>
+          <p className="text-lg font-bold text-white">
+            {property.value ? `$${(property.value / 1000).toFixed(0)}K` : "—"}
+          </p>
+        </div>
+        <div className="p-3 text-center">
+          <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">Equity</p>
+          <p className={cn("text-lg font-bold", (property.equityPercent || 0) > 30 ? "text-green-400" : "text-white")}>
+            {property.equityPercent !== undefined ? `${property.equityPercent}%` : "—"}
+          </p>
+        </div>
+        <div className="p-3 text-center">
+          <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">Avail. Equity</p>
+          <p className="text-lg font-bold text-green-400">
+            {property.availableEquity
+              ? `$${(property.availableEquity / 1000).toFixed(0)}K`
+              : property.equity
+                ? `$${(property.equity / 1000).toFixed(0)}K`
+                : "—"}
+          </p>
+        </div>
+        <div className="p-3 text-center">
+          <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">Owned</p>
+          <p className="text-lg font-bold text-white">{property.yearsOwned ? `${property.yearsOwned}yr` : "—"}</p>
+        </div>
+      </div>
+
+      {/* Property Details Row */}
+      {(property.beds || property.baths || property.sqft || property.yearBuilt) && (
+        <div className="flex items-center justify-center gap-4 py-2 px-4 bg-[#111] border-t border-[#222]">
+          {property.beds && (
+            <div className="flex items-center gap-1 text-sm text-gray-400">
+              <BedDouble className="h-3.5 w-3.5" />
+              <span>{property.beds} bed</span>
+            </div>
+          )}
+          {property.baths && (
+            <div className="flex items-center gap-1 text-sm text-gray-400">
+              <Bath className="h-3.5 w-3.5" />
+              <span>{property.baths} bath</span>
+            </div>
+          )}
+          {property.sqft && (
+            <div className="flex items-center gap-1 text-sm text-gray-400">
+              <Ruler className="h-3.5 w-3.5" />
+              <span>{property.sqft.toLocaleString()} sqft</span>
+            </div>
+          )}
+          {property.yearBuilt && (
+            <div className="flex items-center gap-1 text-sm text-gray-400">
+              <Calendar className="h-3.5 w-3.5" />
+              <span>{property.yearBuilt}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Owner Contact Section */}
       {property.ownerName && (
-        <div className="pt-3 border-t border-[#222]">
-          <p className="text-xs text-gray-500 mb-2">Owner Contact</p>
-          <p className="text-sm text-white font-medium mb-2">{property.ownerName}</p>
-          <div className="flex flex-col gap-1">
+        <div className="p-4 border-t border-[#222] bg-[#0a0a0a]">
+          <div className="flex items-center gap-2 mb-3">
+            <User className="h-4 w-4 text-amber-500" />
+            <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Owner Contact</p>
+          </div>
+
+          <div className="space-y-2">
+            {/* Owner Name with Copy */}
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-white">{property.ownerName}</p>
+              <button
+                onClick={() => copyToClipboard(property.ownerName!, "name")}
+                className="p-1 hover:bg-[#222] rounded transition-colors"
+              >
+                {copied === "name" ? (
+                  <Check className="h-3 w-3 text-green-400" />
+                ) : (
+                  <Copy className="h-3 w-3 text-gray-500" />
+                )}
+              </button>
+            </div>
+
+            {/* Owner Mailing Address */}
+            {property.ownerAddress && (
+              <p className="text-xs text-gray-400">
+                {property.ownerAddress}
+                {property.ownerCity && `, ${property.ownerCity}`}
+                {property.ownerState && `, ${property.ownerState}`}
+                {property.ownerZip && ` ${property.ownerZip}`}
+              </p>
+            )}
+
+            {/* Phone - Large Tap Target */}
             {property.ownerPhone && (
               <a
                 href={`tel:${property.ownerPhone}`}
-                className="flex items-center gap-2 px-2 py-1.5 -mx-2 text-sm text-amber-500 hover:bg-amber-500/10 rounded-lg transition-all active:scale-95"
-                aria-label={`Call owner at ${property.ownerPhone}`}
+                className="flex items-center justify-between w-full px-3 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-xl transition-all active:scale-[0.98]"
               >
-                <Phone className="h-4 w-4" />
-                <span>{property.ownerPhone}</span>
+                <div className="flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-amber-500" />
+                  <span className="text-sm font-medium text-amber-500">{property.ownerPhone}</span>
+                </div>
+                <span className="text-[10px] text-amber-500/70 uppercase">Tap to Call</span>
               </a>
             )}
+
+            {/* Email - Large Tap Target */}
             {property.ownerEmail && (
               <a
                 href={`mailto:${property.ownerEmail}`}
-                className="flex items-center gap-2 px-2 py-1.5 -mx-2 text-sm text-amber-500 hover:bg-amber-500/10 rounded-lg transition-all active:scale-95 truncate"
-                aria-label={`Email owner at ${property.ownerEmail}`}
+                className="flex items-center justify-between w-full px-3 py-2.5 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 rounded-xl transition-all active:scale-[0.98]"
               >
-                <Mail className="h-4 w-4" />
-                <span className="truncate">{property.ownerEmail}</span>
+                <div className="flex items-center gap-2 min-w-0">
+                  <Mail className="h-4 w-4 text-blue-400 flex-shrink-0" />
+                  <span className="text-sm font-medium text-blue-400 truncate">{property.ownerEmail}</span>
+                </div>
+                <span className="text-[10px] text-blue-400/70 uppercase flex-shrink-0 ml-2">Tap to Email</span>
               </a>
             )}
           </div>
         </div>
       )}
 
-      <div className="flex gap-2 mt-3">
+      {/* Distress Details (Expandable) */}
+      {(property.foreclosureStatus ||
+        property.taxDefaultYears ||
+        property.inBankruptcy ||
+        property.inDivorce ||
+        property.hasLiens ||
+        property.loanBalance) && (
+        <div className="border-t border-[#222]">
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="w-full flex items-center justify-between px-4 py-3 text-xs text-gray-400 hover:bg-[#111] transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+              <span className="uppercase tracking-wide font-medium">Distress & Legal Details</span>
+            </div>
+            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
+
+          {expanded && (
+            <div className="px-4 pb-4 space-y-3">
+              {/* Foreclosure Info */}
+              {property.foreclosureStatus && (
+                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+                  <p className="text-[10px] text-red-400 uppercase font-medium mb-1">Foreclosure Status</p>
+                  <p className="text-sm text-white font-semibold">{property.foreclosureStatus}</p>
+                  {property.foreclosureAuctionDate && (
+                    <p className="text-xs text-gray-400 mt-1">Auction: {property.foreclosureAuctionDate}</p>
+                  )}
+                  {property.foreclosureOpeningBid && (
+                    <p className="text-xs text-gray-400">
+                      Opening Bid: ${property.foreclosureOpeningBid.toLocaleString()}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Tax Default */}
+              {property.taxDefaultYears && property.taxDefaultYears > 0 && (
+                <div className="p-3 bg-orange-500/10 border border-orange-500/20 rounded-lg">
+                  <p className="text-[10px] text-orange-400 uppercase font-medium mb-1">Tax Delinquent</p>
+                  <p className="text-sm text-white">{property.taxDefaultYears} years delinquent</p>
+                  {property.taxDefaultAmount && (
+                    <p className="text-xs text-gray-400">Amount Owed: ${property.taxDefaultAmount.toLocaleString()}</p>
+                  )}
+                </div>
+              )}
+
+              {/* Bankruptcy */}
+              {property.inBankruptcy && (
+                <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+                  <p className="text-[10px] text-purple-400 uppercase font-medium mb-1">Bankruptcy</p>
+                  <p className="text-sm text-white">
+                    {property.bankruptcyChapter && `Chapter ${property.bankruptcyChapter}`}
+                    {property.bankruptcyStatus && ` - ${property.bankruptcyStatus}`}
+                  </p>
+                </div>
+              )}
+
+              {/* Divorce */}
+              {property.inDivorce && (
+                <div className="p-3 bg-pink-500/10 border border-pink-500/20 rounded-lg">
+                  <p className="text-[10px] text-pink-400 uppercase font-medium mb-1">Divorce / Lis Pendens</p>
+                  <p className="text-sm text-white">Property involved in divorce proceedings</p>
+                  {property.divorceRecordingDate && (
+                    <p className="text-xs text-gray-400">Filed: {property.divorceRecordingDate}</p>
+                  )}
+                </div>
+              )}
+
+              {/* Liens */}
+              {property.hasLiens && (
+                <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                  <p className="text-[10px] text-yellow-400 uppercase font-medium mb-1">Liens / Judgments</p>
+                  <p className="text-sm text-white">Property has open liens</p>
+                  {property.lienAmount && (
+                    <p className="text-xs text-gray-400">Lien Amount: ${property.lienAmount.toLocaleString()}</p>
+                  )}
+                </div>
+              )}
+
+              {/* Loan Info */}
+              {property.loanBalance && (
+                <div className="p-3 bg-[#111] border border-[#222] rounded-lg">
+                  <p className="text-[10px] text-gray-400 uppercase font-medium mb-1">Existing Loan</p>
+                  <p className="text-sm text-white">Balance: ${property.loanBalance.toLocaleString()}</p>
+                  {property.loanType && <p className="text-xs text-gray-400">Type: {property.loanType}</p>}
+                  {property.loanRate && <p className="text-xs text-gray-400">Rate: {property.loanRate}%</p>}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Action Buttons */}
+      <div className="p-4 border-t border-[#222] flex gap-2">
         <Link
-          href={`/app/analyzer?address=${encodeURIComponent(property.address)}&city=${encodeURIComponent(property.city)}&state=${encodeURIComponent(property.state)}`}
-          className="flex-1 py-2 bg-amber-500 hover:bg-amber-600 text-black text-xs font-semibold rounded-lg text-center transition-colors"
+          href={`/app/analyzer?address=${encodeURIComponent(property.address)}&city=${encodeURIComponent(property.city)}&state=${encodeURIComponent(property.state)}&zip=${encodeURIComponent(property.zip || "")}&value=${property.value || ""}`}
+          className="flex-1 py-3 bg-amber-500 hover:bg-amber-600 text-black text-sm font-bold rounded-xl text-center transition-colors flex items-center justify-center gap-2"
         >
+          <Calculator className="h-4 w-4" />
           Analyze Deal
         </Link>
         <button
           onClick={handleSave}
           disabled={saving || saved}
           className={cn(
-            "px-3 py-2 text-xs rounded-lg transition-colors flex items-center gap-1",
-            saved ? "bg-green-500/20 text-green-400 cursor-default" : "bg-[#1a1a1a] hover:bg-[#222] text-white",
+            "px-4 py-3 text-sm font-semibold rounded-xl transition-all flex items-center gap-2",
+            saved
+              ? "bg-green-500/20 text-green-400 border border-green-500/30"
+              : "bg-[#1a1a1a] hover:bg-[#222] text-white border border-[#333]",
           )}
         >
           {saving ? (
-            <Loader2 className="h-3 w-3 animate-spin" />
+            <Loader2 className="h-4 w-4 animate-spin" />
           ) : saved ? (
-            <Check className="h-3 w-3" />
+            <>
+              <Check className="h-4 w-4" />
+              Saved
+            </>
           ) : (
-            <Bookmark className="h-3 w-3" />
+            <>
+              <Bookmark className="h-4 w-4" />
+              Save
+            </>
           )}
-          {saved ? "Saved" : "Save"}
         </button>
       </div>
     </div>

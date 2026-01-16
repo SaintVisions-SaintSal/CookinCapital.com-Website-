@@ -1,221 +1,518 @@
 "use client"
 
 import Link from "next/link"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   Building2,
-  Truck,
-  Wallet,
-  Calendar,
-  Landmark,
-  FileText,
-  CreditCard,
   ArrowRight,
   CheckCircle2,
   Shield,
   Clock,
   Users,
   TrendingUp,
-  Phone,
   Sparkles,
-  ChevronDown,
-  ChevronUp,
-  FileCheck,
   Upload,
+  Home,
+  Building,
+  Briefcase,
+  Star,
+  Calculator,
+  X,
+  Phone,
+  Mail,
 } from "lucide-react"
-import { useState } from "react"
 
-const loanProducts = [
-  {
-    id: "real-estate",
-    title: "Real Estate Financing",
-    icon: Building2,
-    tagline: "From fix & flip to commercial acquisitions",
-    description:
-      "Our expertise lies in unlocking funding for a broad spectrum of real estate opportunities, from bustling commercial properties to tranquil residential spaces. We provide bespoke financial solutions tailored to each unique investment, ensuring your venture is not just a dream, but a profitable reality.",
-    features: [
-      "Fix & Flip Loans",
-      "Bridge Loans",
-      "DSCR Loans",
-      "Commercial Mortgages",
-      "Ground-Up Construction",
-      "Portfolio Lending",
-    ],
-    amounts: "$50K - $50M+",
-    terms: "6 months - 30 years",
+// ===========================================
+// COMPLETE LOAN PRODUCT CONFIGURATIONS
+// ===========================================
+const LOAN_PRODUCTS = {
+  // RESIDENTIAL LOANS
+  conventional: {
+    name: "Conventional Mortgage",
+    category: "residential",
+    icon: "🏡",
+    minRate: 6.25,
+    maxRate: 7.75,
+    minAmount: 50000,
+    maxAmount: 766550,
+    termOptions: [15, 20, 30],
+    minLTV: 80,
+    maxLTV: 97,
+    minCredit: 620,
+    features: ["3-20% down payment", "15, 20, or 30-year terms", "Credit score 620+", "Primary, secondary, investment"],
+    description: "Traditional mortgage for primary, secondary, or investment properties",
+  },
+  fha: {
+    name: "FHA Loan",
+    category: "residential",
+    icon: "🏛️",
+    minRate: 5.75,
+    maxRate: 7.25,
+    minAmount: 50000,
+    maxAmount: 472030,
+    termOptions: [15, 30],
+    minCredit: 580,
+    mip: 0.55,
+    upfrontMIP: 1.75,
+    features: ["3.5% down payment", "Credit score 580+", "Gift funds allowed", "First-time buyers welcome"],
+    description: "Government-backed loan with low down payment",
+  },
+  va: {
+    name: "VA Loan",
+    category: "residential",
+    icon: "🎖️",
+    minRate: 5.5,
+    maxRate: 7.0,
+    minAmount: 50000,
+    maxAmount: 2000000,
+    termOptions: [15, 30],
+    minCredit: 580,
+    fundingFee: 2.15,
+    features: ["0% down payment", "No PMI required", "Veterans & active duty", "Competitive rates"],
+    description: "Zero down payment for veterans and active duty",
+  },
+  usda: {
+    name: "USDA Loan",
+    category: "residential",
+    icon: "🌾",
+    minRate: 5.75,
+    maxRate: 7.25,
+    minAmount: 50000,
+    maxAmount: 500000,
+    termOptions: [30],
+    minCredit: 640,
+    guaranteeFee: 1.0,
+    annualFee: 0.35,
+    features: ["0% down payment", "Rural & suburban areas", "Income limits apply", "Low mortgage insurance"],
+    description: "Zero down payment for rural and suburban areas",
+  },
+  jumbo: {
+    name: "Jumbo Loan",
+    category: "residential",
+    icon: "🏰",
+    minRate: 6.5,
+    maxRate: 8.0,
+    minAmount: 766551,
+    maxAmount: 5000000,
+    termOptions: [15, 30],
+    minCredit: 700,
+    features: ["Above $766,550", "Up to $5M+", "10-20% down payment", "Credit score 700+"],
+    description: "Loans above conforming limits for luxury properties",
+  },
+  dscr: {
+    name: "DSCR Loan",
+    category: "residential",
+    icon: "📊",
+    minRate: 7.25,
+    maxRate: 9.5,
+    minAmount: 75000,
+    maxAmount: 3000000,
+    termOptions: [30],
+    minCredit: 660,
+    minDSCR: 1.0,
+    features: ["No income verification", "Qualify on rental income", "Investment properties", "20-25% down payment"],
+    description: "Investment property loan based on rental income",
+  },
+  hard_money_res: {
+    name: "Hard Money Loan",
+    category: "residential",
+    icon: "💪",
+    minRate: 10.0,
+    maxRate: 14.0,
+    minAmount: 50000,
+    maxAmount: 2000000,
+    termOptions: [6, 12, 18, 24],
+    minCredit: 550,
+    points: 2,
+    features: ["Asset-based lending", "Fast closing (7-14 days)", "Credit flexible", "6-24 month terms"],
+    description: "Fast asset-based lending for investors",
+  },
+  fix_flip: {
+    name: "Fix & Flip Loan",
+    category: "residential",
+    icon: "🔨",
+    minRate: 9.5,
+    maxRate: 13.0,
+    minAmount: 75000,
+    maxAmount: 3000000,
+    termOptions: [6, 9, 12, 18],
+    maxLTC: 90,
+    maxARV: 70,
+    minCredit: 620,
+    points: 1.5,
+    features: ["Purchase + rehab funds", "Up to 90% of purchase", "100% of rehab costs", "12-18 month terms"],
+    description: "Purchase + rehab financing for flippers",
+  },
+  bridge_res: {
+    name: "Bridge Loan",
+    category: "residential",
+    icon: "🌉",
+    minRate: 8.5,
+    maxRate: 12.0,
+    minAmount: 100000,
+    maxAmount: 5000000,
+    termOptions: [6, 12, 18, 24],
+    maxLTV: 75,
+    minCredit: 620,
+    features: ["Buy before you sell", "Short-term financing", "Quick approval", "6-24 month terms"],
+    description: "Short-term financing to bridge transactions",
+  },
+  construction_res: {
+    name: "Construction Loan",
+    category: "residential",
+    icon: "🏗️",
+    minRate: 7.5,
+    maxRate: 10.0,
+    minAmount: 100000,
+    maxAmount: 5000000,
+    termOptions: [12, 18, 24],
+    maxLTC: 85,
+    minCredit: 680,
+    features: ["Ground-up construction", "Draw schedule funding", "Interest-only during build", "Convert to perm loan"],
+    description: "Ground-up construction financing",
+  },
+  heloc: {
+    name: "HELOC",
+    category: "residential",
+    icon: "🏠",
+    minRate: 7.99,
+    maxRate: 12.0,
+    minAmount: 10000,
+    maxAmount: 500000,
+    termOptions: [10, 15, 20],
+    maxCLTV: 85,
+    minCredit: 680,
+    features: ["Revolving credit line", "Draw as needed", "Interest-only option", "Tax deductible*"],
+    description: "Revolving home equity line of credit",
+  },
+  cashout_refi: {
+    name: "Cash-Out Refinance",
+    category: "residential",
+    icon: "💵",
+    minRate: 6.5,
+    maxRate: 8.0,
+    minAmount: 50000,
+    maxAmount: 2000000,
+    termOptions: [15, 20, 30],
+    maxLTV: 80,
+    minCredit: 620,
+    features: ["Access home equity", "Lower your rate", "Consolidate debt", "Fund improvements"],
+    description: "Refinance and take cash from equity",
+  },
+  non_qm: {
+    name: "Non-QM Loan",
+    category: "residential",
+    icon: "📋",
+    minRate: 7.5,
+    maxRate: 10.0,
+    minAmount: 100000,
+    maxAmount: 3000000,
+    termOptions: [30],
+    maxLTV: 80,
+    minCredit: 620,
+    features: ["Bank statement income", "Asset depletion", "Foreign nationals", "Self-employed friendly"],
+    description: "Bank statement, asset depletion, foreign national",
+  },
+
+  // COMMERCIAL LOANS
+  cre: {
+    name: "Commercial Real Estate",
+    category: "commercial",
+    icon: "🏢",
+    minRate: 6.75,
+    maxRate: 9.0,
+    minAmount: 500000,
+    maxAmount: 50000000,
+    termOptions: [5, 7, 10, 15, 20, 25],
+    maxLTV: 80,
+    minDSCR: 1.25,
+    features: ["Office, retail, industrial", "Up to 80% LTV", "25-year amortization", "Competitive rates"],
+    description: "Office, retail, industrial financing",
+  },
+  multifamily: {
+    name: "Multi-Family Loan",
+    category: "commercial",
+    icon: "🏘️",
+    minRate: 6.25,
+    maxRate: 8.0,
+    minAmount: 500000,
+    maxAmount: 100000000,
+    termOptions: [5, 7, 10, 12, 15, 30],
+    maxLTV: 80,
+    minDSCR: 1.2,
+    features: ["5+ units", "Freddie/Fannie eligible", "Non-recourse options", "Cash-out available"],
+    description: "Apartment and multi-unit financing",
+  },
+  mixed_use: {
+    name: "Mixed-Use Loan",
+    category: "commercial",
+    icon: "🏬",
+    minRate: 7.0,
+    maxRate: 9.0,
+    minAmount: 250000,
+    maxAmount: 20000000,
+    termOptions: [5, 7, 10, 15, 25],
+    maxLTV: 75,
+    minDSCR: 1.25,
+    features: ["Commercial + residential", "Flexible use", "Up to 75% LTV", "Various terms"],
+    description: "Commercial and residential combo",
+  },
+  bridge_comm: {
+    name: "Commercial Bridge",
+    category: "commercial",
+    icon: "🌉",
+    minRate: 9.0,
+    maxRate: 13.0,
+    minAmount: 500000,
+    maxAmount: 50000000,
+    termOptions: [12, 24, 36],
+    maxLTV: 75,
+    points: 1.5,
+    features: ["Value-add projects", "Lease-up financing", "Quick close", "Flexible prepay"],
+    description: "Transitional commercial financing",
+  },
+  construction_comm: {
+    name: "Commercial Construction",
+    category: "commercial",
+    icon: "🏗️",
+    minRate: 8.5,
+    maxRate: 12.0,
+    minAmount: 1000000,
+    maxAmount: 100000000,
+    termOptions: [18, 24, 36],
+    maxLTC: 80,
+    features: ["Ground-up development", "Draw schedules", "Interest reserves", "Perm takeout options"],
+    description: "Ground-up commercial development",
+  },
+  hospitality: {
+    name: "Hotel/Hospitality",
+    category: "commercial",
+    icon: "🏨",
+    minRate: 7.5,
+    maxRate: 10.0,
+    minAmount: 1000000,
+    maxAmount: 100000000,
+    termOptions: [5, 7, 10, 15, 25],
+    maxLTV: 70,
+    minDSCR: 1.4,
+    features: ["Flagged & independent", "Acquisition & refinance", "PIP financing", "SBA eligible"],
+    description: "Hotel and hospitality financing",
+  },
+  self_storage: {
+    name: "Self-Storage Loan",
+    category: "commercial",
+    icon: "📦",
+    minRate: 6.75,
+    maxRate: 8.5,
+    minAmount: 500000,
+    maxAmount: 50000000,
+    termOptions: [5, 7, 10, 15, 25],
+    maxLTV: 80,
+    minDSCR: 1.25,
+    features: ["Stabilized facilities", "Expansion financing", "Climate controlled", "Conversions"],
+    description: "Storage facility financing",
+  },
+  mhp: {
+    name: "Mobile Home Park",
+    category: "commercial",
+    icon: "🏕️",
+    minRate: 6.5,
+    maxRate: 8.5,
+    minAmount: 500000,
+    maxAmount: 50000000,
+    termOptions: [5, 7, 10, 12, 30],
+    maxLTV: 80,
+    minDSCR: 1.25,
+    features: ["Park-owned homes OK", "Infill financing", "Freddie Mac eligible", "Long-term fixed"],
+    description: "Manufactured housing community financing",
+  },
+
+  // BUSINESS FINANCING
+  sba_7a: {
+    name: "SBA 7(a) Loan",
+    category: "business",
+    icon: "🏛️",
+    minRate: 10.5,
+    maxRate: 13.0,
+    minAmount: 50000,
+    maxAmount: 5000000,
+    termOptions: [5, 7, 10, 15, 25],
+    features: ["Most flexible SBA program", "Working capital OK", "10% down typical", "Long terms available"],
+    description: "Most flexible SBA program",
+  },
+  sba_504: {
+    name: "SBA 504 Loan",
+    category: "business",
+    icon: "🏢",
+    minRate: 5.5,
+    maxRate: 7.0,
+    minAmount: 125000,
+    maxAmount: 20000000,
+    termOptions: [10, 20, 25],
+    downPayment: 10,
+    features: ["Fixed assets only", "10% down payment", "Below market rates", "20-25 year terms"],
+    description: "Fixed asset financing with low down",
+  },
+  term_loan: {
+    name: "Term Loan",
+    category: "business",
+    icon: "📅",
+    minRate: 8.0,
+    maxRate: 25.0,
+    minAmount: 5000,
+    maxAmount: 5000000,
+    termOptions: [1, 2, 3, 5],
+    features: ["Fixed payments", "Fast approval", "Various uses", "Predictable budgeting"],
+    description: "Fixed payments business loan",
+  },
+  working_capital: {
+    name: "Working Capital",
+    category: "business",
+    icon: "💰",
+    minRate: 15.0,
+    maxRate: 45.0,
+    minAmount: 10000,
+    maxAmount: 2000000,
+    termOptions: [3, 6, 9, 12, 18],
+    features: ["Fast funding", "Minimal docs", "Revenue-based", "Daily/weekly payments"],
+    description: "Fast cash flow solution",
+  },
+  business_loc: {
+    name: "Business Line of Credit",
+    category: "business",
+    icon: "💳",
+    minRate: 7.0,
+    maxRate: 25.0,
+    minAmount: 10000,
+    maxAmount: 1000000,
+    termOptions: [12, 24],
+    features: ["Revolving access", "Pay interest on usage", "Reusable credit", "Emergency buffer"],
+    description: "Revolving business credit",
+  },
+  equipment: {
+    name: "Equipment Financing",
+    category: "business",
+    icon: "🚜",
+    minRate: 6.0,
+    maxRate: 20.0,
+    minAmount: 5000,
+    maxAmount: 5000000,
+    termOptions: [2, 3, 4, 5, 7],
+    features: ["Equipment is collateral", "100% financing available", "New & used equipment", "Preserve cash flow"],
+    description: "Equipment is collateral",
+  },
+  factoring: {
+    name: "Invoice Factoring",
+    category: "business",
+    icon: "📄",
+    minRate: 1.0,
+    maxRate: 5.0,
+    minAmount: 10000,
+    maxAmount: 10000000,
+    termOptions: [1],
+    features: ["Turn invoices to cash", "85% advance rate", "No debt added", "Collection services"],
+    description: "Turn invoices into cash",
+  },
+  mca: {
+    name: "Merchant Cash Advance",
+    category: "business",
+    icon: "💵",
+    minRate: 20.0,
+    maxRate: 50.0,
+    minAmount: 5000,
+    maxAmount: 500000,
+    termOptions: [3, 6, 9, 12, 18],
+    features: ["Based on card sales", "Daily remittance", "Fast approval", "Flexible qualifications"],
+    description: "Based on credit card sales",
+  },
+  acquisition: {
+    name: "Business Acquisition",
+    category: "business",
+    icon: "🤝",
+    minRate: 7.0,
+    maxRate: 12.0,
+    minAmount: 100000,
+    maxAmount: 25000000,
+    termOptions: [5, 7, 10, 15, 25],
+    features: ["Buy a business", "Partner buyout", "SBA eligible", "Seller financing OK"],
+    description: "Buy a business or buyout partner",
+  },
+
+  // SPECIALTY PROGRAMS
+  hfci: {
+    name: "HFCI Fee Financing",
+    category: "specialty",
+    icon: "⚖️",
+    minRate: 12.0,
+    maxRate: 18.0,
+    minAmount: 4000,
+    maxAmount: 5000,
+    termOptions: [12, 24, 36],
+    features: ["Finance legal fees", "Save your home", "Low monthly payments", "Quick approval"],
+    description: "Finance legal fees to save your home",
     highlight: true,
-    requiredDocs: [
-      "Government-issued ID (Driver's License or Passport)",
-      "Purchase Agreement or LOI",
-      "Property Address & Photos",
-      "Scope of Work (for rehab projects)",
-      "Bank Statements (last 2-3 months)",
-      "Entity Documents (LLC/Corp if applicable)",
-      "Real Estate Experience Resume",
-      "Insurance Quote or Binder",
-    ],
   },
-  {
-    id: "equipment",
-    title: "Equipment Financing",
-    icon: Truck,
-    tagline: "Acquire what you need, preserve your cash",
-    description:
-      "Equipment financing allows businesses to acquire necessary equipment without making a large upfront payment. Make manageable monthly payments over a specified period while preserving cash flow for other critical areas of your operations.",
-    features: [
-      "Heavy Equipment",
-      "Vehicles & Fleets",
-      "Technology & Software",
-      "Manufacturing Equipment",
-      "Medical Equipment",
-      "Restaurant Equipment",
-    ],
-    amounts: "$5K - $5M",
-    terms: "1 - 7 years",
-    requiredDocs: [
-      "Government-issued ID",
-      "Equipment Quote or Invoice",
-      "Business Bank Statements (3 months)",
-      "Business Tax Returns (1-2 years)",
-      "Proof of Business Ownership",
-      "Equipment Specifications",
-    ],
+  debt_consol: {
+    name: "Debt Consolidation",
+    category: "specialty",
+    icon: "📊",
+    minRate: 7.99,
+    maxRate: 24.0,
+    minAmount: 5000,
+    maxAmount: 100000,
+    termOptions: [2, 3, 5, 7],
+    features: ["Combine debts", "One payment", "Lower rate possible", "Simplify finances"],
+    description: "Combine debts into one payment",
   },
-  {
-    id: "working-capital",
-    title: "Working Capital",
-    icon: Wallet,
-    tagline: "Keep your operations running smoothly",
-    description:
-      "Working capital serves as a financial cushion that enables your business to cover operational expenses, manage inventory, meet short-term obligations, and pursue growth opportunities. Maintain financial stability and support ongoing growth.",
-    features: [
-      "Inventory Purchases",
-      "Payroll Coverage",
-      "Marketing Campaigns",
-      "Seasonal Fluctuations",
-      "Emergency Reserves",
-      "Opportunity Seizing",
-    ],
-    amounts: "$5K - $1M",
-    terms: "3 - 24 months",
-    requiredDocs: [
-      "Government-issued ID",
-      "Business Bank Statements (3-4 months)",
-      "Voided Business Check",
-      "Business License",
-      "Proof of Ownership",
-    ],
+  personal: {
+    name: "Personal Loan",
+    category: "specialty",
+    icon: "👤",
+    minRate: 6.99,
+    maxRate: 24.0,
+    minAmount: 1000,
+    maxAmount: 100000,
+    termOptions: [2, 3, 5, 7],
+    features: ["Unsecured", "Fixed payments", "Various uses", "Quick funding"],
+    description: "Unsecured personal financing",
   },
-  {
-    id: "term-loans",
-    title: "Term Loans",
-    icon: Calendar,
-    tagline: "Predictable payments, affordable capital",
-    description:
-      "A term loan provides a fixed amount of money upfront with a defined repayment period and regular installments. This predictability allows you to plan cash flow and allocate resources effectively. Lower interest rates make it an attractive option for affordable capital.",
-    features: [
-      "Expansion Projects",
-      "Acquisitions",
-      "Debt Consolidation",
-      "Major Purchases",
-      "Business Investments",
-      "Long-term Planning",
-    ],
-    amounts: "$5K - $5M",
-    terms: "1 - 10 years",
-    requiredDocs: [
-      "Government-issued ID",
-      "Business & Personal Tax Returns (2 years)",
-      "Business Bank Statements (3-6 months)",
-      "Profit & Loss Statement (YTD)",
-      "Balance Sheet",
-      "Business Debt Schedule",
-      "Use of Funds Statement",
-    ],
+  auto: {
+    name: "Auto Loan",
+    category: "specialty",
+    icon: "🚗",
+    minRate: 5.49,
+    maxRate: 18.0,
+    minAmount: 5000,
+    maxAmount: 150000,
+    termOptions: [2, 3, 4, 5, 6, 7],
+    features: ["New & used vehicles", "Competitive rates", "Fast approval", "Refinance available"],
+    description: "New and used vehicle financing",
   },
-  {
-    id: "sba-loans",
-    title: "SBA Loans",
-    icon: Landmark,
-    tagline: "Government-backed, business-forward",
-    description:
-      "SBA loans offer lower down payments, longer repayment terms, and more flexible eligibility requirements compared to traditional bank loans. Competitive interest rates significantly reduce borrowing costs and improve overall financial health.",
-    features: [
-      "SBA 7(a) Loans",
-      "SBA 504 Loans",
-      "SBA Microloans",
-      "SBA Express",
-      "SBA Disaster Loans",
-      "SBA Export Loans",
-    ],
-    amounts: "$50K - $5M",
-    terms: "5 - 25 years",
-    requiredDocs: [
-      "Government-issued ID for all 20%+ owners",
-      "Business & Personal Tax Returns (3 years)",
-      "Business Bank Statements (12 months)",
-      "Year-to-Date Financials (P&L, Balance Sheet)",
-      "Business Debt Schedule",
-      "Business Plan (for startups)",
-      "Personal Financial Statement (SBA Form 413)",
-      "Resume/Experience for each owner",
-      "Collateral Documentation",
-      "Lease Agreement (if applicable)",
-    ],
+  commercial_vehicle: {
+    name: "Commercial Vehicle",
+    category: "specialty",
+    icon: "🚛",
+    minRate: 7.0,
+    maxRate: 15.0,
+    minAmount: 10000,
+    maxAmount: 500000,
+    termOptions: [2, 3, 4, 5, 7],
+    features: ["Trucks, vans, fleets", "Business use", "Flexible terms", "Tax benefits"],
+    description: "Trucks, vans, fleet financing",
   },
-  {
-    id: "invoice-factoring",
-    title: "Invoice Factoring",
-    icon: FileText,
-    tagline: "Turn unpaid invoices into immediate cash",
-    description:
-      "Invoice factoring involves selling unpaid invoices to access a significant portion of your accounts receivable immediately. Eliminate waiting for customers to settle their invoices and reduce the risk of late or non-payments.",
-    features: [
-      "Immediate Cash Access",
-      "No Debt Added",
-      "Flexible Funding",
-      "Credit Protection",
-      "Collection Services",
-      "Growth Enablement",
-    ],
-    amounts: "Up to 90% of Invoice Value",
-    terms: "Ongoing",
-    requiredDocs: [
-      "Government-issued ID",
-      "Accounts Receivable Aging Report",
-      "Sample Invoices",
-      "Customer List with Contact Info",
-      "Business Bank Statements (3 months)",
-      "Business License",
-    ],
-  },
-  {
-    id: "line-of-credit",
-    title: "Business Line of Credit",
-    icon: CreditCard,
-    tagline: "Draw what you need, when you need it",
-    description:
-      "A business line of credit gives you access to a predetermined amount of capital that you can draw upon as needed. Address short-term cash flow gaps, manage unexpected expenses, or seize new opportunities without applying for a new loan each time.",
-    features: [
-      "Revolving Access",
-      "Pay Interest Only on Usage",
-      "Quick Draws",
-      "Flexible Repayment",
-      "Safety Net",
-      "Growth Ready",
-    ],
-    amounts: "$10K - $1M",
-    terms: "Revolving",
-    requiredDocs: [
-      "Government-issued ID",
-      "Business Bank Statements (3-6 months)",
-      "Business Tax Returns (1-2 years)",
-      "Proof of Business Ownership",
-      "Voided Business Check",
-    ],
-  },
+}
+
+const categories = [
+  { id: "residential", name: "Residential", icon: Home, emoji: "🏠" },
+  { id: "commercial", name: "Commercial", icon: Building, emoji: "🏢" },
+  { id: "business", name: "Business", icon: Briefcase, emoji: "💼" },
+  { id: "specialty", name: "Specialty", icon: Star, emoji: "⭐" },
 ]
 
 const stats = [
@@ -225,30 +522,161 @@ const stats = [
   { label: "Funding Speed", value: "24 hrs", icon: Clock },
 ]
 
-const processSteps = [
-  {
-    step: "01",
-    title: "Apply Online",
-    description: "Fast & easy application. Our loan specialist will contact you within hours.",
-  },
-  {
-    step: "02",
-    title: "Review Options",
-    description: "Get your decision in minutes. No paperwork, no waiting. Multiple offers to compare.",
-  },
-  {
-    step: "03",
-    title: "Get Funded",
-    description: "True term loans $5,000 - $5,000,000+. Receive funding in as fast as 1 day.",
-  },
-]
+// Calculator Modal Component
+function LoanCalculator({
+  product,
+  onClose,
+}: { product: (typeof LOAN_PRODUCTS)[keyof typeof LOAN_PRODUCTS] & { key: string }; onClose: () => void }) {
+  const [loanAmount, setLoanAmount] = useState(product.minAmount)
+  const [term, setTerm] = useState(product.termOptions?.[Math.floor(product.termOptions.length / 2)] || 12)
+  const [rate, setRate] = useState((product.minRate + product.maxRate) / 2)
+
+  // Calculate monthly payment
+  const monthlyRate = rate / 100 / 12
+  const numPayments = term * (term < 10 ? 1 : 12) // Months if term < 10 years, else months
+  const actualMonths = term >= 10 ? term * 12 : term
+  const monthlyPayment =
+    (loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, actualMonths))) /
+    (Math.pow(1 + monthlyRate, actualMonths) - 1)
+  const totalPayment = monthlyPayment * actualMonths
+  const totalInterest = totalPayment - loanAmount
+
+  return (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-card border border-border rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-card border-b border-border p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">{product.icon}</span>
+            <div>
+              <h3 className="font-bold text-lg">{product.name}</h3>
+              <p className="text-sm text-primary">
+                {product.minRate}% - {product.maxRate}% APR
+              </p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-muted rounded-full">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Loan Amount */}
+          <div>
+            <Label className="text-sm font-medium">Loan Amount</Label>
+            <Input
+              type="number"
+              value={loanAmount}
+              onChange={(e) => setLoanAmount(Number(e.target.value))}
+              min={product.minAmount}
+              max={product.maxAmount}
+              className="mt-2"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              ${product.minAmount.toLocaleString()} - ${product.maxAmount.toLocaleString()}
+            </p>
+          </div>
+
+          {/* Interest Rate */}
+          <div>
+            <Label className="text-sm font-medium">Interest Rate (%)</Label>
+            <Input
+              type="number"
+              step="0.125"
+              value={rate}
+              onChange={(e) => setRate(Number(e.target.value))}
+              min={product.minRate}
+              max={product.maxRate}
+              className="mt-2"
+            />
+          </div>
+
+          {/* Term */}
+          <div>
+            <Label className="text-sm font-medium">Term</Label>
+            <Select value={String(term)} onValueChange={(v) => setTerm(Number(v))}>
+              <SelectTrigger className="mt-2">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {product.termOptions?.map((t) => (
+                  <SelectItem key={t} value={String(t)}>
+                    {t} {t >= 10 ? "Years" : "Months"}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Results */}
+          <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 space-y-3">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Monthly Payment</span>
+              <span className="text-xl font-bold text-primary">
+                ${isNaN(monthlyPayment) ? "0" : monthlyPayment.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Total Interest</span>
+              <span className="font-medium">
+                ${isNaN(totalInterest) ? "0" : totalInterest.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Total Repayment</span>
+              <span className="font-medium">
+                ${isNaN(totalPayment) ? "0" : totalPayment.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+              </span>
+            </div>
+          </div>
+
+          {/* Features */}
+          <div className="space-y-2">
+            {product.features?.map((feature, i) => (
+              <div key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
+                <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
+                <span>{feature}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* CTA Buttons */}
+          <div className="space-y-3 pt-4">
+            <Link href="/apply" className="block">
+              <Button className="w-full bg-primary text-primary-foreground">
+                Apply for This Loan
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
+            <div className="flex gap-3">
+              <a href="tel:9495461123" className="flex-1">
+                <Button variant="outline" className="w-full bg-transparent">
+                  <Phone className="mr-2 h-4 w-4" />
+                  Call Us
+                </Button>
+              </a>
+              <a href="mailto:support@cookin.io" className="flex-1">
+                <Button variant="outline" className="w-full bg-transparent">
+                  <Mail className="mr-2 h-4 w-4" />
+                  Email
+                </Button>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export function CapitalPage() {
-  const [expandedDocs, setExpandedDocs] = useState<string | null>(null)
+  const [activeCategory, setActiveCategory] = useState("residential")
+  const [selectedProduct, setSelectedProduct] = useState<
+    ((typeof LOAN_PRODUCTS)[keyof typeof LOAN_PRODUCTS] & { key: string }) | null
+  >(null)
 
-  const toggleDocs = (id: string) => {
-    setExpandedDocs(expandedDocs === id ? null : id)
-  }
+  const filteredProducts = Object.entries(LOAN_PRODUCTS)
+    .filter(([_, product]) => product.category === activeCategory)
+    .map(([key, product]) => ({ ...product, key }))
 
   return (
     <div className="pt-20">
@@ -270,7 +698,7 @@ export function CapitalPage() {
               Industry-leading approval process matched by SaintSal™ to the right lender for your deal.
             </p>
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link href="/apply">
+              <Link href="/prequal">
                 <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 px-8">
                   Get Pre-Qualified
                   <ArrowRight className="ml-2 h-4 w-4" />
@@ -304,103 +732,71 @@ export function CapitalPage() {
         </div>
       </section>
 
-      {/* Loan Products Grid */}
-      <section className="py-24 bg-muted/30">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="mx-auto max-w-2xl text-center mb-16">
-            <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">Funding Options</h2>
-            <p className="mt-4 text-lg text-muted-foreground">
-              Find the business loan that meets your needs. Every product, every scenario, one platform.
-            </p>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {loanProducts.map((product) => (
-              <Card
-                key={product.id}
-                className={`bg-card border-border/50 hover:border-primary/30 transition-all duration-300 flex flex-col ${
-                  product.highlight ? "ring-1 ring-primary/30 md:col-span-2 lg:col-span-1" : ""
+      {/* Category Tabs */}
+      <section className="sticky top-16 z-40 bg-background/95 backdrop-blur border-b border-border/50">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="flex overflow-x-auto gap-2 py-4 scrollbar-hide">
+            {categories.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => setActiveCategory(cat.id)}
+                className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold whitespace-nowrap transition ${
+                  activeCategory === cat.id
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-card border border-border hover:border-primary/50"
                 }`}
               >
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                      <product.icon className="h-6 w-6 text-primary" />
-                    </div>
-                    {product.highlight && <Badge className="bg-primary/10 text-primary border-0">Most Popular</Badge>}
-                  </div>
-                  <CardTitle className="text-xl mt-4">{product.title}</CardTitle>
-                  <CardDescription className="text-primary font-medium">{product.tagline}</CardDescription>
-                </CardHeader>
-                <CardContent className="flex-1 flex flex-col">
-                  <p className="text-sm text-muted-foreground mb-4 line-clamp-3">{product.description}</p>
+                <span>{cat.emoji}</span>
+                {cat.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
 
-                  <div className="grid grid-cols-2 gap-2 mb-4">
-                    {product.features.slice(0, 4).map((feature) => (
-                      <div key={feature} className="flex items-center gap-2 text-xs text-muted-foreground">
+      {/* Loan Products Grid */}
+      <section className="py-12 bg-muted/30">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {filteredProducts.map((product) => (
+              <Card
+                key={product.key}
+                onClick={() => setSelectedProduct(product)}
+                className={`cursor-pointer hover:border-primary/50 transition-all hover:-translate-y-1 ${
+                  product.highlight ? "ring-2 ring-primary/30" : ""
+                }`}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <span className="text-xl">{product.icon}</span>
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-sm truncate">{product.name}</h3>
+                      <p className="text-primary text-xs">From {product.minRate}% APR</p>
+                    </div>
+                  </div>
+
+                  <ul className="text-xs text-muted-foreground space-y-1 mb-3">
+                    {product.features?.slice(0, 3).map((f, i) => (
+                      <li key={i} className="flex items-center gap-1">
                         <CheckCircle2 className="h-3 w-3 text-primary flex-shrink-0" />
-                        <span>{feature}</span>
-                      </div>
+                        <span className="truncate">{f}</span>
+                      </li>
                     ))}
-                  </div>
+                  </ul>
 
-                  {/* Required Documents Section */}
-                  <div className="mb-4">
-                    <button
-                      onClick={() => toggleDocs(product.id)}
-                      className="flex items-center justify-between w-full text-sm font-medium text-primary hover:text-primary/80 transition-colors"
-                    >
-                      <span className="flex items-center gap-2">
-                        <FileCheck className="h-4 w-4" />
-                        Required Documents
-                      </span>
-                      {expandedDocs === product.id ? (
-                        <ChevronUp className="h-4 w-4" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4" />
-                      )}
-                    </button>
-                    {expandedDocs === product.id && (
-                      <div className="mt-3 p-3 rounded-lg bg-muted/50 border border-border/50 space-y-2">
-                        {product.requiredDocs.map((doc, index) => (
-                          <div key={index} className="flex items-start gap-2 text-xs text-muted-foreground">
-                            <CheckCircle2 className="h-3 w-3 text-primary flex-shrink-0 mt-0.5" />
-                            <span>{doc}</span>
-                          </div>
-                        ))}
-                        <Link href="/documents" className="block mt-3">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="w-full text-xs border-primary/30 text-primary bg-transparent"
-                          >
-                            <Upload className="mr-2 h-3 w-3" />
-                            Upload These Documents
-                          </Button>
-                        </Link>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="mt-auto pt-4 border-t border-border/50">
-                    <div className="flex justify-between text-sm mb-3">
-                      <div>
-                        <span className="text-muted-foreground">Amount:</span>
-                        <span className="ml-2 font-medium text-foreground">{product.amounts}</span>
-                      </div>
-                    </div>
-                    <div className="flex justify-between text-sm mb-4">
-                      <div>
-                        <span className="text-muted-foreground">Terms:</span>
-                        <span className="ml-2 font-medium text-foreground">{product.terms}</span>
-                      </div>
-                    </div>
-                    <Link href="/apply">
-                      <Button className="w-full bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground">
-                        Apply Now
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </Button>
-                    </Link>
+                  <div className="flex items-center justify-between pt-3 border-t border-border/50">
+                    <span className="text-xs text-muted-foreground">
+                      ${(product.minAmount / 1000).toFixed(0)}K - $
+                      {product.maxAmount >= 1000000
+                        ? `${(product.maxAmount / 1000000).toFixed(0)}M`
+                        : `${(product.maxAmount / 1000).toFixed(0)}K`}
+                    </span>
+                    <Button size="sm" variant="ghost" className="h-7 text-xs text-primary">
+                      <Calculator className="h-3 w-3 mr-1" />
+                      Calculate
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -409,172 +805,39 @@ export function CapitalPage() {
         </div>
       </section>
 
-      {/* Document Upload CTA */}
+      {/* CTA Section */}
       <section className="py-16 bg-primary/5 border-y border-primary/10">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl px-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-8">
             <div className="flex items-center gap-4">
               <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
                 <Upload className="h-8 w-8 text-primary" />
               </div>
               <div>
-                <h3 className="text-xl font-semibold text-foreground">Ready to Submit Your Documents?</h3>
+                <h3 className="text-xl font-semibold text-foreground">Ready to Get Started?</h3>
                 <p className="text-muted-foreground">
-                  Securely upload your files to our encrypted portal for faster processing.
+                  Apply online in minutes or upload your documents for faster processing.
                 </p>
               </div>
             </div>
-            <Link href="/documents">
-              <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90">
-                <Upload className="mr-2 h-4 w-4" />
-                Secure Document Upload
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Process Section */}
-      <section className="py-24">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="mx-auto max-w-2xl text-center mb-16">
-            <Badge variant="outline" className="mb-4 border-primary/30 text-primary">
-              Fast & Simple
-            </Badge>
-            <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">Get Funded in 1-2-3</h2>
-            <p className="mt-4 text-lg text-muted-foreground">
-              Industry-leading approval process that's easy and less intensive
-            </p>
-          </div>
-
-          <div className="grid gap-8 md:grid-cols-3">
-            {processSteps.map((step, index) => (
-              <div key={step.step} className="relative">
-                {index < processSteps.length - 1 && (
-                  <div className="hidden md:block absolute top-8 left-[60%] w-[80%] h-px bg-gradient-to-r from-primary/50 to-transparent" />
-                )}
-                <Card className="bg-card/50 border-border/50 text-center h-full">
-                  <CardContent className="pt-8 pb-6">
-                    <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 mb-4">
-                      <span className="text-2xl font-bold text-primary">{step.step}</span>
-                    </div>
-                    <h3 className="text-xl font-semibold text-foreground mb-2">{step.title}</h3>
-                    <p className="text-muted-foreground">{step.description}</p>
-                  </CardContent>
-                </Card>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Trust Section */}
-      <section className="py-24 bg-muted/30">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="grid gap-12 lg:grid-cols-2 items-center">
-            <div>
-              <Badge variant="outline" className="mb-4 border-primary/30 text-primary">
-                Trusted Partnerships
-              </Badge>
-              <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl mb-6">
-                50+ Exclusive Lending Partners You Can Count On
-              </h2>
-              <p className="text-lg text-muted-foreground mb-8">
-                At CookinCap, we appreciate how investing in relationships brings mutual prosperity. Who we partner with
-                ensures the best services available for our customers. Our network includes institutional lenders,
-                private equity funds, and specialized finance companies.
-              </p>
-              <div className="grid grid-cols-2 gap-4">
-                {[
-                  "Institutional Lenders",
-                  "Private Money",
-                  "SBA Preferred",
-                  "Credit Unions",
-                  "Family Offices",
-                  "Hedge Funds",
-                  "Regional Banks",
-                  "Alt-Finance",
-                ].map((partner) => (
-                  <div key={partner} className="flex items-center gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-primary" />
-                    <span className="text-foreground">{partner}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="relative">
-              <Card className="bg-card border-border/50">
-                <CardContent className="p-8">
-                  <div className="flex items-center gap-4 mb-6">
-                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Sparkles className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-foreground">SaintSal™ Matching</h3>
-                      <p className="text-sm text-muted-foreground">AI-powered lender matching</p>
-                    </div>
-                  </div>
-                  <p className="text-muted-foreground mb-6">
-                    Our proprietary SaintSal™ decision engine analyzes your deal and matches you with the optimal lender
-                    from our network - ensuring the best rates, terms, and likelihood of approval for your specific
-                    situation.
-                  </p>
-                  <Link href="/apply">
-                    <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
-                      Get Matched Now
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
+            <div className="flex gap-4">
+              <Link href="/prequal">
+                <Button size="lg" className="bg-primary text-primary-foreground">
+                  Get Pre-Qualified
+                </Button>
+              </Link>
+              <Link href="/documents">
+                <Button size="lg" variant="outline">
+                  Upload Documents
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-24">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <Card className="bg-gradient-to-br from-primary/10 via-card to-card border-primary/20">
-            <CardContent className="p-12 text-center">
-              <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl mb-4">
-                Ready to Get Funded?
-              </h2>
-              <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
-                Get the capital you need to allow your business to grow, today. Speak to a Saint Vision Team Member and
-                get pre-qualified in minutes.
-              </p>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Link href="/apply">
-                  <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 px-8">
-                    Apply Now
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </Link>
-                <a href="tel:+19499972097">
-                  <Button size="lg" variant="outline" className="border-primary/50 text-primary bg-transparent">
-                    <Phone className="mr-2 h-4 w-4" />
-                    (949) 997-2097
-                  </Button>
-                </a>
-              </div>
-              <p className="mt-6 text-sm text-muted-foreground">Fast • Easy • Reliable</p>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
-
-      {/* Disclaimer */}
-      <section className="py-8 border-t border-border/50">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <p className="text-xs text-muted-foreground text-center">
-            Saint Vision Group LLC © 2025 | All Rights Reserved | Loans Subject to Lender Approval. The operator of this
-            website is NOT a lender, does not make offers for loans, and does not broker online loans to lenders or
-            lending partners. Customers are paired with a lender or lending partner and redirected only to lenders or
-            lending partners who offer business/commercial loan products.
-          </p>
-        </div>
-      </section>
+      {/* Calculator Modal */}
+      {selectedProduct && <LoanCalculator product={selectedProduct} onClose={() => setSelectedProduct(null)} />}
     </div>
   )
 }
