@@ -17,7 +17,6 @@ import {
   FileText,
   Users,
   Lock,
-  Phone,
   Mail,
 } from "lucide-react"
 
@@ -390,45 +389,62 @@ export function InvestmentPage() {
       {/* Management Team */}
       <section className="py-20 lg:py-28">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="mx-auto max-w-2xl text-center mb-16">
-            <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">Management Team</h2>
-          </div>
-
-          <div className="grid gap-8 md:grid-cols-2 max-w-3xl mx-auto">
-            <div className="rounded-xl border border-border bg-card p-6 text-center">
-              <div className="mx-auto h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center text-2xl font-bold text-primary">
-                RC
+          <div className="mt-16">
+            <h3 className="text-xl font-semibold text-foreground text-center mb-8">Management Team</h3>
+            <div className="grid gap-6 md:grid-cols-3">
+              <div className="rounded-xl border border-border bg-card p-6 text-center">
+                <div className="mx-auto h-20 w-20 rounded-full overflow-hidden">
+                  <img src="/ryan-headshot.png" alt="Ryan" className="h-full w-full object-cover" />
+                </div>
+                <h3 className="mt-4 text-lg font-semibold text-foreground">Ryan Capatosto</h3>
+                <p className="text-sm text-primary">Founder & CEO</p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Real estate investment, commercial lending, and fund management expertise
+                </p>
+                <a
+                  href="mailto:ryan@cookin.io"
+                  className="mt-4 inline-flex items-center gap-2 text-sm text-primary hover:underline"
+                >
+                  <Mail className="h-4 w-4" />
+                  ryan@cookin.io
+                </a>
               </div>
-              <h3 className="mt-4 text-lg font-semibold text-foreground">Ryan Capatosto</h3>
-              <p className="text-sm text-primary">Managing Director</p>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Real estate investment, commercial lending, and fund management expertise
-              </p>
-              <a
-                href="tel:+19494169971"
-                className="mt-4 inline-flex items-center gap-2 text-sm text-primary hover:underline"
-              >
-                <Phone className="h-4 w-4" />
-                949-416-9971
-              </a>
-            </div>
 
-            <div className="rounded-xl border border-border bg-card p-6 text-center">
-              <div className="mx-auto h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center text-2xl font-bold text-primary">
-                JR
+              <div className="rounded-xl border border-border bg-card p-6 text-center">
+                <div className="mx-auto h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center text-2xl font-bold text-primary">
+                  JR
+                </div>
+                <h3 className="mt-4 text-lg font-semibold text-foreground">JR</h3>
+                <p className="text-sm text-primary">Co-CEO & Managing Director</p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Distressed asset resolution, legal compliance, and operational leadership
+                </p>
+                <a
+                  href="mailto:jr@cookin.io"
+                  className="mt-4 inline-flex items-center gap-2 text-sm text-primary hover:underline"
+                >
+                  <Mail className="h-4 w-4" />
+                  jr@cookin.io
+                </a>
               </div>
-              <h3 className="mt-4 text-lg font-semibold text-foreground">JR</h3>
-              <p className="text-sm text-primary">Managing Director</p>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Distressed asset resolution, legal compliance, and operational leadership
-              </p>
-              <a
-                href="tel:+19499972097"
-                className="mt-4 inline-flex items-center gap-2 text-sm text-primary hover:underline"
-              >
-                <Phone className="h-4 w-4" />
-                949-997-2097
-              </a>
+
+              <div className="rounded-xl border border-border bg-card p-6 text-center">
+                <div className="mx-auto h-20 w-20 rounded-full overflow-hidden">
+                  <img src="/ryan-headshot-2.png" alt="AJ" className="h-full w-full object-cover" />
+                </div>
+                <h3 className="mt-4 text-lg font-semibold text-foreground">AJ</h3>
+                <p className="text-sm text-primary">Managing Director</p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Business development, client relations, and deal sourcing
+                </p>
+                <a
+                  href="mailto:aj@cookinsaints.com"
+                  className="mt-4 inline-flex items-center gap-2 text-sm text-primary hover:underline"
+                >
+                  <Mail className="h-4 w-4" />
+                  aj@cookinsaints.com
+                </a>
+              </div>
             </div>
           </div>
         </div>

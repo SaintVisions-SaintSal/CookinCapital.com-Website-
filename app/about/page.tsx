@@ -11,26 +11,41 @@ export const metadata = {
 
 const team = [
   {
-    name: "Ryan Caspatosto",
+    name: "Ryan Capatosto",
     title: "Founder & CEO",
     company: "Saint Vision Group LLC",
-    image: "/professional-headshot-male-executive-dark-hair-sui.jpg",
+    email: "ryan@cookin.io",
+    image: "/ryan-headshot.png",
     bio: [
-      "Ryan Caspatosto is the visionary founder of Saint Vision Group LLC and the architect behind CookinCapital and SaintSal™ AI technology. With deep expertise spanning institutional finance, real estate investment, and technology innovation, Ryan has built a comprehensive ecosystem that transforms how deals get analyzed, funded, and protected.",
+      "Ryan Capatosto is the visionary founder of Saint Vision Group LLC and the architect behind CookinCapital and SaintSal™ AI technology. With deep expertise spanning institutional finance, real estate investment, and technology innovation, Ryan has built a comprehensive ecosystem that transforms how deals get analyzed, funded, and protected.",
       "Under Ryan's leadership, Saint Vision Group has pioneered the integration of artificial intelligence with real estate finance, creating proprietary systems like SaintSal™ and HACP™ that bring institutional-grade analysis to operators at every level. His approach combines Wall Street rigor with Main Street accessibility.",
       "Ryan's background includes extensive experience in commercial lending, distressed asset resolution, and fund management. He has structured and facilitated transactions totaling billions in value, always with a focus on protecting capital while maximizing returns for all stakeholders.",
     ],
-    linkedIn: "https://linkedin.com/in/ryancaspatosto",
+    linkedIn: "https://linkedin.com/in/ryancapatosto",
   },
   {
     name: "JR",
     title: "Co-CEO & Managing Director",
     company: "Saint Vision Group LLC",
+    email: "jr@cookin.io",
     image: "/male-executive-headshot.png",
     bio: [
       "JR serves as Co-CEO and Managing Director at Saint Vision Group LLC, bringing operational excellence and strategic leadership to CookinCapital's growth. His expertise in distressed asset resolution and legal compliance ensures every transaction meets the highest standards of due diligence.",
       "With deep roots in real estate operations and investor relations, JR has been instrumental in building the systems and processes that power CookinCapital's lending platform. His hands-on approach to deal structuring has protected millions in investor capital while delivering consistent returns.",
       "JR's commitment to operator success drives the company's service-first culture, ensuring every borrower receives institutional-grade support throughout their lending journey.",
+    ],
+    linkedIn: "#",
+  },
+  {
+    name: "AJ",
+    title: "Managing Director",
+    company: "CookinSaints",
+    email: "aj@cookinsaints.com",
+    image: "/ryan-headshot-2.png",
+    bio: [
+      "AJ serves as Managing Director at CookinSaints, leading business development and client relations across the Saint Vision ecosystem. His expertise in deal sourcing and investor partnerships drives growth across all divisions.",
+      "With a background in real estate acquisitions and sales, AJ brings a hands-on approach to every client relationship. He ensures operators receive personalized attention and strategic guidance throughout their funding journey.",
+      "AJ's dedication to building long-term partnerships has been instrumental in CookinCapital's reputation for exceptional service and deal execution.",
     ],
     linkedIn: "#",
   },
@@ -179,7 +194,7 @@ export default function AboutPage() {
                     <div>
                       <p className="font-medium text-foreground">Phone</p>
                       <a href="tel:+19499972097" className="text-muted-foreground hover:text-primary transition-colors">
-                        1-949-997-2097
+                        (949) 997-2097
                       </a>
                     </div>
                   </div>
@@ -191,10 +206,10 @@ export default function AboutPage() {
                     <div>
                       <p className="font-medium text-foreground">Email</p>
                       <a
-                        href="mailto:info@cookincap.com"
+                        href="mailto:support@cookin.io"
                         className="text-muted-foreground hover:text-primary transition-colors"
                       >
-                        info@cookincap.com
+                        support@cookin.io
                       </a>
                     </div>
                   </div>

@@ -23,7 +23,6 @@ import {
   X,
   Wand2,
   FileText,
-  TrendingUp,
   Home,
   Phone,
   Mail,
@@ -40,6 +39,7 @@ import {
   BedDouble,
   Bath,
   Ruler,
+  ArrowLeft,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -151,9 +151,9 @@ interface Message {
 
 const QUICK_PROMPTS = [
   { text: "Find foreclosures in Orange County", icon: Home, category: "property" },
+  { text: "Find motivated sellers in LA", icon: Target, category: "leads" },
   { text: "Analyze 123 Main St Huntington Beach", icon: Calculator, category: "deal" },
-  { text: "Find investor leads in LA", icon: Users, category: "leads" },
-  { text: "Compare bridge loan rates", icon: TrendingUp, category: "lending" },
+  { text: "Generate a real estate social post", icon: Wand2, category: "social" },
 ]
 
 const MOBILE_NAV = [
@@ -196,6 +196,14 @@ function detectIntent(query: string): string {
     return "lead_enrichment"
   }
 
+  if (q.includes("motivated") || q.includes("distress") || q.includes("desperate") || q.includes("urgent")) {
+    return "motivated_sellers"
+  }
+
+  if (q.includes("cash buyer") || q.includes("cash offer") || q.includes("all cash")) {
+    return "cash_buyers"
+  }
+
   // Deal Analysis Intent
   if (q.includes("analyze") || q.includes("analysis") || q.includes("roi") || q.includes("deal")) {
     return "deal_analysis"
@@ -218,12 +226,30 @@ function detectIntent(query: string): string {
     return "lending_info"
   }
 
-  // Image Generation
-  if (q.includes("generate image") || q.includes("create image") || q.includes("make image") || q.includes("draw")) {
+  if (
+    q.includes("generate image") ||
+    q.includes("create image") ||
+    q.includes("make image") ||
+    q.includes("draw") ||
+    q.includes("picture of")
+  ) {
     return "image_generation"
   }
 
-  // Default to research
+  if (
+    q.includes("social") ||
+    q.includes("post") ||
+    q.includes("instagram") ||
+    q.includes("linkedin") ||
+    q.includes("facebook") ||
+    q.includes("twitter") ||
+    q.includes("caption") ||
+    q.includes("content")
+  ) {
+    return "social_media"
+  }
+
+  // Default to general chat/research
   return "web_research"
 }
 
@@ -1021,9 +1047,18 @@ export function ResearchHub() {
             <p className="text-[10px] text-gray-500">Research Command Center</p>
           </div>
         </div>
-        <Link href="/auth/login" className="text-sm text-gray-400 hover:text-white transition-colors">
-          Sign In
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link href="/" className="flex items-center gap-1 text-sm text-gray-400 hover:text-white transition-colors">
+            <ArrowLeft className="h-4 w-4" />
+            <span className="hidden sm:inline">Back to Home</span>
+          </Link>
+          <Link
+            href="/auth/login"
+            className="text-sm text-amber-500 hover:text-amber-400 transition-colors font-medium"
+          >
+            Sign In
+          </Link>
+        </div>
       </header>
 
       {/* Main Content */}

@@ -20,6 +20,7 @@ async function orchestrateQuery(query: string, intent: string) {
     properties: [],
     leads: [],
     images: [],
+    socialMediaContent: "",
   }
 
   try {
@@ -91,6 +92,24 @@ async function orchestrateQuery(query: string, intent: string) {
         const images = await generateImage(query)
         results.images = images
         results.summary = "Generated image based on your prompt."
+        break
+
+      case "social_media":
+        const socialMediaContent = await generateSocialMediaContent(query)
+        results.socialMediaContent = socialMediaContent
+        results.summary = "Generated social media content based on your prompt."
+        break
+
+      case "motivated_sellers":
+        const motivatedSellersResults = await searchMotivatedSellers(query)
+        results.properties = motivatedSellersResults
+        results.summary = await generateSummary(query, intent, { properties: motivatedSellersResults })
+        break
+
+      case "cash_buyers":
+        const cashBuyersResults = await searchCashBuyers(query)
+        results.properties = cashBuyersResults
+        results.summary = await generateSummary(query, intent, { properties: cashBuyersResults })
         break
 
       default:
@@ -350,6 +369,24 @@ async function generateImage(query: string) {
   }
 }
 
+// Social Media Content Generation
+async function generateSocialMediaContent(query: string) {
+  // Placeholder for social media content generation logic
+  return "Sample social media content based on your query."
+}
+
+// Search for Motivated Sellers
+async function searchMotivatedSellers(query: string) {
+  // Placeholder for motivated sellers search logic
+  return generateMockProperties(query)
+}
+
+// Search for Cash Buyers
+async function searchCashBuyers(query: string) {
+  // Placeholder for cash buyers search logic
+  return generateMockProperties(query)
+}
+
 // Generate AI Summary
 async function generateSummary(query: string, intent: string, context: any) {
   try {
@@ -359,7 +396,8 @@ async function generateSummary(query: string, intent: string, context: any) {
 Provide concise, actionable insights. Use markdown formatting. Be direct and helpful.
 For property searches: highlight key metrics like equity %, foreclosure status, and investment potential.
 For leads: summarize the best prospects and why.
-For deals: give a BUY/PASS/RENEGOTIATE signal with reasoning.`,
+For deals: give a BUY/PASS/RENEGOTIATE signal with reasoning.
+For social media content: provide engaging text or captions for social media posts.`,
       prompt: `Query: ${query}
 Intent: ${intent}
 Context: ${JSON.stringify(context).slice(0, 2000)}
@@ -480,6 +518,7 @@ export async function POST(request: NextRequest) {
       properties: results.properties,
       leads: results.leads,
       images: results.images,
+      socialMediaContent: results.socialMediaContent,
       intent,
     })
   } catch (error) {
@@ -513,8 +552,25 @@ function detectIntentServer(query: string): string {
   if (q.includes("loan") || q.includes("rate") || q.includes("bridge") || q.includes("dscr")) {
     return "lending_info"
   }
-  if (q.includes("generate image") || q.includes("create image")) {
+  if (q.includes("generate image") || q.includes("create image") || q.includes("make image") || q.includes("draw")) {
     return "image_generation"
+  }
+  if (
+    q.includes("social") ||
+    q.includes("post") ||
+    q.includes("instagram") ||
+    q.includes("linkedin") ||
+    q.includes("facebook") ||
+    q.includes("twitter") ||
+    q.includes("caption")
+  ) {
+    return "social_media"
+  }
+  if (q.includes("motivated") || q.includes("distress") || q.includes("desperate") || q.includes("urgent")) {
+    return "motivated_sellers"
+  }
+  if (q.includes("cash buyer") || q.includes("cash offer") || q.includes("all cash")) {
+    return "cash_buyers"
   }
 
   return "web_research"
@@ -533,6 +589,9 @@ export async function GET() {
       "Deal Analysis",
       "Image Generation (fal.ai)",
       "CRM Integration (GHL)",
+      "Social Media Content Generation",
+      "Motivated Sellers Search",
+      "Cash Buyers Search",
     ],
   })
 }

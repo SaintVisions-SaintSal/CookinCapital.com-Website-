@@ -105,8 +105,8 @@ export function PreQualPage() {
               <p className="text-sm text-muted-foreground mb-3">
                 Call us directly and speak with a funding specialist.
               </p>
-              <a href="tel:+18335242464" className="text-primary font-semibold hover:underline">
-                (833) 524-2464
+              <a href="tel:+19499972097" className="text-primary font-semibold hover:underline">
+                (949) 997-2097
               </a>
             </div>
 
