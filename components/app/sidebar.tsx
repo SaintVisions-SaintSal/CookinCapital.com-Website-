@@ -60,12 +60,6 @@ export function AppSidebar() {
     fetchUser()
   }, [])
 
-  const handleSaintSalClick = () => {
-    if (typeof window !== "undefined" && (window as any).openSaintSalDock) {
-      ;(window as any).openSaintSalDock()
-    }
-  }
-
   const handleLogout = async () => {
     try {
       if (isSupabaseAvailable()) {
@@ -139,18 +133,15 @@ export function AppSidebar() {
         ))}
       </nav>
 
-      {/* SaintSal quick action */}
       <div className="px-4 pb-4">
-        <button
-          onClick={() => {
-            handleSaintSalClick()
-            setMobileOpen(false)
-          }}
+        <Link
+          href="/research"
+          onClick={() => setMobileOpen(false)}
           className="flex w-full items-center gap-3 rounded-lg border border-primary/30 bg-primary/10 px-3 py-3 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
         >
           <Sparkles className="h-5 w-5" />
           Ask SaintSal™
-        </button>
+        </Link>
       </div>
 
       {/* User info and Logout */}

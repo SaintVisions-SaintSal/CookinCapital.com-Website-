@@ -179,9 +179,7 @@ Give a quick verdict and one key insight.`,
   }
 
   const handleRunSaintSal = () => {
-    if (typeof window !== "undefined" && (window as any).openSaintSalDock) {
-      ;(window as any).openSaintSalDock()
-    }
+    window.location.href = "/research"
   }
 
   return (
