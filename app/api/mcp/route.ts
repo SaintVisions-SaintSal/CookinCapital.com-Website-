@@ -12,6 +12,58 @@ const PROPERTYRADAR_API_KEY = process.env.PROPERTYRADAR_API_KEY
 const GHL_API_KEY = process.env.GHL_API_KEY
 const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID
 
+async function handleConversation(query: string): Promise<string> {
+  try {
+    const { text } = await generateText({
+      model: "anthropic/claude-sonnet-4-20250514",
+      system: `You are SaintSal™, the AI decision engine for CookinCapital - a real estate finance and investment firm.
+
+Your capabilities include:
+- **Property Search**: Find distressed properties, foreclosures, pre-foreclosures, high-equity homes, absentee owners
+- **Owner Lookup**: Get owner contact info (phone, email, mailing address) for any property
+- **Lead Generation**: Find motivated sellers, cash buyers, investors, and people needing loans
+- **Deal Analysis**: Analyze fix & flip, rental, wholesale deals with ROI calculations
+- **Lending Info**: Current rates for fix & flip loans, DSCR, bridge, commercial, SBA, hard money
+- **Image Generation**: Create marketing images, social media graphics, property renders
+- **Social Media Content**: Generate real estate posts, captions, hashtags for marketing
+
+You are powered by the HACP™ (Human-AI Collaborative Processing) protocol - Patent #10,290,222.
+You provide BUY / PASS / RENEGOTIATE signals with confidence scores.
+You grade deals A through F based on ROI (A=20%+, B+=15-20%, B-=10-15%, C=5-10%, D=0-5%, F=negative).
+
+Be helpful, professional, and focused on helping users make money in real estate.
+Keep responses concise but comprehensive. Use bullet points and formatting for clarity.`,
+      prompt: query,
+    })
+    return text
+  } catch (error) {
+    console.error("[MCP] Conversation error:", error)
+    return `I'm SaintSal™, your AI decision engine for real estate and lending. Here's what I can help you with:
+
+**🏠 Property Research**
+- Find foreclosures, pre-foreclosures, distressed properties
+- Search high-equity homes and motivated sellers
+- Get owner contact information
+
+**📊 Deal Analysis**
+- Analyze fix & flip, BRRRR, wholesale deals
+- Calculate ROI, cash-on-cash returns
+- Get BUY/PASS/RENEGOTIATE recommendations
+
+**💰 Lending & Capital**
+- Current rates on 35+ loan products
+- Fix & flip, DSCR, bridge, commercial loans
+- Pre-qualification guidance
+
+**🎯 Lead Generation**
+- Find cash buyers and investors
+- Locate motivated sellers
+- Enrich contacts with phone/email
+
+Just ask me anything about real estate investing, lending, or finding your next deal!`
+  }
+}
+
 // AI Orchestration - Route query to best tools based on intent
 async function orchestrateQuery(query: string, intent: string) {
   const results: any = {
@@ -25,6 +77,13 @@ async function orchestrateQuery(query: string, intent: string) {
 
   try {
     switch (intent) {
+      case "conversational":
+      case "help":
+      case "greeting":
+        results.summary = await handleConversation(query)
+        // No sources, properties, or leads for pure conversation
+        break
+
       case "foreclosure_search":
       case "property_search":
         // Search properties via PropertyRadar + Web search for context
@@ -113,10 +172,9 @@ async function orchestrateQuery(query: string, intent: string) {
         break
 
       default:
-        // General web research
-        const searchResults = await tavilySearch(query, { include_answer: true, search_depth: "advanced" })
-        results.sources = searchResults.sources || []
-        results.summary = searchResults.answer || (await generateSummary(query, intent, { webContext: searchResults }))
+        // Use AI conversation for general queries
+        results.summary = await handleConversation(query)
+        break
     }
   } catch (error) {
     console.error("[MCP] Orchestration error:", error)
@@ -531,6 +589,25 @@ export async function POST(request: NextRequest) {
 function detectIntentServer(query: string): string {
   const q = query.toLowerCase()
 
+  if (
+    q.includes("what can you") ||
+    q.includes("how can you") ||
+    q.includes("what do you") ||
+    q.includes("who are you") ||
+    q.includes("help me") ||
+    q.includes("hello") ||
+    q.includes("hi saintsal") ||
+    q.includes("hey saintsal") ||
+    q.match(/^(hi|hello|hey|sup|yo|what's up|whats up)[\s!?.,]*$/i) ||
+    q.includes("tell me about yourself") ||
+    q.includes("what are your") ||
+    q.includes("explain") ||
+    q.includes("how does this work") ||
+    q.includes("can you help")
+  ) {
+    return "conversational"
+  }
+
   if (q.includes("foreclosure") || q.includes("pre-foreclosure") || q.includes("nod") || q.includes("auction")) {
     return "foreclosure_search"
   }
@@ -546,10 +623,23 @@ function detectIntentServer(query: string): string {
   if (q.includes("lead") || q.includes("investor") || q.includes("buyer") || q.includes("seller")) {
     return "lead_generation"
   }
+  if (q.includes("motivated") || q.includes("distress") || q.includes("desperate") || q.includes("urgent")) {
+    return "motivated_sellers"
+  }
+  if (q.includes("cash buyer") || q.includes("cash investor")) {
+    return "cash_buyers"
+  }
   if (q.includes("analyze") || q.includes("deal") || q.includes("flip") || q.includes("roi")) {
     return "deal_analysis"
   }
-  if (q.includes("loan") || q.includes("rate") || q.includes("bridge") || q.includes("dscr")) {
+  if (
+    q.includes("loan") ||
+    q.includes("rate") ||
+    q.includes("bridge") ||
+    q.includes("dscr") ||
+    q.includes("lending") ||
+    q.includes("finance")
+  ) {
     return "lending_info"
   }
   if (q.includes("generate image") || q.includes("create image") || q.includes("make image") || q.includes("draw")) {
@@ -559,21 +649,15 @@ function detectIntentServer(query: string): string {
     q.includes("social") ||
     q.includes("post") ||
     q.includes("instagram") ||
-    q.includes("linkedin") ||
     q.includes("facebook") ||
+    q.includes("linkedin") ||
     q.includes("twitter") ||
-    q.includes("caption")
+    q.includes("content")
   ) {
     return "social_media"
   }
-  if (q.includes("motivated") || q.includes("distress") || q.includes("desperate") || q.includes("urgent")) {
-    return "motivated_sellers"
-  }
-  if (q.includes("cash buyer") || q.includes("cash offer") || q.includes("all cash")) {
-    return "cash_buyers"
-  }
 
-  return "web_research"
+  return "conversational"
 }
 
 export async function GET() {
