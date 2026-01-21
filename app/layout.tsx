@@ -128,7 +128,7 @@ export default function RootLayout({
         </Script>
         <Script
           src="https://link.msgsndr.com/js/external-tracking.js"
-          data-tracking-id="tk_9effa9702ab74e0dae821e8b9558b637"
+          data-tracking-id="tk_e37c7e5d744c471d813761da55d893c7"
           strategy="afterInteractive"
         />
         <Script src="https://js.stripe.com/v3/buy-button.js" strategy="afterInteractive" async />
