@@ -8,7 +8,7 @@ const footerLinks = {
     { label: "Capital & Lending", href: "/capital" },
     { label: "Invest", href: "/invest" },
     { label: "Legal Services", href: "/app/legal" },
-    { label: "Investor Portal", href: "/app?role=investor" },
+    { label: "Investor Portal", href: "/app/opportunities" },
   ],
   company: [
     { label: "About", href: "/about" },
@@ -16,6 +16,7 @@ const footerLinks = {
     { label: "SaintVisionGroup", href: "https://saintvisiongroup.com", external: true },
   ],
   resources: [
+    { label: "SaintSal.ai", href: "https://saintsal.ai", external: true },
     { label: "Cookin.io", href: "https://cookin.io", external: true },
     { label: "CookinKnowledge", href: "https://cookinknowledge.com", external: true },
     { label: "Support", href: "https://saintvisiongroup.com/client-hub", external: true },

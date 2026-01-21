@@ -1,4 +1,4 @@
-import { PreQualPage } from "@/components/landing/prequal-page"
+import { GHLFormEmbed } from "@/components/ghl-form-embed"
 
 export const metadata = {
   title: "Pre-Qualify for Capital | CookinCap",
@@ -6,5 +6,14 @@ export const metadata = {
 }
 
 export default function PreQual() {
-  return <PreQualPage />
+  return (
+    <GHLFormEmbed
+      formId="t0RuqARBjSTCU6Nmonvq"
+      formName="CookinCapital Pre-Qualification"
+      formHeight="1403px"
+      title="Pre-Qualify for Capital"
+      description="Start your journey to funding. Takes about 2 minutes and does not affect your credit score."
+      showCreditLink={true}
+    />
+  )
 }

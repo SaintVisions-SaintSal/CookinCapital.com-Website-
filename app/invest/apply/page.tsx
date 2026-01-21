@@ -1,4 +1,4 @@
-import { InvestorIntakeForm } from "@/components/invest/investor-intake-form"
+import { GHLFormEmbed } from "@/components/ghl-form-embed"
 
 export const metadata = {
   title: "Investor Application | CookinCapital Fund I",
@@ -6,5 +6,13 @@ export const metadata = {
 }
 
 export default function InvestorApplyPage() {
-  return <InvestorIntakeForm />
+  return (
+    <GHLFormEmbed
+      formId="leB0VkPbnklUAnl6e2IZ"
+      formName="Investor Intake"
+      formHeight="1200px"
+      title="Investor Application"
+      description="Start your journey to earning 9-12% fixed returns with institutional-grade real estate investments."
+    />
+  )
 }
