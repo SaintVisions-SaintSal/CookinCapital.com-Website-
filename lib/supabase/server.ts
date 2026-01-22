@@ -19,3 +19,6 @@ export async function createServerClient() {
     },
   })
 }
+
+// Alias for convenience
+export const createClient = createServerClient
