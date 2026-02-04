@@ -26,6 +26,7 @@ const footerLinks = {
     { label: "Privacy Policy", href: "/help?doc=privacy" },
     { label: "Terms of Service", href: "/help?doc=terms" },
     { label: "Code of Conduct", href: "/help?doc=code-of-conduct" },
+    { label: "NDA", href: "/help?doc=nda" },
     { label: "Disclaimer", href: "/help?doc=disclaimer" },
   ],
 }

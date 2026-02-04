@@ -13,7 +13,6 @@ const navItems = [
   { label: "Commercial Lending", href: "/capital" },
   { label: "Invest", href: "/invest" },
   { label: "Legal Services", href: "/app/legal" },
-  { label: "Help", href: "/help" },
 ]
 
 export function Header() {
