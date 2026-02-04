@@ -22,9 +22,12 @@ const footerLinks = {
     { label: "Support", href: "https://saintvisiongroup.com/client-hub", external: true },
   ],
   legal: [
-    { label: "Privacy", href: "https://cookinknowledge.com/privacy", external: true },
-    { label: "Terms", href: "https://cookinknowledge.com/terms", external: true },
-    { label: "Disclaimer", href: "https://cookinknowledge.com/disclaimer", external: true },
+    { label: "Help & Legal", href: "/help" },
+    { label: "Privacy Policy", href: "/help?doc=privacy" },
+    { label: "Terms of Service", href: "/help?doc=terms" },
+    { label: "Code of Conduct", href: "/help?doc=code-of-conduct" },
+    { label: "NDA", href: "/help?doc=nda" },
+    { label: "Disclaimer", href: "/help?doc=disclaimer" },
   ],
 }
 
