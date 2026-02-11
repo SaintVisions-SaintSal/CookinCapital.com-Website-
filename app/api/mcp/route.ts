@@ -8,7 +8,7 @@ import { generateText } from "ai"
 // ===========================================
 
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY
-const PROPERTYRADAR_API_KEY = process.env.PROPERTYRADAR_API_KEY
+const PROPERTY_API_KEY = process.env.PROPERTY_API
 const GHL_API_KEY = process.env.GHL_API_KEY
 const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID
 
@@ -86,7 +86,7 @@ async function orchestrateQuery(query: string, intent: string) {
 
       case "foreclosure_search":
       case "property_search":
-        // Search properties via PropertyRadar + Web search for context
+        // Search properties via PropertyAPI + Web search for context
         const [propertyResults, webContext] = await Promise.all([
           searchProperties(query, intent),
           tavilySearch(query, { include_answer: true, search_depth: "advanced" }),
@@ -220,9 +220,9 @@ async function tavilySearch(query: string, options: any = {}) {
   }
 }
 
-// PropertyRadar Search
+// PropertyAPI Search
 async function searchProperties(query: string, intent: string) {
-  if (!PROPERTYRADAR_API_KEY) {
+  if (!PROPERTY_API_KEY) {
     // Return mock data for demo
     return generateMockProperties(query)
   }
@@ -247,24 +247,24 @@ async function searchProperties(query: string, intent: string) {
       criteria.absentee_owner = true
     }
 
-    const res = await fetch("https://api.propertyradar.com/v1/properties", {
+    const res = await fetch("https://api.propertyapi.co/v1/properties", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${PROPERTYRADAR_API_KEY}`,
+        Authorization: `Bearer ${PROPERTY_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ criteria }),
     })
 
     if (!res.ok) {
-      console.error(`[PropertyRadar] API error: ${res.status}`)
+      console.error(`[PropertyAPI] API error: ${res.status}`)
       return generateMockProperties(query)
     }
 
     const data = await res.json()
 
     if (data.error) {
-      console.error(`[PropertyRadar] ${data.error}`)
+      console.error(`[PropertyAPI] ${data.error}`)
       return generateMockProperties(query)
     }
 
@@ -284,34 +284,34 @@ async function searchProperties(query: string, intent: string) {
       sqft: p.square_feet,
     }))
   } catch (error) {
-    console.error("[PropertyRadar] Search error:", error)
+    console.error("[PropertyAPI] Search error:", error)
     return generateMockProperties(query)
   }
 }
 
 // Property Lookup
 async function lookupProperty(address: string) {
-  if (!PROPERTYRADAR_API_KEY || !address) {
+  if (!PROPERTY_API_KEY || !address) {
     return generateMockProperty(address)
   }
 
   try {
     const res = await fetch(
-      `https://api.propertyradar.com/v1/properties/search?address=${encodeURIComponent(address)}`,
+      `https://api.propertyapi.co/v1/properties/search?address=${encodeURIComponent(address)}`,
       {
-        headers: { Authorization: `Bearer ${PROPERTYRADAR_API_KEY}` },
+        headers: { Authorization: `Bearer ${PROPERTY_API_KEY}` },
       },
     )
 
     if (!res.ok) {
-      console.error(`[PropertyRadar] API error: ${res.status}`)
+      console.error(`[PropertyAPI] API error: ${res.status}`)
       return generateMockProperty(address)
     }
 
     const data = await res.json()
 
     if (data.error) {
-      console.error(`[PropertyRadar] ${data.error}`)
+      console.error(`[PropertyAPI] ${data.error}`)
       return generateMockProperty(address)
     }
 
@@ -337,7 +337,7 @@ async function lookupProperty(address: string) {
       sqft: p.square_feet,
     }
   } catch (error) {
-    console.error("[PropertyRadar] Lookup error:", error)
+    console.error("[PropertyAPI] Lookup error:", error)
     return generateMockProperty(address)
   }
 }
@@ -668,7 +668,7 @@ export async function GET() {
     tools: 35,
     capabilities: [
       "Web Search (Tavily)",
-      "Property Search (PropertyRadar)",
+      "Property Search (PropertyAPI)",
       "Lead Generation & Enrichment",
       "Deal Analysis",
       "Image Generation (fal.ai)",

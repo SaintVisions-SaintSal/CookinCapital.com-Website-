@@ -173,7 +173,7 @@ export const PLATFORM_KNOWLEDGE: KnowledgeDocument[] = [
     id: "platform-property-search",
     category: "platform_features",
     title: "Property Search",
-    content: `Property Search powered by PropertyRadar: Find motivated sellers, distressed properties, and investment opportunities. Filter by equity, liens, foreclosure status, owner type, and more. SaintSal provides A-D ratings on investment potential. Save searches and get alerts. Direct integration with Deal Analyzer for instant analysis.`,
+    content: `Property Search powered by PropertyAPI: Find motivated sellers, distressed properties, and investment opportunities. Filter by equity, liens, foreclosure status, owner type, and more. SaintSal provides A-D ratings on investment potential. Save searches and get alerts. Direct integration with Deal Analyzer for instant analysis.`,
     lastUpdated: new Date().toISOString(),
   },
   {

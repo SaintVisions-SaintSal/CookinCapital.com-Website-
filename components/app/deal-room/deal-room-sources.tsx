@@ -10,7 +10,7 @@ interface Props {
 const dataSources = [
   {
     id: "1",
-    name: "PropertyRadar",
+    name: "PropertyAPI",
     description: "Tax, county, legal description, ownership, liens",
     icon: Database,
     status: "connected",
