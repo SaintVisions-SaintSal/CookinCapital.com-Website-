@@ -1,132 +1,112 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { TrendingUp, Search, Filter, Sparkles, MapPin, ExternalLink, FileText, Phone } from "lucide-react"
+import {
+  TrendingUp,
+  Search,
+  Filter,
+  Sparkles,
+  MapPin,
+  ExternalLink,
+  FileText,
+  Phone,
+  Loader2,
+} from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
-const opportunities = [
-  {
-    id: "1",
-    address: "123 Main St",
-    city: "Austin",
-    state: "TX",
-    strategy: "Flip",
-    projectedROI: 24.3,
-    yield: 12.5,
-    purchasePrice: 185000,
-    arv: 275000,
-    rehabBudget: 35000,
-    sqft: 1850,
-    beds: 3,
-    baths: 2,
-    yearBuilt: 1985,
-    verified: true,
-    matchScore: 94,
-    description:
-      "Solid brick ranch in established neighborhood. Needs cosmetic updates - kitchen, baths, flooring. Strong rental demand in area.",
-  },
-  {
-    id: "2",
-    address: "456 Oak Ave",
-    city: "Houston",
-    state: "TX",
-    strategy: "Rental",
-    projectedROI: 18.7,
-    yield: 8.2,
-    purchasePrice: 165000,
-    arv: 210000,
-    rehabBudget: 20000,
-    sqft: 1650,
-    beds: 3,
-    baths: 2,
-    yearBuilt: 1992,
-    verified: true,
-    matchScore: 88,
-    description: "Turn-key rental opportunity. Minor updates needed. Currently tenant-occupied with lease in place.",
-  },
-  {
-    id: "3",
-    address: "789 Pine Rd",
-    city: "Dallas",
-    state: "TX",
-    strategy: "Commercial",
-    projectedROI: 32.1,
-    yield: 15.0,
-    purchasePrice: 425000,
-    arv: 650000,
-    rehabBudget: 75000,
-    sqft: 4500,
-    beds: 0,
-    baths: 2,
-    yearBuilt: 1978,
-    verified: true,
-    matchScore: 82,
-    description: "Mixed-use commercial property with 3 retail units. Value-add opportunity with below-market rents.",
-  },
-  {
-    id: "4",
-    address: "321 Elm St",
-    city: "San Antonio",
-    state: "TX",
-    strategy: "Flip",
-    projectedROI: 21.5,
-    yield: 11.0,
-    purchasePrice: 145000,
-    arv: 195000,
-    rehabBudget: 25000,
-    sqft: 1400,
-    beds: 3,
-    baths: 1,
-    yearBuilt: 1972,
-    verified: true,
-    matchScore: 79,
-    description: "Classic flip opportunity. Full cosmetic rehab needed. Great school district.",
-  },
-  {
-    id: "5",
-    address: "555 Cedar Ln",
-    city: "Fort Worth",
-    state: "TX",
-    strategy: "Rental",
-    projectedROI: 16.2,
-    yield: 7.8,
-    purchasePrice: 195000,
-    arv: 245000,
-    rehabBudget: 15000,
-    sqft: 1800,
-    beds: 4,
-    baths: 2,
-    yearBuilt: 2001,
-    verified: true,
-    matchScore: 76,
-    description: "Newer construction with minimal work needed. Strong rental market with low vacancy rates.",
-  },
-]
+interface Deal {
+  id: string
+  deal_number: string | null
+  property_address: string | null
+  property_type: string | null
+  stage: string | null
+  saintsal_signal: string | null
+  saintsal_confidence: number | null
+  saintsal_risk_score: number | null
+  saintsal_flags: string[] | null
+  loan_amount: number | null
+  borrower_name: string | null
+  borrower_email: string | null
+  notes: string | null
+  submitted_date: string | null
+  created_at: string
+  updated_at: string
+}
+
+function parseAddress(fullAddress: string | null): { street: string; city: string; state: string } {
+  if (!fullAddress) return { street: "Address Pending", city: "", state: "" }
+  const parts = fullAddress.split(",").map((p) => p.trim())
+  if (parts.length >= 3) {
+    return { street: parts[0], city: parts[1], state: parts[2].split(" ")[0] || "" }
+  }
+  if (parts.length === 2) {
+    return { street: parts[0], city: parts[1], state: "" }
+  }
+  return { street: fullAddress, city: "", state: "" }
+}
 
 export default function OpportunitiesPage() {
+  const [deals, setDeals] = useState<Deal[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
-  const [strategyFilter, setStrategyFilter] = useState("all")
-  const [selectedOpp, setSelectedOpp] = useState<(typeof opportunities)[0] | null>(null)
+  const [stageFilter, setStageFilter] = useState("all")
+  const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null)
   const [showRequestDialog, setShowRequestDialog] = useState(false)
-  const [requestedOpp, setRequestedOpp] = useState<(typeof opportunities)[0] | null>(null)
+  const [requestedDeal, setRequestedDeal] = useState<Deal | null>(null)
 
-  const filteredOpps = opportunities.filter((opp) => {
+  useEffect(() => {
+    async function fetchDeals() {
+      try {
+        const res = await fetch("/api/deals")
+        if (res.ok) {
+          const data = await res.json()
+          setDeals(data.deals || [])
+        }
+      } catch (err) {
+        console.error("Failed to fetch opportunities:", err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchDeals()
+  }, [])
+
+  const filteredDeals = deals.filter((deal) => {
+    const addr = (deal.property_address || "").toLowerCase()
     const matchesSearch =
-      opp.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      opp.city.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesStrategy = strategyFilter === "all" || opp.strategy === strategyFilter
-    return matchesSearch && matchesStrategy
+      addr.includes(searchQuery.toLowerCase()) ||
+      (deal.borrower_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (deal.property_type || "").toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesStage = stageFilter === "all" || deal.stage === stageFilter
+    return matchesSearch && matchesStage
   })
 
-  const handleRequestAllocation = (opp: (typeof opportunities)[0]) => {
-    setRequestedOpp(opp)
+  const uniqueStages = [...new Set(deals.map((d) => d.stage).filter(Boolean))] as string[]
+
+  const formatCurrency = (num: number | null) => {
+    if (!num || num === 0) return "--"
+    if (num >= 1000000) return `$${(num / 1000000).toFixed(1)}M`
+    if (num >= 1000) return `$${(num / 1000).toFixed(0)}K`
+    return `$${num.toLocaleString()}`
+  }
+
+  const handleRequestAllocation = (deal: Deal) => {
+    setRequestedDeal(deal)
     setShowRequestDialog(true)
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
   }
 
   return (
@@ -135,12 +115,18 @@ export default function OpportunitiesPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-foreground lg:text-3xl">Opportunities</h1>
-          <p className="mt-1 text-muted-foreground">Vetted deals matched to your investment criteria</p>
+          <p className="mt-1 text-muted-foreground">
+            {deals.length > 0
+              ? `${deals.length} verified deals on the platform`
+              : "Verified deals will appear here as they become available"}
+          </p>
         </div>
-        <div className="flex items-center gap-2 text-sm text-primary">
-          <Sparkles className="h-4 w-4" />
-          <span>SaintSal Verified Deals</span>
-        </div>
+        {deals.length > 0 && (
+          <div className="flex items-center gap-2 text-sm text-primary">
+            <Sparkles className="h-4 w-4" />
+            <span>SaintSal Verified Deals</span>
+          </div>
+        )}
       </div>
 
       {/* Filters */}
@@ -150,94 +136,176 @@ export default function OpportunitiesPage() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search by address or city..."
+                placeholder="Search by address, borrower, or property type..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 bg-secondary border-0"
               />
             </div>
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              <Select value={strategyFilter} onValueChange={setStrategyFilter}>
-                <SelectTrigger className="w-40 bg-secondary border-0">
-                  <SelectValue placeholder="All Strategies" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Strategies</SelectItem>
-                  <SelectItem value="Flip">Flip</SelectItem>
-                  <SelectItem value="Rental">Rental</SelectItem>
-                  <SelectItem value="Commercial">Commercial</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {uniqueStages.length > 0 && (
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <Select value={stageFilter} onValueChange={setStageFilter}>
+                  <SelectTrigger className="w-40 bg-secondary border-0">
+                    <SelectValue placeholder="All Stages" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Stages</SelectItem>
+                    {uniqueStages.map((stage) => (
+                      <SelectItem key={stage} value={stage}>
+                        {stage.charAt(0).toUpperCase() + stage.slice(1)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Opportunities grid */}
-      <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
-        {filteredOpps.map((opp) => (
-          <Card key={opp.id} className="flex flex-col transition-all hover:border-primary/50 hover:shadow-lg">
-            <CardContent className="flex-1 p-6">
-              <div className="flex items-start justify-between">
-                <Badge variant="outline" className="bg-secondary">
-                  {opp.strategy}
-                </Badge>
-                <div className="flex items-center gap-1 text-sm text-primary">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  {opp.matchScore}% match
-                </div>
-              </div>
-
-              <div className="mt-4">
-                <p className="text-lg font-semibold text-foreground">{opp.address}</p>
-                <p className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <MapPin className="h-3.5 w-3.5" />
-                  {opp.city}, {opp.state}
-                </p>
-              </div>
-
-              <div className="mt-6 grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-muted-foreground">Projected ROI</p>
-                  <p className="text-2xl font-bold text-green-500">{opp.projectedROI}%</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Yield</p>
-                  <p className="text-2xl font-bold text-foreground">{opp.yield}%</p>
-                </div>
-              </div>
-
-              <div className="mt-4 flex items-center justify-between text-sm">
-                <div>
-                  <p className="text-xs text-muted-foreground">Purchase</p>
-                  <p className="font-medium text-foreground">${opp.purchasePrice.toLocaleString()}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs text-muted-foreground">ARV</p>
-                  <p className="font-medium text-foreground">${opp.arv.toLocaleString()}</p>
-                </div>
-              </div>
-            </CardContent>
-
-            <div className="border-t border-border p-4">
-              <div className="flex gap-2">
-                <Button variant="outline" className="flex-1 bg-transparent" onClick={() => setSelectedOpp(opp)}>
-                  View Details
-                </Button>
-                <Button
-                  className="flex-1 bg-primary text-primary-foreground"
-                  onClick={() => handleRequestAllocation(opp)}
-                >
-                  Request Allocation
-                </Button>
-              </div>
+      {/* Empty State */}
+      {deals.length === 0 && (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-secondary mb-4">
+              <TrendingUp className="h-8 w-8 text-muted-foreground" />
             </div>
-          </Card>
-        ))}
-      </div>
+            <h3 className="text-lg font-semibold text-foreground mb-1">
+              No verified opportunities available right now
+            </h3>
+            <p className="text-sm text-muted-foreground max-w-md mb-4">
+              Our team is actively sourcing and vetting deals. Check back soon or contact us to discuss your investment criteria.
+            </p>
+            <div className="flex gap-3">
+              <a href="tel:+19499972097">
+                <Button variant="outline" size="sm">
+                  <Phone className="mr-2 h-4 w-4" />
+                  Call Us
+                </Button>
+              </a>
+              <Link href="/app/properties">
+                <Button size="sm">
+                  <Search className="mr-2 h-4 w-4" />
+                  Search Properties
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-      {filteredOpps.length === 0 && (
+      {/* Deals Grid */}
+      {filteredDeals.length > 0 && (
+        <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+          {filteredDeals.map((deal) => {
+            const parsed = parseAddress(deal.property_address)
+            return (
+              <Card
+                key={deal.id}
+                className="flex flex-col transition-all hover:border-primary/50 hover:shadow-lg"
+              >
+                <CardContent className="flex-1 p-6">
+                  <div className="flex items-start justify-between">
+                    <Badge variant="outline" className="bg-secondary">
+                      {deal.property_type || "Residential"}
+                    </Badge>
+                    {deal.saintsal_confidence && (
+                      <div className="flex items-center gap-1 text-sm text-primary">
+                        <Sparkles className="h-3.5 w-3.5" />
+                        {deal.saintsal_confidence}% confidence
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-4">
+                    <p className="text-lg font-semibold text-foreground">{parsed.street}</p>
+                    {(parsed.city || parsed.state) && (
+                      <p className="flex items-center gap-1 text-sm text-muted-foreground">
+                        <MapPin className="h-3.5 w-3.5" />
+                        {[parsed.city, parsed.state].filter(Boolean).join(", ")}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="mt-6 grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Loan Amount</p>
+                      <p className="text-2xl font-bold text-foreground">
+                        {formatCurrency(deal.loan_amount)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Signal</p>
+                      <p className={`text-2xl font-bold ${
+                        deal.saintsal_signal === "BUY"
+                          ? "text-green-500"
+                          : deal.saintsal_signal === "PASS"
+                            ? "text-red-500"
+                            : deal.saintsal_signal === "RENEGOTIATE"
+                              ? "text-yellow-500"
+                              : "text-muted-foreground"
+                      }`}>
+                        {deal.saintsal_signal || "--"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex items-center justify-between text-sm">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Stage</p>
+                      <p className="font-medium text-foreground">
+                        {deal.stage
+                          ? deal.stage.charAt(0).toUpperCase() + deal.stage.slice(1)
+                          : "New"}
+                      </p>
+                    </div>
+                    {deal.submitted_date && (
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground">Submitted</p>
+                        <p className="font-medium text-foreground">
+                          {new Date(deal.submitted_date).toLocaleDateString()}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {deal.saintsal_flags && deal.saintsal_flags.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-1">
+                      {deal.saintsal_flags.slice(0, 3).map((flag, i) => (
+                        <Badge key={i} variant="outline" className="text-xs bg-yellow-500/10 text-yellow-600 border-yellow-500/30">
+                          {flag}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+
+                <div className="border-t border-border p-4">
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      className="flex-1 bg-transparent"
+                      onClick={() => setSelectedDeal(deal)}
+                    >
+                      View Details
+                    </Button>
+                    <Button
+                      className="flex-1 bg-primary text-primary-foreground"
+                      onClick={() => handleRequestAllocation(deal)}
+                    >
+                      Request Allocation
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            )
+          })}
+        </div>
+      )}
+
+      {/* No search results */}
+      {deals.length > 0 && filteredDeals.length === 0 && (
         <Card>
           <CardContent className="p-12 text-center">
             <TrendingUp className="mx-auto h-12 w-12 text-muted-foreground" />
@@ -247,72 +315,90 @@ export default function OpportunitiesPage() {
         </Card>
       )}
 
-      <Dialog open={!!selectedOpp} onOpenChange={() => setSelectedOpp(null)}>
+      {/* Deal Detail Dialog */}
+      <Dialog open={!!selectedDeal} onOpenChange={() => setSelectedDeal(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="text-xl">{selectedOpp?.address}</DialogTitle>
+            <DialogTitle className="text-xl">
+              {parseAddress(selectedDeal?.property_address || null).street}
+            </DialogTitle>
             <DialogDescription className="flex items-center gap-1">
               <MapPin className="h-3.5 w-3.5" />
-              {selectedOpp?.city}, {selectedOpp?.state}
+              {(() => {
+                const p = parseAddress(selectedDeal?.property_address || null)
+                return [p.city, p.state].filter(Boolean).join(", ") || "Location pending"
+              })()}
             </DialogDescription>
           </DialogHeader>
 
-          {selectedOpp && (
+          {selectedDeal && (
             <div className="space-y-6">
               <div className="flex items-center gap-3">
                 <Badge variant="outline" className="bg-secondary">
-                  {selectedOpp.strategy}
+                  {selectedDeal.property_type || "Residential"}
                 </Badge>
-                <div className="flex items-center gap-1 text-sm text-primary">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  {selectedOpp.matchScore}% SaintSal Match
-                </div>
+                {selectedDeal.saintsal_signal && (
+                  <Badge className={`${
+                    selectedDeal.saintsal_signal === "BUY"
+                      ? "bg-green-500/10 text-green-500"
+                      : selectedDeal.saintsal_signal === "PASS"
+                        ? "bg-red-500/10 text-red-500"
+                        : "bg-yellow-500/10 text-yellow-500"
+                  }`}>
+                    {selectedDeal.saintsal_signal}
+                  </Badge>
+                )}
+                {selectedDeal.saintsal_confidence && (
+                  <div className="flex items-center gap-1 text-sm text-primary">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    {selectedDeal.saintsal_confidence}% Confidence
+                  </div>
+                )}
               </div>
 
-              <p className="text-muted-foreground">{selectedOpp.description}</p>
+              {selectedDeal.notes && (
+                <p className="text-muted-foreground">{selectedDeal.notes}</p>
+              )}
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 <div className="bg-secondary rounded-lg p-3 text-center">
-                  <p className="text-xs text-muted-foreground">Purchase</p>
-                  <p className="text-lg font-bold">${selectedOpp.purchasePrice.toLocaleString()}</p>
-                </div>
-                <div className="bg-secondary rounded-lg p-3 text-center">
-                  <p className="text-xs text-muted-foreground">Rehab</p>
-                  <p className="text-lg font-bold">${selectedOpp.rehabBudget.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">Loan Amount</p>
+                  <p className="text-lg font-bold">{formatCurrency(selectedDeal.loan_amount)}</p>
                 </div>
                 <div className="bg-secondary rounded-lg p-3 text-center">
-                  <p className="text-xs text-muted-foreground">ARV</p>
-                  <p className="text-lg font-bold">${selectedOpp.arv.toLocaleString()}</p>
-                </div>
-                <div className="bg-primary/10 rounded-lg p-3 text-center">
-                  <p className="text-xs text-muted-foreground">Proj. ROI</p>
-                  <p className="text-lg font-bold text-green-500">{selectedOpp.projectedROI}%</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-                <div>
-                  <p className="text-muted-foreground">Sqft</p>
-                  <p className="font-medium">{selectedOpp.sqft.toLocaleString()}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Beds/Baths</p>
-                  <p className="font-medium">
-                    {selectedOpp.beds} / {selectedOpp.baths}
+                  <p className="text-xs text-muted-foreground">Stage</p>
+                  <p className="text-lg font-bold">
+                    {selectedDeal.stage
+                      ? selectedDeal.stage.charAt(0).toUpperCase() + selectedDeal.stage.slice(1)
+                      : "New"}
                   </p>
                 </div>
-                <div>
-                  <p className="text-muted-foreground">Year Built</p>
-                  <p className="font-medium">{selectedOpp.yearBuilt}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Yield</p>
-                  <p className="font-medium">{selectedOpp.yield}%</p>
+                <div className="bg-secondary rounded-lg p-3 text-center">
+                  <p className="text-xs text-muted-foreground">Risk Score</p>
+                  <p className="text-lg font-bold">
+                    {selectedDeal.saintsal_risk_score || "--"}
+                  </p>
                 </div>
               </div>
 
+              {selectedDeal.saintsal_flags && selectedDeal.saintsal_flags.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium text-foreground mb-2">SaintSal Flags</p>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedDeal.saintsal_flags.map((flag, i) => (
+                      <Badge key={i} variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/30">
+                        {flag}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="flex gap-3 pt-4 border-t border-border">
-                <Link href="/app/analyzer" className="flex-1">
+                <Link
+                  href={`/app/analyzer?address=${encodeURIComponent(selectedDeal.property_address || "")}`}
+                  className="flex-1"
+                >
                   <Button variant="outline" className="w-full gap-2 bg-transparent">
                     <FileText className="h-4 w-4" />
                     Analyze This Deal
@@ -321,8 +407,8 @@ export default function OpportunitiesPage() {
                 <Button
                   className="flex-1 gap-2 bg-primary"
                   onClick={() => {
-                    setSelectedOpp(null)
-                    handleRequestAllocation(selectedOpp)
+                    setSelectedDeal(null)
+                    handleRequestAllocation(selectedDeal)
                   }}
                 >
                   Request Allocation
@@ -334,28 +420,37 @@ export default function OpportunitiesPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Request Dialog */}
       <Dialog open={showRequestDialog} onOpenChange={setShowRequestDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Request Allocation</DialogTitle>
             <DialogDescription>
-              Express interest in {requestedOpp?.address}, {requestedOpp?.city}
+              Express interest in {parseAddress(requestedDeal?.property_address || null).street}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="bg-secondary rounded-lg p-4">
               <div className="flex justify-between mb-2">
-                <span className="text-muted-foreground">Purchase Price</span>
-                <span className="font-medium">${requestedOpp?.purchasePrice.toLocaleString()}</span>
+                <span className="text-muted-foreground">Loan Amount</span>
+                <span className="font-medium">{formatCurrency(requestedDeal?.loan_amount || null)}</span>
               </div>
               <div className="flex justify-between mb-2">
-                <span className="text-muted-foreground">Projected ROI</span>
-                <span className="font-medium text-green-500">{requestedOpp?.projectedROI}%</span>
+                <span className="text-muted-foreground">Signal</span>
+                <span className={`font-medium ${
+                  requestedDeal?.saintsal_signal === "BUY"
+                    ? "text-green-500"
+                    : requestedDeal?.saintsal_signal === "PASS"
+                      ? "text-red-500"
+                      : "text-yellow-500"
+                }`}>
+                  {requestedDeal?.saintsal_signal || "--"}
+                </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Strategy</span>
-                <span className="font-medium">{requestedOpp?.strategy}</span>
+                <span className="text-muted-foreground">Property Type</span>
+                <span className="font-medium">{requestedDeal?.property_type || "Residential"}</span>
               </div>
             </div>
 
@@ -377,7 +472,7 @@ export default function OpportunitiesPage() {
                 </Button>
               </a>
               <a
-                href="mailto:support@cookin.io?subject=Deal Allocation Request: ${requestedOpp?.address}"
+                href={`mailto:support@cookin.io?subject=Deal Allocation Request: ${parseAddress(requestedDeal?.property_address || null).street}`}
                 className="w-full"
               >
                 <Button variant="outline" className="w-full gap-2 bg-transparent">
