@@ -205,7 +205,7 @@ export function DealRoomOverview({ deal }: Props) {
           <CardContent className="p-4">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">Sources Used</p>
             <ul className="space-y-2 text-xs text-muted-foreground">
-              <li>• PropertyRadar ownership data</li>
+              <li>• PropertyAPI ownership data</li>
               <li>• County tax records</li>
               <li>• MLS comparable sales</li>
               <li>• Title search results</li>

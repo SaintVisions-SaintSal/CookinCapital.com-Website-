@@ -51,7 +51,7 @@ export function Hero() {
             <div className="group relative rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm p-5 transition-all hover:border-primary/30 hover:bg-card">
               <Database className="h-6 w-6 text-primary mb-3" />
               <p className="font-medium text-foreground text-sm">35+ Data Endpoints</p>
-              <p className="mt-1 text-xs text-muted-foreground">PropertyRadar, MLS, County Records</p>
+              <p className="mt-1 text-xs text-muted-foreground">PropertyAPI, MLS, County Records</p>
             </div>
             <div className="group relative rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm p-5 transition-all hover:border-primary/30 hover:bg-card">
               <Lock className="h-6 w-6 text-primary mb-3" />
