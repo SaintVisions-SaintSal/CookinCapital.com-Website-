@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 
-const RENTCAST_API_KEY = "609f6955bf37429e8611da12430915ab"
+const RENTCAST_API_KEY = process.env.RENTCAST_API_KEY
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
@@ -12,6 +12,10 @@ export async function GET(request: NextRequest) {
   const bedrooms = searchParams.get("bedrooms") || ""
   const bathrooms = searchParams.get("bathrooms") || ""
   const squareFootage = searchParams.get("squareFootage") || ""
+
+  if (!RENTCAST_API_KEY) {
+    return NextResponse.json({ error: "RentCast API key not configured" }, { status: 500 })
+  }
 
   if (!address || !city || !state) {
     return NextResponse.json({ error: "Address, city, and state are required" }, { status: 400 })
