@@ -23,7 +23,7 @@ export function Header() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <nav className="flex h-20 items-center justify-between">
           <Link href="/" className="flex items-center gap-3 flex-shrink-0 min-w-fit">
-            <Image src="/saintsal-logo.png" alt="SaintSal" width={48} height={48} className="rounded-xl" style={{ width: "auto", height: "auto" }} />
+            <Image src="/saintsal-logo.png" alt="SaintSal" width={48} height={48} className="rounded-xl w-12 h-12" />
             <div className="flex flex-col">
               <span className="text-xl font-semibold tracking-tight whitespace-nowrap">
                 <span className="text-primary">Cookin</span>
