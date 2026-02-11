@@ -1,6 +1,5 @@
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import Image from "next/image"
 import { ArrowRight, Brain, Database, Lock, Globe, Zap, Cpu } from "lucide-react"
 
 export function Hero() {
@@ -20,18 +19,11 @@ export function Hero() {
               <span className="text-sm font-medium tracking-wide text-primary">Autonomous Capital Intelligence</span>
             </div>
 
-            <div className="mb-8 flex justify-center">
-              <Image
-                src="/logo.png"
-                alt="CookinCapital"
-                width={200}
-                height={200}
-                className="rounded-2xl shadow-2xl shadow-primary/20"
-                priority
-              />
-            </div>
+            <h1 className="text-4xl lg:text-6xl font-bold text-foreground tracking-tight text-balance">
+              CookinCapital
+            </h1>
 
-            <p className="text-xl lg:text-2xl font-light text-muted-foreground tracking-wide">
+            <p className="mt-4 text-xl lg:text-2xl font-light text-muted-foreground tracking-wide">
               Institutional Capital Infrastructure
             </p>
 
