@@ -11,6 +11,7 @@ const TAVILY_API_KEY = process.env.TAVILY_API_KEY
 const PROPERTY_API_KEY = process.env.PROPERTY_API
 const GHL_API_KEY = process.env.GHL_API_KEY
 const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID
+const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API
 
 async function handleConversation(query: string): Promise<string> {
   try {
@@ -228,39 +229,38 @@ async function tavilySearch(query: string, options: any = {}) {
   }
 }
 
-// PropertyAPI - Geocode address to lat/lng using Google Maps, then lookup via PropertyAPI
-async function geocodeForPropertyAPI(address: string): Promise<{ lat: number; lng: number } | null> {
-  const MAPS_API_KEY = process.env.GOOGLE_MAPS_API
-  if (!MAPS_API_KEY) {
-    console.error("[PropertyAPI] Google Maps API key not configured for geocoding")
+// ===========================================
+// PROPERTYAPI.CO INTEGRATION
+// Real property data: parcels, foreclosures, owner info
+// API Docs: propertyapi.co | Key prefix: papi_
+// ===========================================
+
+// Geocode a location string to lat/lng via Google Maps
+async function geocodeLocation(location: string): Promise<{ lat: number; lng: number } | null> {
+  if (!GOOGLE_MAPS_API_KEY) {
+    console.error("[PropertyAPI] Google Maps API key not configured")
     return null
   }
-
   try {
-    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${MAPS_API_KEY}`
-    const res = await fetch(url)
+    const res = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(location)}&key=${GOOGLE_MAPS_API_KEY}`,
+    )
     const data = await res.json()
-
-    if (data.status !== "OK" || !data.results?.[0]) {
-      console.error("[PropertyAPI] Geocoding failed:", data.status)
-      return null
-    }
-
-    const location = data.results[0].geometry.location
-    return { lat: location.lat, lng: location.lng }
+    if (data.status !== "OK" || !data.results?.[0]) return null
+    const loc = data.results[0].geometry.location
+    return { lat: loc.lat, lng: loc.lng }
   } catch (error) {
-    console.error("[PropertyAPI] Geocoding error:", error)
+    console.error("[PropertyAPI] Geocode error:", error)
     return null
   }
 }
 
-// Call PropertyAPI parcel lookup by lat/lng
+// Call PropertyAPI.co parcel endpoint by lat/lng
 async function callPropertyAPI(lat: number, lng: number) {
   if (!PROPERTY_API_KEY) {
     console.error("[PropertyAPI] API key not configured")
     return null
   }
-
   try {
     const url = `https://propertyapi.co/api/v1/parcels/get?latitude=${lat}&longitude=${lng}`
     const res = await fetch(url, {
@@ -270,20 +270,15 @@ async function callPropertyAPI(lat: number, lng: number) {
         "Accept": "application/json",
       },
     })
-
     if (!res.ok) {
-      const errorText = await res.text()
-      console.error(`[PropertyAPI] API error ${res.status}:`, errorText)
+      console.error(`[PropertyAPI] Error ${res.status}: ${await res.text()}`)
       return null
     }
-
     const data = await res.json()
-
     if (data.status === "error" || data.error) {
-      console.error(`[PropertyAPI] ${data.error}`)
+      console.error(`[PropertyAPI] API error: ${data.error}`)
       return null
     }
-
     return data
   } catch (error) {
     console.error("[PropertyAPI] Request error:", error)
@@ -291,102 +286,190 @@ async function callPropertyAPI(lat: number, lng: number) {
   }
 }
 
-// Map PropertyAPI response to our internal property format
-function mapPropertyAPIResponse(p: any, fallbackAddress?: string) {
-  return {
-    address: p.property_address || fallbackAddress || "Unknown",
-    city: p.addr_city || "",
-    state: p.addr_state || "",
-    zip: p.addr_zip || "",
-    value: p.market_value_estimate || p.total_value_assessed || 0,
-    equity: null,
-    equityPercent: null,
-    ownerName: null,
-    foreclosureStatus: null,
-    propertyType: null,
-    beds: p.bedrooms || 0,
-    baths: p.bathrooms || 0,
-    sqft: p.sqft || 0,
-    yearBuilt: p.year_built || null,
-    acres: p.acres || null,
-    lastSaleDate: p.last_sale_date || null,
-    lastSalePrice: p.last_sale_price || null,
-    apn: p.apn || null,
-    uuid: p.uuid || null,
-    source: "PropertyAPI",
-  }
-}
-
-// PropertyAPI Search - geocode location then lookup property data
-async function searchProperties(query: string, intent: string) {
-  if (!PROPERTY_API_KEY) {
-    console.error("[PropertyAPI] No API key - cannot search properties")
-    return []
-  }
-
+// Call PropertyAPI.co search endpoint
+async function searchPropertyAPI(query: string) {
+  if (!PROPERTY_API_KEY) return []
   try {
-    // Extract address or location from query
-    const locationMatch = query.match(/in\s+([^,]+(?:,\s*[A-Z]{2})?)/i)
-    const addressMatch = query.match(
-      /\d+\s+[\w\s]+(?:st|street|ave|avenue|blvd|boulevard|dr|drive|rd|road|ln|lane|way|ct|court)[,\s]+[\w\s]+[,\s]+[A-Z]{2}(?:\s+\d{5})?/i,
-    )
-    const searchLocation = addressMatch?.[0] || locationMatch?.[1]?.trim()
-
-    if (!searchLocation) {
-      console.error("[PropertyAPI] Could not extract location from query:", query)
+    const url = `https://propertyapi.co/api/v1/parcels/search?query=${encodeURIComponent(query)}`
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        "X-Api-Key": PROPERTY_API_KEY,
+        "Accept": "application/json",
+      },
+    })
+    if (!res.ok) {
+      console.error(`[PropertyAPI] Search error ${res.status}: ${await res.text()}`)
       return []
     }
-
-    const coords = await geocodeForPropertyAPI(searchLocation)
-    if (!coords) return []
-
-    const data = await callPropertyAPI(coords.lat, coords.lng)
-    if (!data) return []
-
-    // PropertyAPI returns a single parcel, wrap in array
-    const properties = Array.isArray(data) ? data : [data]
-    return properties.map((p: any) => mapPropertyAPIResponse(p, searchLocation))
+    const data = await res.json()
+    if (data.status === "error" || data.error) return []
+    // Response can be an array or an object with results
+    if (Array.isArray(data)) return data
+    if (data.results && Array.isArray(data.results)) return data.results
+    if (data.parcels && Array.isArray(data.parcels)) return data.parcels
+    if (data.data && Array.isArray(data.data)) return data.data
+    // Single result, wrap in array
+    return [data]
   } catch (error) {
     console.error("[PropertyAPI] Search error:", error)
     return []
   }
 }
 
-// Property Lookup - single address lookup via PropertyAPI
-async function lookupProperty(address: string) {
-  if (!PROPERTY_API_KEY || !address) {
-    console.error("[PropertyAPI] Missing API key or address for lookup")
-    return null
+// Map PropertyAPI.co response to our internal PropertyResult format
+function mapPropertyAPIResponse(p: any, fallbackAddress?: string) {
+  return {
+    address: p.property_address || p.address || p.site_address || fallbackAddress || "Unknown",
+    city: p.addr_city || p.city || p.site_city || "",
+    state: p.addr_state || p.state || p.site_state || "",
+    zip: p.addr_zip || p.zip || p.site_zip || "",
+    county: p.county || undefined,
+    propertyType: p.property_type || p.zoning || undefined,
+    beds: p.bedrooms || p.beds || undefined,
+    baths: p.bathrooms || p.baths || undefined,
+    sqft: p.sqft || p.building_sqft || p.living_area || undefined,
+    lotSize: p.lot_size || p.lot_acres || p.acres || undefined,
+    yearBuilt: p.year_built || undefined,
+    value: p.market_value_estimate || p.market_value || p.total_value_assessed || p.avm || undefined,
+    equity: p.equity || p.available_equity || undefined,
+    equityPercent: p.equity_percent || undefined,
+    loanBalance: p.loan_balance || p.total_loan_balance || undefined,
+    foreclosureStatus: p.foreclosure_status || p.in_foreclosure || p.foreclosure_stage || undefined,
+    foreclosureAuctionDate: p.auction_date || p.foreclosure_auction_date || undefined,
+    ownerName: p.owner_name || p.owner || p.owner_1_name || (p.owner_first_name && p.owner_last_name ? `${p.owner_first_name} ${p.owner_last_name}` : undefined),
+    ownerAddress: p.mail_address || p.owner_address || undefined,
+    ownerCity: p.mail_city || p.owner_city || undefined,
+    ownerState: p.mail_state || p.owner_state || undefined,
+    ownerZip: p.mail_zip || p.owner_zip || undefined,
+    lastSaleDate: p.last_sale_date || p.sale_date || undefined,
+    lastSalePrice: p.last_sale_price || p.sale_price || undefined,
+    apn: p.apn || p.parcel_number || undefined,
+    uuid: p.uuid || p.id || undefined,
+    transferDate: p.last_transfer_date || p.transfer_date || undefined,
+    transferAmount: p.last_transfer_value || p.transfer_amount || undefined,
+    loanRate: p.loan_rate || p.interest_rate || undefined,
+    loanType: p.loan_type || undefined,
+    source: "PropertyAPI",
+  }
+}
+
+// Extract a searchable location from the user query
+function extractSearchLocation(query: string): string | null {
+  const q = query.toLowerCase()
+
+  // Full address pattern
+  const addressMatch = query.match(
+    /\d+\s+[\w\s]+(?:st|street|ave|avenue|blvd|boulevard|dr|drive|rd|road|ln|lane|way|ct|court)[,\s]+[\w\s]+[,\s]+[A-Z]{2}(?:\s+\d{5})?/i,
+  )
+  if (addressMatch) return addressMatch[0]
+
+  // Zip code
+  const zipMatch = q.match(/\b(\d{5})\b/)
+  if (zipMatch) return zipMatch[1]
+
+  // "in [County] County, [State]" or "in [County] County"
+  const countyMatch = q.match(/(?:in\s+)?([\w\s]+?)\s+county(?:\s*,?\s*([a-z]{2}))?/i)
+  if (countyMatch) {
+    const county = countyMatch[1].trim()
+    const state = countyMatch[2]?.toUpperCase() || "CA"
+    return `${county} County, ${state}`
   }
 
+  // "in [City], [State]"
+  const cityStateMatch = q.match(/in\s+([\w\s]+?)\s*,\s*([a-z]{2})/i)
+  if (cityStateMatch) {
+    return `${cityStateMatch[1].trim()}, ${cityStateMatch[2].toUpperCase()}`
+  }
+
+  // "in [Location]"
+  const inMatch = q.match(/in\s+([\w\s]+?)(?:\s*$|\s+(?:for|with|that|under|over|where))/i)
+  if (inMatch) return `${inMatch[1].trim()}, CA`
+
+  return null
+}
+
+// Main Property Search - geocode location, then search PropertyAPI.co for parcels
+async function searchProperties(query: string, intent: string) {
+  if (!PROPERTY_API_KEY) {
+    console.error("[PropertyAPI] No API key configured")
+    return []
+  }
+
+  const searchLocation = extractSearchLocation(query)
+  if (!searchLocation) {
+    console.error("[PropertyAPI] Could not extract location from query:", query)
+    return []
+  }
+
+  // Strategy 1: Try the search endpoint directly
   try {
-    const coords = await geocodeForPropertyAPI(address)
+    const searchQuery = intent === "foreclosure_search"
+      ? `foreclosures in ${searchLocation}`
+      : searchLocation
+    const searchResults = await searchPropertyAPI(searchQuery)
+    if (searchResults.length > 0) {
+      return searchResults.map((p: any) => mapPropertyAPIResponse(p, searchLocation))
+    }
+  } catch (error) {
+    console.error("[PropertyAPI] Search endpoint failed:", error)
+  }
+
+  // Strategy 2: Geocode and use the parcel endpoint
+  try {
+    const coords = await geocodeLocation(searchLocation)
+    if (!coords) return []
+
+    const data = await callPropertyAPI(coords.lat, coords.lng)
+    if (!data) return []
+
+    const properties = Array.isArray(data) ? data : [data]
+    return properties.map((p: any) => mapPropertyAPIResponse(p, searchLocation))
+  } catch (error) {
+    console.error("[PropertyAPI] Geocode+parcel search error:", error)
+    return []
+  }
+}
+
+// Property Lookup - single address via PropertyAPI.co
+async function lookupProperty(address: string) {
+  if (!PROPERTY_API_KEY || !address) return null
+
+  // Try search endpoint first for better matching
+  try {
+    const results = await searchPropertyAPI(address)
+    if (results.length > 0) {
+      return mapPropertyAPIResponse(results[0], address)
+    }
+  } catch (error) {
+    console.error("[PropertyAPI] Lookup search failed:", error)
+  }
+
+  // Fall back to geocode + parcel lookup
+  try {
+    const coords = await geocodeLocation(address)
     if (!coords) return null
 
     const data = await callPropertyAPI(coords.lat, coords.lng)
     if (!data) return null
 
     const p = Array.isArray(data) ? data[0] : data
-    if (!p) return null
-
-    return mapPropertyAPIResponse(p, address)
+    return p ? mapPropertyAPIResponse(p, address) : null
   } catch (error) {
     console.error("[PropertyAPI] Lookup error:", error)
     return null
   }
 }
 
-// Owner Lookup
+// Owner Lookup - PropertyAPI.co includes owner data in parcel responses
 async function lookupOwner(address: string) {
-  const property = await lookupProperty(address)
-  return property
+  return lookupProperty(address)
 }
 
 // Lead Generation - uses Tavily web search to find real lead info
 async function generateLeads(query: string) {
   const searchResults = await tavilySearch(`${query} contact email phone real estate`, { max_results: 10 })
 
-  // Parse leads from search results
   const leads: any[] = (searchResults.sources || []).slice(0, 5).map((s: any, i: number) => ({
     name: s.title || `Lead ${i + 1}`,
     title: "Real Estate Contact",
@@ -437,18 +520,18 @@ async function generateSocialMediaContent(query: string) {
   return "Sample social media content based on your query."
 }
 
-// Search for Motivated Sellers - uses PropertyAPI + Tavily for real data
+// Search for Motivated Sellers - PropertyAPI.co + Tavily for distressed properties
 async function searchMotivatedSellers(query: string) {
-  // Try PropertyAPI for any specific addresses in the query
+  // Use PropertyAPI.co to search for properties in the area
   const properties = await searchProperties(query, "motivated_sellers")
 
   // Enrich with web search for distressed/motivated seller context
-  const webResults = await tavilySearch(`${query} motivated sellers distressed properties`, { max_results: 5 })
+  const webResults = await tavilySearch(`${query} motivated sellers distressed properties foreclosure`, { max_results: 5 })
 
   return properties.length > 0 ? properties : []
 }
 
-// Search for Cash Buyers - uses Tavily for real market data
+// Search for Cash Buyers - PropertyAPI.co + Tavily for buyer data
 async function searchCashBuyers(query: string) {
   const properties = await searchProperties(query, "cash_buyers")
 
@@ -613,14 +696,16 @@ export async function GET() {
     tools: 35,
     capabilities: [
       "Web Search (Tavily)",
-      "Property Search (PropertyAPI)",
+      "Property Search (PropertyAPI.co)",
+      "Foreclosure Search (PropertyAPI.co)",
+      "Motivated Sellers / Distressed Properties",
+      "Cash Buyers Search",
+      "Owner Lookup with Contact Info (PropertyAPI.co)",
       "Lead Generation & Enrichment",
       "Deal Analysis",
       "Image Generation (fal.ai)",
       "CRM Integration (GHL)",
       "Social Media Content Generation",
-      "Motivated Sellers Search",
-      "Cash Buyers Search",
     ],
   })
 }
