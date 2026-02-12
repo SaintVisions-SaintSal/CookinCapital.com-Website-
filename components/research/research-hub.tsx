@@ -1039,7 +1039,9 @@ export function ResearchHub() {
       {/* Header */}
       <header className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-[#1a1a1a] bg-[#0a0a0a]/95 backdrop-blur-sm">
         <div className="flex items-center gap-3">
-          <Image src="/saintsal-logo.png" alt="SaintSal" width={36} height={36} className="rounded-xl w-9 h-9" />
+          <div className="relative h-9 w-9 flex-shrink-0">
+            <Image src="/saintsal-logo.png" alt="SaintSal" fill className="rounded-xl object-contain" />
+          </div>
           <div>
             <h1 className="font-bold text-white text-sm">
               SaintSal<span className="text-amber-500">™</span>
@@ -1066,7 +1068,9 @@ export function ResearchHub() {
         {!hasMessages ? (
           // Landing View
           <div className="flex flex-col items-center justify-center min-h-full px-4 py-8">
-            <Image src="/saintsal-logo.png" alt="SaintSal" width={80} height={80} className="rounded-2xl mb-6 w-20 h-20" />
+            <div className="relative h-20 w-20 mb-6 flex-shrink-0">
+              <Image src="/saintsal-logo.png" alt="SaintSal" fill className="rounded-2xl object-contain" />
+            </div>
 
             <h2 className="text-2xl font-bold text-white text-center mb-2">
               Ask SaintSal<span className="text-amber-500">™</span> Anything
