@@ -11,7 +11,7 @@ const TAVILY_API_KEY = process.env.TAVILY_API_KEY
 const PROPERTY_API_KEY = process.env.PROPERTY_API
 const GHL_API_KEY = process.env.GHL_API_KEY
 const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID
-const PROPERTYRADAR_API_KEY = process.env.PROPERTYRADAR_API_KEY
+const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API
 
 async function handleConversation(query: string): Promise<string> {
   try {
@@ -230,359 +230,238 @@ async function tavilySearch(query: string, options: any = {}) {
 }
 
 // ===========================================
-// PROPERTYRADAR API INTEGRATION
-// Real property data: foreclosures, distressed, equity, owners
+// PROPERTYAPI.CO INTEGRATION
+// Real property data: parcels, foreclosures, owner info
+// API Docs: propertyapi.co | Key prefix: papi_
 // ===========================================
 
-// Common California county FIPS codes for fast lookup
-const CA_COUNTY_FIPS: Record<string, string> = {
-  "alameda": "6001", "alpine": "6003", "amador": "6005", "butte": "6007",
-  "calaveras": "6009", "colusa": "6011", "contra costa": "6013", "del norte": "6015",
-  "el dorado": "6017", "fresno": "6019", "glenn": "6021", "humboldt": "6023",
-  "imperial": "6025", "inyo": "6027", "kern": "6029", "kings": "6031",
-  "lake": "6033", "lassen": "6035", "los angeles": "6037", "madera": "6039",
-  "marin": "6041", "mariposa": "6043", "mendocino": "6045", "merced": "6047",
-  "modoc": "6049", "mono": "6051", "monterey": "6053", "napa": "6055",
-  "nevada": "6057", "orange": "6059", "placer": "6061", "plumas": "6063",
-  "riverside": "6065", "sacramento": "6067", "san benito": "6069",
-  "san bernardino": "6071", "san diego": "6073", "san francisco": "6075",
-  "san joaquin": "6077", "san luis obispo": "6079", "san mateo": "6081",
-  "santa barbara": "6083", "santa clara": "6085", "santa cruz": "6087",
-  "shasta": "6089", "sierra": "6091", "siskiyou": "6093", "solano": "6095",
-  "sonoma": "6097", "stanislaus": "6099", "sutter": "6101", "tehama": "6103",
-  "trinity": "6105", "tulare": "6107", "tuolumne": "6109", "ventura": "6111",
-  "yolo": "6113", "yuba": "6115",
+// Geocode a location string to lat/lng via Google Maps
+async function geocodeLocation(location: string): Promise<{ lat: number; lng: number } | null> {
+  if (!GOOGLE_MAPS_API_KEY) {
+    console.error("[PropertyAPI] Google Maps API key not configured")
+    return null
+  }
+  try {
+    const res = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(location)}&key=${GOOGLE_MAPS_API_KEY}`,
+    )
+    const data = await res.json()
+    if (data.status !== "OK" || !data.results?.[0]) return null
+    const loc = data.results[0].geometry.location
+    return { lat: loc.lat, lng: loc.lng }
+  } catch (error) {
+    console.error("[PropertyAPI] Geocode error:", error)
+    return null
+  }
 }
 
-// State abbreviation to FIPS prefix
-const STATE_FIPS_PREFIX: Record<string, string> = {
-  "al": "01", "ak": "02", "az": "04", "ar": "05", "ca": "06", "co": "08",
-  "ct": "09", "de": "10", "fl": "12", "ga": "13", "hi": "15", "id": "16",
-  "il": "17", "in": "18", "ia": "19", "ks": "20", "ky": "21", "la": "22",
-  "me": "23", "md": "24", "ma": "25", "mi": "26", "mn": "27", "ms": "28",
-  "mo": "29", "mt": "30", "ne": "31", "nv": "32", "nh": "33", "nj": "34",
-  "nm": "35", "ny": "36", "nc": "37", "nd": "38", "oh": "39", "ok": "40",
-  "or": "41", "pa": "42", "ri": "44", "sc": "45", "sd": "46", "tn": "47",
-  "tx": "48", "ut": "49", "vt": "50", "va": "51", "wa": "53", "wv": "54",
-  "wi": "55", "wy": "56",
+// Call PropertyAPI.co parcel endpoint by lat/lng
+async function callPropertyAPI(lat: number, lng: number) {
+  if (!PROPERTY_API_KEY) {
+    console.error("[PropertyAPI] API key not configured")
+    return null
+  }
+  try {
+    const url = `https://propertyapi.co/api/v1/parcels/get?latitude=${lat}&longitude=${lng}`
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        "X-Api-Key": PROPERTY_API_KEY,
+        "Accept": "application/json",
+      },
+    })
+    if (!res.ok) {
+      console.error(`[PropertyAPI] Error ${res.status}: ${await res.text()}`)
+      return null
+    }
+    const data = await res.json()
+    if (data.status === "error" || data.error) {
+      console.error(`[PropertyAPI] API error: ${data.error}`)
+      return null
+    }
+    return data
+  } catch (error) {
+    console.error("[PropertyAPI] Request error:", error)
+    return null
+  }
 }
 
-// Parse location from natural language query
-function parseLocation(query: string): { county?: string; city?: string; state?: string; zip?: string; address?: string } {
+// Call PropertyAPI.co search endpoint
+async function searchPropertyAPI(query: string) {
+  if (!PROPERTY_API_KEY) return []
+  try {
+    const url = `https://propertyapi.co/api/v1/parcels/search?query=${encodeURIComponent(query)}`
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        "X-Api-Key": PROPERTY_API_KEY,
+        "Accept": "application/json",
+      },
+    })
+    if (!res.ok) {
+      console.error(`[PropertyAPI] Search error ${res.status}: ${await res.text()}`)
+      return []
+    }
+    const data = await res.json()
+    if (data.status === "error" || data.error) return []
+    // Response can be an array or an object with results
+    if (Array.isArray(data)) return data
+    if (data.results && Array.isArray(data.results)) return data.results
+    if (data.parcels && Array.isArray(data.parcels)) return data.parcels
+    if (data.data && Array.isArray(data.data)) return data.data
+    // Single result, wrap in array
+    return [data]
+  } catch (error) {
+    console.error("[PropertyAPI] Search error:", error)
+    return []
+  }
+}
+
+// Map PropertyAPI.co response to our internal PropertyResult format
+function mapPropertyAPIResponse(p: any, fallbackAddress?: string) {
+  return {
+    address: p.property_address || p.address || p.site_address || fallbackAddress || "Unknown",
+    city: p.addr_city || p.city || p.site_city || "",
+    state: p.addr_state || p.state || p.site_state || "",
+    zip: p.addr_zip || p.zip || p.site_zip || "",
+    county: p.county || undefined,
+    propertyType: p.property_type || p.zoning || undefined,
+    beds: p.bedrooms || p.beds || undefined,
+    baths: p.bathrooms || p.baths || undefined,
+    sqft: p.sqft || p.building_sqft || p.living_area || undefined,
+    lotSize: p.lot_size || p.lot_acres || p.acres || undefined,
+    yearBuilt: p.year_built || undefined,
+    value: p.market_value_estimate || p.market_value || p.total_value_assessed || p.avm || undefined,
+    equity: p.equity || p.available_equity || undefined,
+    equityPercent: p.equity_percent || undefined,
+    loanBalance: p.loan_balance || p.total_loan_balance || undefined,
+    foreclosureStatus: p.foreclosure_status || p.in_foreclosure || p.foreclosure_stage || undefined,
+    foreclosureAuctionDate: p.auction_date || p.foreclosure_auction_date || undefined,
+    ownerName: p.owner_name || p.owner || p.owner_1_name || (p.owner_first_name && p.owner_last_name ? `${p.owner_first_name} ${p.owner_last_name}` : undefined),
+    ownerAddress: p.mail_address || p.owner_address || undefined,
+    ownerCity: p.mail_city || p.owner_city || undefined,
+    ownerState: p.mail_state || p.owner_state || undefined,
+    ownerZip: p.mail_zip || p.owner_zip || undefined,
+    lastSaleDate: p.last_sale_date || p.sale_date || undefined,
+    lastSalePrice: p.last_sale_price || p.sale_price || undefined,
+    apn: p.apn || p.parcel_number || undefined,
+    uuid: p.uuid || p.id || undefined,
+    transferDate: p.last_transfer_date || p.transfer_date || undefined,
+    transferAmount: p.last_transfer_value || p.transfer_amount || undefined,
+    loanRate: p.loan_rate || p.interest_rate || undefined,
+    loanType: p.loan_type || undefined,
+    source: "PropertyAPI",
+  }
+}
+
+// Extract a searchable location from the user query
+function extractSearchLocation(query: string): string | null {
   const q = query.toLowerCase()
 
-  // Check for zip code
-  const zipMatch = q.match(/\b(\d{5})\b/)
-  if (zipMatch) return { zip: zipMatch[1] }
-
-  // Check for full address pattern
+  // Full address pattern
   const addressMatch = query.match(
-    /(\d+\s+[\w\s]+(?:st|street|ave|avenue|blvd|boulevard|dr|drive|rd|road|ln|lane|way|ct|court))[,\s]+([\w\s]+)[,\s]+([A-Z]{2})(?:\s+\d{5})?/i,
+    /\d+\s+[\w\s]+(?:st|street|ave|avenue|blvd|boulevard|dr|drive|rd|road|ln|lane|way|ct|court)[,\s]+[\w\s]+[,\s]+[A-Z]{2}(?:\s+\d{5})?/i,
   )
-  if (addressMatch) return { address: addressMatch[0] }
+  if (addressMatch) return addressMatch[0]
 
-  // Check for "county" keyword: "Orange County", "Los Angeles County"
+  // Zip code
+  const zipMatch = q.match(/\b(\d{5})\b/)
+  if (zipMatch) return zipMatch[1]
+
+  // "in [County] County, [State]" or "in [County] County"
   const countyMatch = q.match(/(?:in\s+)?([\w\s]+?)\s+county(?:\s*,?\s*([a-z]{2}))?/i)
   if (countyMatch) {
-    return {
-      county: countyMatch[1].trim(),
-      state: countyMatch[2]?.toUpperCase() || "CA",
-    }
+    const county = countyMatch[1].trim()
+    const state = countyMatch[2]?.toUpperCase() || "CA"
+    return `${county} County, ${state}`
   }
 
-  // Check for "in [City], [State]"
+  // "in [City], [State]"
   const cityStateMatch = q.match(/in\s+([\w\s]+?)\s*,\s*([a-z]{2})/i)
   if (cityStateMatch) {
-    return {
-      city: cityStateMatch[1].trim(),
-      state: cityStateMatch[2].toUpperCase(),
-    }
+    return `${cityStateMatch[1].trim()}, ${cityStateMatch[2].toUpperCase()}`
   }
 
-  // Check for "in [Location]" - could be city or county
+  // "in [Location]"
   const inMatch = q.match(/in\s+([\w\s]+?)(?:\s*$|\s+(?:for|with|that|under|over|where))/i)
-  if (inMatch) {
-    const loc = inMatch[1].trim()
-    // Check if it's a known CA county
-    if (CA_COUNTY_FIPS[loc.toLowerCase()]) {
-      return { county: loc, state: "CA" }
-    }
-    return { city: loc, state: "CA" }
-  }
+  if (inMatch) return `${inMatch[1].trim()}, CA`
 
-  return {}
-}
-
-// Resolve a county name to FIPS code
-function resolveCountyFIPS(countyName: string, state: string = "CA"): string | null {
-  const key = countyName.toLowerCase().replace(/\s+county$/i, "").trim()
-  if (state.toUpperCase() === "CA" && CA_COUNTY_FIPS[key]) {
-    return CA_COUNTY_FIPS[key]
-  }
   return null
 }
 
-// Default fields to request from PropertyRadar
-const PR_FIELDS = [
-  "RadarID", "Address", "City", "State", "ZipFive", "County",
-  "PType", "Beds", "Baths", "SqFt", "LotSizeAcres", "YearBuilt", "Units",
-  "AVM", "AvailableEquity", "EquityPercent", "TotalLoanBalance",
-  "inForeclosure", "ForeclosureStage", "SaleDate", "OpeningBid", "DefaultAmount",
-  "inTaxDefault", "TaxDefaultYears",
-  "inDivorce", "DivorceRecordingDate",
-  "inBankruptcy", "BankruptcyStatus", "BankruptcyChapter",
-  "PropertyHasOpenLiens", "TotalOpenLienAmount",
-  "isSiteVacant", "isAbsenteeOwner", "isDeceased",
-  "Owner1FirstName", "Owner1LastName", "MailAddress", "MailCity", "MailState", "MailZipFive",
-  "LastTransferRecDate", "LastTransferValue", "LastTransferDocType",
-  "FirstLoanAmount", "FirstLoanRate", "FirstLoanType",
-].join(",")
-
-// Call PropertyRadar API
-async function callPropertyRadar(
-  criteria: Array<{ name: string; value: (string | number)[] }>,
-  options: { limit?: number; start?: number; fields?: string; sort?: string } = {},
-): Promise<any[]> {
-  if (!PROPERTYRADAR_API_KEY) {
-    console.error("[PropertyRadar] API key not configured")
-    return []
-  }
-
-  const limit = options.limit || 20
-  const start = options.start || 0
-  const fields = options.fields || PR_FIELDS
-
-  try {
-    const url = `https://api.propertyradar.com/v1/properties?Purchase=1&Fields=${encodeURIComponent(fields)}&Limit=${limit}&Start=${start}`
-
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${PROPERTYRADAR_API_KEY}`,
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-      },
-      body: JSON.stringify({ criteria }),
-    })
-
-    if (!res.ok) {
-      const errorText = await res.text()
-      console.error(`[PropertyRadar] API error ${res.status}:`, errorText)
-      return []
-    }
-
-    const data = await res.json()
-
-    if (!data || !data.results) {
-      console.error("[PropertyRadar] No results in response:", JSON.stringify(data).slice(0, 500))
-      return []
-    }
-
-    return data.results || []
-  } catch (error) {
-    console.error("[PropertyRadar] Request error:", error)
-    return []
-  }
-}
-
-// Map PropertyRadar response to our PropertyResult interface
-function mapPropertyRadarResponse(p: any) {
-  const foreclosureStageMap: Record<string, string> = {
-    "NOD": "Notice of Default",
-    "NTS": "Notice of Trustee Sale",
-    "LIS": "Lis Pendens",
-    "REO": "Bank Owned (REO)",
-  }
-
-  const ownerParts = [p.Owner1FirstName, p.Owner1LastName].filter(Boolean)
-
-  return {
-    radarId: p.RadarID?.toString() || undefined,
-    address: p.Address || "Unknown",
-    city: p.City || "",
-    state: p.State || "",
-    zip: p.ZipFive || "",
-    county: p.County || undefined,
-    propertyType: p.PType || undefined,
-    beds: p.Beds || undefined,
-    baths: p.Baths || undefined,
-    sqft: p.SqFt || undefined,
-    lotSize: p.LotSizeAcres || undefined,
-    yearBuilt: p.YearBuilt || undefined,
-    units: p.Units || undefined,
-    value: p.AVM || undefined,
-    availableEquity: p.AvailableEquity || undefined,
-    equityPercent: p.EquityPercent || undefined,
-    equity: p.AvailableEquity || undefined,
-    loanBalance: p.TotalLoanBalance || undefined,
-    foreclosureStatus: p.inForeclosure
-      ? (foreclosureStageMap[p.ForeclosureStage] || p.ForeclosureStage || "In Foreclosure")
-      : undefined,
-    foreclosureAuctionDate: p.SaleDate || undefined,
-    foreclosureOpeningBid: p.OpeningBid || undefined,
-    taxDefaultYears: p.TaxDefaultYears || undefined,
-    taxDefaultAmount: p.DefaultAmount || undefined,
-    inDivorce: p.inDivorce ? true : undefined,
-    divorceRecordingDate: p.DivorceRecordingDate || undefined,
-    inBankruptcy: p.inBankruptcy ? true : undefined,
-    bankruptcyStatus: p.BankruptcyStatus || undefined,
-    bankruptcyChapter: p.BankruptcyChapter || undefined,
-    hasLiens: p.PropertyHasOpenLiens ? true : undefined,
-    lienAmount: p.TotalOpenLienAmount || undefined,
-    isVacant: p.isSiteVacant ? true : undefined,
-    isDeceased: p.isDeceased ? true : undefined,
-    ownerName: ownerParts.length > 0 ? ownerParts.join(" ") : undefined,
-    ownerAddress: p.MailAddress || undefined,
-    ownerCity: p.MailCity || undefined,
-    ownerState: p.MailState || undefined,
-    ownerZip: p.MailZipFive || undefined,
-    transferType: p.LastTransferDocType || undefined,
-    transferDate: p.LastTransferRecDate || undefined,
-    transferAmount: p.LastTransferValue || undefined,
-    loanRate: p.FirstLoanRate || undefined,
-    loanType: p.FirstLoanType || undefined,
-    source: "PropertyRadar",
-  }
-}
-
-// PropertyRadar-Powered Property Search
+// Main Property Search - geocode location, then search PropertyAPI.co for parcels
 async function searchProperties(query: string, intent: string) {
-  const location = parseLocation(query)
-  const criteria: Array<{ name: string; value: (string | number)[] }> = []
-
-  // Build location criteria
-  if (location.zip) {
-    criteria.push({ name: "ZipFive", value: [location.zip] })
-  } else if (location.county) {
-    const fips = resolveCountyFIPS(location.county, location.state || "CA")
-    if (fips) {
-      criteria.push({ name: "County", value: [fips] })
-    } else {
-      // Fallback: try city name if county FIPS not found
-      criteria.push({ name: "City", value: [location.county] })
-      if (location.state) criteria.push({ name: "State", value: [location.state] })
-    }
-  } else if (location.city) {
-    criteria.push({ name: "City", value: [location.city] })
-    if (location.state) criteria.push({ name: "State", value: [location.state] })
-  } else {
-    // Default to California
-    criteria.push({ name: "State", value: ["CA"] })
+  if (!PROPERTY_API_KEY) {
+    console.error("[PropertyAPI] No API key configured")
+    return []
   }
 
-  // Add intent-specific criteria
-  if (intent === "foreclosure_search") {
-    criteria.push({ name: "inForeclosure", value: [1] })
+  const searchLocation = extractSearchLocation(query)
+  if (!searchLocation) {
+    console.error("[PropertyAPI] Could not extract location from query:", query)
+    return []
   }
 
-  // Add property type filter if mentioned
-  const q = query.toLowerCase()
-  if (q.includes("single family") || q.includes("sfr") || q.includes("house")) {
-    criteria.push({ name: "PType", value: ["SFR"] })
-  } else if (q.includes("condo")) {
-    criteria.push({ name: "PType", value: ["CND"] })
-  } else if (q.includes("multi") || q.includes("duplex") || q.includes("triplex") || q.includes("apartment")) {
-    criteria.push({ name: "PType", value: ["MFR"] })
-  }
-
-  // Try PropertyRadar first
-  if (PROPERTYRADAR_API_KEY) {
-    try {
-      const results = await callPropertyRadar(criteria, { limit: 20 })
-      if (results.length > 0) {
-        return results.map(mapPropertyRadarResponse)
-      }
-      console.log("[PropertyRadar] No results for criteria:", JSON.stringify(criteria))
-    } catch (error) {
-      console.error("[PropertyRadar] Search failed, falling back:", error)
-    }
-  }
-
-  // Fallback to old PropertyAPI geocode-based single-parcel lookup
-  return fallbackPropertyAPISearch(query)
-}
-
-// Fallback: Old PropertyAPI geocode-based lookup
-async function fallbackPropertyAPISearch(query: string) {
-  if (!PROPERTY_API_KEY) return []
-
+  // Strategy 1: Try the search endpoint directly
   try {
-    const locationMatch = query.match(/in\s+([^,]+(?:,\s*[A-Z]{2})?)/i)
-    const addressMatch = query.match(
-      /\d+\s+[\w\s]+(?:st|street|ave|avenue|blvd|boulevard|dr|drive|rd|road|ln|lane|way|ct|court)[,\s]+[\w\s]+[,\s]+[A-Z]{2}(?:\s+\d{5})?/i,
-    )
-    const searchLocation = addressMatch?.[0] || locationMatch?.[1]?.trim()
-    if (!searchLocation) return []
+    const searchQuery = intent === "foreclosure_search"
+      ? `foreclosures in ${searchLocation}`
+      : searchLocation
+    const searchResults = await searchPropertyAPI(searchQuery)
+    if (searchResults.length > 0) {
+      return searchResults.map((p: any) => mapPropertyAPIResponse(p, searchLocation))
+    }
+  } catch (error) {
+    console.error("[PropertyAPI] Search endpoint failed:", error)
+  }
 
-    const MAPS_API_KEY = process.env.GOOGLE_MAPS_API
-    if (!MAPS_API_KEY) return []
+  // Strategy 2: Geocode and use the parcel endpoint
+  try {
+    const coords = await geocodeLocation(searchLocation)
+    if (!coords) return []
 
-    const geoRes = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(searchLocation)}&key=${MAPS_API_KEY}`)
-    const geoData = await geoRes.json()
-    if (geoData.status !== "OK" || !geoData.results?.[0]) return []
-
-    const { lat, lng } = geoData.results[0].geometry.location
-    const propRes = await fetch(`https://propertyapi.co/api/v1/parcels/get?latitude=${lat}&longitude=${lng}`, {
-      headers: { "X-Api-Key": PROPERTY_API_KEY, "Accept": "application/json" },
-    })
-    if (!propRes.ok) return []
-    const data = await propRes.json()
-    if (data.status === "error" || data.error) return []
+    const data = await callPropertyAPI(coords.lat, coords.lng)
+    if (!data) return []
 
     const properties = Array.isArray(data) ? data : [data]
-    return properties.map((p: any) => ({
-      address: p.property_address || searchLocation || "Unknown",
-      city: p.addr_city || "",
-      state: p.addr_state || "",
-      zip: p.addr_zip || "",
-      value: p.market_value_estimate || p.total_value_assessed || 0,
-      beds: p.bedrooms || 0,
-      baths: p.bathrooms || 0,
-      sqft: p.sqft || 0,
-      yearBuilt: p.year_built || null,
-      source: "PropertyAPI",
-    }))
+    return properties.map((p: any) => mapPropertyAPIResponse(p, searchLocation))
   } catch (error) {
-    console.error("[PropertyAPI Fallback] Error:", error)
+    console.error("[PropertyAPI] Geocode+parcel search error:", error)
     return []
   }
 }
 
-// PropertyRadar-Powered Property Lookup (single address)
+// Property Lookup - single address via PropertyAPI.co
 async function lookupProperty(address: string) {
-  if (!address) return null
+  if (!PROPERTY_API_KEY || !address) return null
 
-  if (PROPERTYRADAR_API_KEY) {
-    try {
-      // Parse address components
-      const parts = address.match(/^(.+?),\s*(.+?),\s*([A-Z]{2})(?:\s+(\d{5}))?$/i)
-      const criteria: Array<{ name: string; value: (string | number)[] }> = []
-
-      if (parts) {
-        criteria.push({ name: "Address", value: [parts[1].trim()] })
-        criteria.push({ name: "City", value: [parts[2].trim()] })
-        criteria.push({ name: "State", value: [parts[3].trim()] })
-      } else {
-        // Try the raw address as-is
-        criteria.push({ name: "Address", value: [address] })
-        criteria.push({ name: "State", value: ["CA"] })
-      }
-
-      const results = await callPropertyRadar(criteria, { limit: 1 })
-      if (results.length > 0) {
-        return mapPropertyRadarResponse(results[0])
-      }
-    } catch (error) {
-      console.error("[PropertyRadar] Lookup failed:", error)
+  // Try search endpoint first for better matching
+  try {
+    const results = await searchPropertyAPI(address)
+    if (results.length > 0) {
+      return mapPropertyAPIResponse(results[0], address)
     }
+  } catch (error) {
+    console.error("[PropertyAPI] Lookup search failed:", error)
   }
 
-  // Fallback to old method
-  const fallback = await fallbackPropertyAPISearch(address)
-  return fallback.length > 0 ? fallback[0] : null
+  // Fall back to geocode + parcel lookup
+  try {
+    const coords = await geocodeLocation(address)
+    if (!coords) return null
+
+    const data = await callPropertyAPI(coords.lat, coords.lng)
+    if (!data) return null
+
+    const p = Array.isArray(data) ? data[0] : data
+    return p ? mapPropertyAPIResponse(p, address) : null
+  } catch (error) {
+    console.error("[PropertyAPI] Lookup error:", error)
+    return null
+  }
 }
 
-// Owner Lookup - PropertyRadar includes owner data in every response
+// Owner Lookup - PropertyAPI.co includes owner data in parcel responses
 async function lookupOwner(address: string) {
   return lookupProperty(address)
 }
@@ -641,95 +520,25 @@ async function generateSocialMediaContent(query: string) {
   return "Sample social media content based on your query."
 }
 
-// Search for Motivated Sellers via PropertyRadar distress criteria
+// Search for Motivated Sellers - PropertyAPI.co + Tavily for distressed properties
 async function searchMotivatedSellers(query: string) {
-  const location = parseLocation(query)
-  const criteria: Array<{ name: string; value: (string | number)[] }> = []
+  // Use PropertyAPI.co to search for properties in the area
+  const properties = await searchProperties(query, "motivated_sellers")
 
-  // Location
-  if (location.zip) {
-    criteria.push({ name: "ZipFive", value: [location.zip] })
-  } else if (location.county) {
-    const fips = resolveCountyFIPS(location.county, location.state || "CA")
-    if (fips) criteria.push({ name: "County", value: [fips] })
-    else {
-      criteria.push({ name: "City", value: [location.county] })
-      if (location.state) criteria.push({ name: "State", value: [location.state] })
-    }
-  } else if (location.city) {
-    criteria.push({ name: "City", value: [location.city] })
-    if (location.state) criteria.push({ name: "State", value: [location.state] })
-  } else {
-    criteria.push({ name: "State", value: ["CA"] })
-  }
+  // Enrich with web search for distressed/motivated seller context
+  const webResults = await tavilySearch(`${query} motivated sellers distressed properties foreclosure`, { max_results: 5 })
 
-  // Distress signals - any of these make a motivated seller
-  // PropertyRadar OR logic: we search for foreclosure first, then can layer
-  const q = query.toLowerCase()
-  if (q.includes("foreclosure") || q.includes("pre-foreclosure")) {
-    criteria.push({ name: "inForeclosure", value: [1] })
-  } else if (q.includes("tax") || q.includes("delinquen")) {
-    criteria.push({ name: "inTaxDefault", value: [1] })
-  } else if (q.includes("divorce")) {
-    criteria.push({ name: "inDivorce", value: [1] })
-  } else if (q.includes("bankrupt")) {
-    criteria.push({ name: "inBankruptcy", value: [1] })
-  } else if (q.includes("vacant")) {
-    criteria.push({ name: "isSiteVacant", value: [1] })
-  } else if (q.includes("deceased") || q.includes("probate")) {
-    criteria.push({ name: "isDeceased", value: [1] })
-  } else {
-    // General motivated sellers = in foreclosure OR high equity absentee
-    criteria.push({ name: "inForeclosure", value: [1] })
-  }
-
-  if (PROPERTYRADAR_API_KEY) {
-    try {
-      const results = await callPropertyRadar(criteria, { limit: 20 })
-      if (results.length > 0) return results.map(mapPropertyRadarResponse)
-    } catch (error) {
-      console.error("[PropertyRadar] Motivated sellers search failed:", error)
-    }
-  }
-
-  return fallbackPropertyAPISearch(query)
+  return properties.length > 0 ? properties : []
 }
 
-// Search for Cash Buyers via PropertyRadar
+// Search for Cash Buyers - PropertyAPI.co + Tavily for buyer data
 async function searchCashBuyers(query: string) {
-  const location = parseLocation(query)
-  const criteria: Array<{ name: string; value: (string | number)[] }> = []
+  const properties = await searchProperties(query, "cash_buyers")
 
-  // Location
-  if (location.zip) {
-    criteria.push({ name: "ZipFive", value: [location.zip] })
-  } else if (location.county) {
-    const fips = resolveCountyFIPS(location.county, location.state || "CA")
-    if (fips) criteria.push({ name: "County", value: [fips] })
-    else {
-      criteria.push({ name: "City", value: [location.county] })
-      if (location.state) criteria.push({ name: "State", value: [location.state] })
-    }
-  } else if (location.city) {
-    criteria.push({ name: "City", value: [location.city] })
-    if (location.state) criteria.push({ name: "State", value: [location.state] })
-  } else {
-    criteria.push({ name: "State", value: ["CA"] })
-  }
+  // Enrich with web search for cash buyer context
+  const webResults = await tavilySearch(`${query} cash buyers real estate investors`, { max_results: 5 })
 
-  // Cash buyer criteria
-  criteria.push({ name: "isCashBuyer", value: [1] })
-
-  if (PROPERTYRADAR_API_KEY) {
-    try {
-      const results = await callPropertyRadar(criteria, { limit: 20 })
-      if (results.length > 0) return results.map(mapPropertyRadarResponse)
-    } catch (error) {
-      console.error("[PropertyRadar] Cash buyers search failed:", error)
-    }
-  }
-
-  return fallbackPropertyAPISearch(query)
+  return properties.length > 0 ? properties : []
 }
 
 // Generate AI Summary
@@ -887,11 +696,11 @@ export async function GET() {
     tools: 35,
     capabilities: [
       "Web Search (Tavily)",
-      "Property Search (PropertyRadar - Real Data)",
-      "Foreclosure Search (PropertyRadar)",
-      "Motivated Sellers / Distressed Properties (PropertyRadar)",
-      "Cash Buyers Search (PropertyRadar)",
-      "Owner Lookup with Contact Info (PropertyRadar)",
+      "Property Search (PropertyAPI.co)",
+      "Foreclosure Search (PropertyAPI.co)",
+      "Motivated Sellers / Distressed Properties",
+      "Cash Buyers Search",
+      "Owner Lookup with Contact Info (PropertyAPI.co)",
       "Lead Generation & Enrichment",
       "Deal Analysis",
       "Image Generation (fal.ai)",

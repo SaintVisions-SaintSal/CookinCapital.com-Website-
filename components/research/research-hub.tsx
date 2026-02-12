@@ -1204,9 +1204,9 @@ export function ResearchHub() {
                         <p className="text-xs text-gray-500 flex items-center gap-1">
                           <Home className="h-3 w-3" /> {message.properties.length} Properties Found
                         </p>
-                        {message.properties[0]?.source === "PropertyRadar" && (
+                        {message.properties[0]?.source === "PropertyAPI" && (
                           <span className="text-[10px] text-gray-600 bg-gray-800/50 px-2 py-0.5 rounded-full">
-                            Powered by PropertyRadar
+                            Powered by PropertyAPI
                           </span>
                         )}
                       </div>
