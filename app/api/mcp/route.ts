@@ -231,134 +231,160 @@ async function tavilySearch(query: string, options: any = {}) {
 
 // ===========================================
 // PROPERTYAPI.CO INTEGRATION
-// Real property data: parcels, foreclosures, owner info
-// API Docs: propertyapi.co | Key prefix: papi_
+// Base URL: https://api.propertyapi.co
+// Auth: X-API-Key header with papi_ prefixed key
+// Endpoints: /property/detail, /property/comps, /autocomplete/address, /bulk/details
 // ===========================================
 
-// Geocode a location string to lat/lng via Google Maps
-async function geocodeLocation(location: string): Promise<{ lat: number; lng: number } | null> {
-  if (!GOOGLE_MAPS_API_KEY) {
-    console.error("[PropertyAPI] Google Maps API key not configured")
-    return null
-  }
-  try {
-    const res = await fetch(
-      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(location)}&key=${GOOGLE_MAPS_API_KEY}`,
-    )
-    const data = await res.json()
-    if (data.status !== "OK" || !data.results?.[0]) return null
-    const loc = data.results[0].geometry.location
-    return { lat: loc.lat, lng: loc.lng }
-  } catch (error) {
-    console.error("[PropertyAPI] Geocode error:", error)
-    return null
-  }
+const PAPI_BASE = "https://api.propertyapi.co"
+const PAPI_HEADERS = {
+  "X-API-Key": PROPERTY_API_KEY || "",
+  "Accept": "application/json",
+  "Content-Type": "application/json",
 }
 
-// Call PropertyAPI.co parcel endpoint by lat/lng
-async function callPropertyAPI(lat: number, lng: number) {
+// GET /property/detail?address=... — full property data by address
+async function fetchPropertyDetail(address: string): Promise<any | null> {
   if (!PROPERTY_API_KEY) {
-    console.error("[PropertyAPI] API key not configured")
+    console.error("[PropertyAPI] API key not configured (PROPERTY_API env var)")
     return null
   }
   try {
-    const url = `https://propertyapi.co/api/v1/parcels/get?latitude=${lat}&longitude=${lng}`
-    const res = await fetch(url, {
-      method: "GET",
-      headers: {
-        "X-Api-Key": PROPERTY_API_KEY,
-        "Accept": "application/json",
-      },
-    })
+    const url = `${PAPI_BASE}/property/detail?address=${encodeURIComponent(address)}`
+    console.log("[v0] PropertyAPI detail request:", url)
+    const res = await fetch(url, { headers: PAPI_HEADERS })
+    console.log("[v0] PropertyAPI detail response status:", res.status)
     if (!res.ok) {
-      console.error(`[PropertyAPI] Error ${res.status}: ${await res.text()}`)
+      const errText = await res.text()
+      console.error(`[PropertyAPI] detail error ${res.status}:`, errText)
       return null
     }
     const data = await res.json()
-    if (data.status === "error" || data.error) {
-      console.error(`[PropertyAPI] API error: ${data.error}`)
-      return null
-    }
+    console.log("[v0] PropertyAPI detail data keys:", Object.keys(data))
     return data
   } catch (error) {
-    console.error("[PropertyAPI] Request error:", error)
+    console.error("[PropertyAPI] detail fetch error:", error)
     return null
   }
 }
 
-// Call PropertyAPI.co search endpoint
-async function searchPropertyAPI(query: string) {
+// GET /property/comps?address=...&radius=...&limit=... — comparable properties
+async function fetchPropertyComps(address: string, radius: number = 5, limit: number = 20): Promise<any[]> {
   if (!PROPERTY_API_KEY) return []
   try {
-    const url = `https://propertyapi.co/api/v1/parcels/search?query=${encodeURIComponent(query)}`
-    const res = await fetch(url, {
-      method: "GET",
-      headers: {
-        "X-Api-Key": PROPERTY_API_KEY,
-        "Accept": "application/json",
-      },
-    })
+    const url = `${PAPI_BASE}/property/comps?address=${encodeURIComponent(address)}&radius=${radius}&limit=${limit}`
+    console.log("[v0] PropertyAPI comps request:", url)
+    const res = await fetch(url, { headers: PAPI_HEADERS })
+    console.log("[v0] PropertyAPI comps response status:", res.status)
     if (!res.ok) {
-      console.error(`[PropertyAPI] Search error ${res.status}: ${await res.text()}`)
+      console.error(`[PropertyAPI] comps error ${res.status}:`, await res.text())
       return []
     }
     const data = await res.json()
-    if (data.status === "error" || data.error) return []
-    // Response can be an array or an object with results
+    console.log("[v0] PropertyAPI comps result count:", Array.isArray(data) ? data.length : typeof data)
+    // Could be array directly or wrapped in a key
     if (Array.isArray(data)) return data
-    if (data.results && Array.isArray(data.results)) return data.results
-    if (data.parcels && Array.isArray(data.parcels)) return data.parcels
-    if (data.data && Array.isArray(data.data)) return data.data
-    // Single result, wrap in array
+    if (data.properties) return data.properties
+    if (data.comps) return data.comps
+    if (data.results) return data.results
+    if (data.data) return data.data
     return [data]
   } catch (error) {
-    console.error("[PropertyAPI] Search error:", error)
+    console.error("[PropertyAPI] comps fetch error:", error)
     return []
   }
 }
 
-// Map PropertyAPI.co response to our internal PropertyResult format
+// GET /autocomplete/address?query=... — address suggestions
+async function autocompleteAddress(query: string): Promise<string[]> {
+  if (!PROPERTY_API_KEY) return []
+  try {
+    const url = `${PAPI_BASE}/autocomplete/address?query=${encodeURIComponent(query)}`
+    const res = await fetch(url, { headers: PAPI_HEADERS })
+    if (!res.ok) return []
+    const data = await res.json()
+    // Return array of address strings
+    if (Array.isArray(data)) return data.map((d: any) => typeof d === "string" ? d : d.address || d.fullAddress || JSON.stringify(d))
+    if (data.suggestions) return data.suggestions
+    if (data.addresses) return data.addresses
+    if (data.results) return data.results.map((d: any) => d.address || d.fullAddress || "")
+    return []
+  } catch (error) {
+    console.error("[PropertyAPI] autocomplete error:", error)
+    return []
+  }
+}
+
+// POST /bulk/details — up to 1,000 addresses at once
+async function bulkPropertyDetails(addresses: string[]): Promise<any[]> {
+  if (!PROPERTY_API_KEY || addresses.length === 0) return []
+  try {
+    const url = `${PAPI_BASE}/bulk/details`
+    console.log("[v0] PropertyAPI bulk request for", addresses.length, "addresses")
+    const res = await fetch(url, {
+      method: "POST",
+      headers: PAPI_HEADERS,
+      body: JSON.stringify({ addresses }),
+    })
+    console.log("[v0] PropertyAPI bulk response status:", res.status)
+    if (!res.ok) {
+      console.error(`[PropertyAPI] bulk error ${res.status}:`, await res.text())
+      return []
+    }
+    const data = await res.json()
+    if (Array.isArray(data)) return data
+    if (data.properties) return data.properties
+    if (data.results) return data.results
+    if (data.data) return data.data
+    return []
+  } catch (error) {
+    console.error("[PropertyAPI] bulk fetch error:", error)
+    return []
+  }
+}
+
+// Map PropertyAPI.co response to our internal PropertyResult interface
 function mapPropertyAPIResponse(p: any, fallbackAddress?: string) {
   return {
-    address: p.property_address || p.address || p.site_address || fallbackAddress || "Unknown",
-    city: p.addr_city || p.city || p.site_city || "",
-    state: p.addr_state || p.state || p.site_state || "",
-    zip: p.addr_zip || p.zip || p.site_zip || "",
+    address: p.address || p.property_address || p.streetAddress || p.formattedAddress || fallbackAddress || "Unknown",
+    city: p.city || p.addr_city || "",
+    state: p.state || p.addr_state || "",
+    zip: p.zip || p.zipCode || p.addr_zip || "",
     county: p.county || undefined,
-    propertyType: p.property_type || p.zoning || undefined,
+    propertyType: p.propertyType || p.property_type || p.zoning || undefined,
     beds: p.bedrooms || p.beds || undefined,
     baths: p.bathrooms || p.baths || undefined,
-    sqft: p.sqft || p.building_sqft || p.living_area || undefined,
-    lotSize: p.lot_size || p.lot_acres || p.acres || undefined,
-    yearBuilt: p.year_built || undefined,
-    value: p.market_value_estimate || p.market_value || p.total_value_assessed || p.avm || undefined,
-    equity: p.equity || p.available_equity || undefined,
-    equityPercent: p.equity_percent || undefined,
-    loanBalance: p.loan_balance || p.total_loan_balance || undefined,
-    foreclosureStatus: p.foreclosure_status || p.in_foreclosure || p.foreclosure_stage || undefined,
-    foreclosureAuctionDate: p.auction_date || p.foreclosure_auction_date || undefined,
-    ownerName: p.owner_name || p.owner || p.owner_1_name || (p.owner_first_name && p.owner_last_name ? `${p.owner_first_name} ${p.owner_last_name}` : undefined),
-    ownerAddress: p.mail_address || p.owner_address || undefined,
-    ownerCity: p.mail_city || p.owner_city || undefined,
-    ownerState: p.mail_state || p.owner_state || undefined,
-    ownerZip: p.mail_zip || p.owner_zip || undefined,
-    lastSaleDate: p.last_sale_date || p.sale_date || undefined,
-    lastSalePrice: p.last_sale_price || p.sale_price || undefined,
-    apn: p.apn || p.parcel_number || undefined,
-    uuid: p.uuid || p.id || undefined,
-    transferDate: p.last_transfer_date || p.transfer_date || undefined,
-    transferAmount: p.last_transfer_value || p.transfer_amount || undefined,
-    loanRate: p.loan_rate || p.interest_rate || undefined,
-    loanType: p.loan_type || undefined,
+    sqft: p.livingArea || p.squareFootage || p.sqft || p.buildingArea || undefined,
+    lotSize: p.lotSize || p.lotArea || p.lotAcres || p.lot_size || undefined,
+    yearBuilt: p.yearBuilt || p.year_built || undefined,
+    value: p.estimatedValue || p.avm || p.assessedValue || p.marketValue || p.value || undefined,
+    equity: p.equity || p.estimatedEquity || undefined,
+    equityPercent: p.equityPercent || undefined,
+    loanBalance: p.loanBalance || p.mortgageBalance || p.totalLoanBalance || undefined,
+    foreclosureStatus: p.foreclosureStatus || p.foreclosure || undefined,
+    foreclosureAuctionDate: p.auctionDate || p.foreclosureDate || undefined,
+    ownerName: p.ownerName || p.owner || (p.ownerFirstName && p.ownerLastName ? `${p.ownerFirstName} ${p.ownerLastName}` : undefined),
+    ownerAddress: p.mailingAddress || p.ownerMailingAddress || undefined,
+    ownerCity: p.mailingCity || undefined,
+    ownerState: p.mailingState || undefined,
+    ownerZip: p.mailingZip || undefined,
+    lastSaleDate: p.lastSaleDate || p.saleDate || undefined,
+    lastSalePrice: p.lastSalePrice || p.salePrice || undefined,
+    apn: p.apn || p.parcelNumber || p.parcelId || undefined,
+    uuid: p.id || p.uuid || undefined,
+    transferDate: p.lastTransferDate || undefined,
+    transferAmount: p.lastTransferAmount || undefined,
+    loanRate: p.interestRate || p.loanRate || undefined,
+    loanType: p.loanType || p.mortgageType || undefined,
     source: "PropertyAPI",
   }
 }
 
-// Extract a searchable location from the user query
+// Extract a searchable location string from the user's query
 function extractSearchLocation(query: string): string | null {
   const q = query.toLowerCase()
 
-  // Full address pattern
+  // Full street address
   const addressMatch = query.match(
     /\d+\s+[\w\s]+(?:st|street|ave|avenue|blvd|boulevard|dr|drive|rd|road|ln|lane|way|ct|court)[,\s]+[\w\s]+[,\s]+[A-Z]{2}(?:\s+\d{5})?/i,
   )
@@ -368,7 +394,7 @@ function extractSearchLocation(query: string): string | null {
   const zipMatch = q.match(/\b(\d{5})\b/)
   if (zipMatch) return zipMatch[1]
 
-  // "in [County] County, [State]" or "in [County] County"
+  // "in [County] County, [State]"
   const countyMatch = q.match(/(?:in\s+)?([\w\s]+?)\s+county(?:\s*,?\s*([a-z]{2}))?/i)
   if (countyMatch) {
     const county = countyMatch[1].trim()
@@ -389,79 +415,69 @@ function extractSearchLocation(query: string): string | null {
   return null
 }
 
-// Main Property Search - geocode location, then search PropertyAPI.co for parcels
+// Main: Search properties in an area using PropertyAPI.co
+// Strategy: use /autocomplete/address to find real addresses in the area, then /property/detail or /property/comps
 async function searchProperties(query: string, intent: string) {
   if (!PROPERTY_API_KEY) {
-    console.error("[PropertyAPI] No API key configured")
+    console.error("[PropertyAPI] PROPERTY_API env var not set")
     return []
   }
 
   const searchLocation = extractSearchLocation(query)
   if (!searchLocation) {
-    console.error("[PropertyAPI] Could not extract location from query:", query)
+    console.error("[PropertyAPI] Could not extract location from:", query)
     return []
   }
+  console.log("[v0] searchProperties location:", searchLocation, "intent:", intent)
 
-  // Strategy 1: Try the search endpoint directly
+  // Strategy 1: Use /property/comps with a central address in the area
+  // For area-based searches (county, city, zip), we fabricate a central reference address
+  // and use comps to find nearby properties
   try {
-    const searchQuery = intent === "foreclosure_search"
-      ? `foreclosures in ${searchLocation}`
-      : searchLocation
-    const searchResults = await searchPropertyAPI(searchQuery)
-    if (searchResults.length > 0) {
-      return searchResults.map((p: any) => mapPropertyAPIResponse(p, searchLocation))
+    // Use autocomplete to resolve the location to a real address
+    const suggestions = await autocompleteAddress(searchLocation)
+    console.log("[v0] Autocomplete suggestions:", suggestions.length)
+    if (suggestions.length > 0) {
+      const referenceAddress = suggestions[0]
+      console.log("[v0] Using reference address for comps:", referenceAddress)
+
+      // Get comps around this address (wider radius for area searches)
+      const comps = await fetchPropertyComps(referenceAddress, 10, 20)
+      if (comps.length > 0) {
+        console.log("[v0] Got", comps.length, "comps from PropertyAPI")
+        return comps.map((p: any) => mapPropertyAPIResponse(p))
+      }
     }
   } catch (error) {
-    console.error("[PropertyAPI] Search endpoint failed:", error)
+    console.error("[PropertyAPI] Comps strategy failed:", error)
   }
 
-  // Strategy 2: Geocode and use the parcel endpoint
+  // Strategy 2: Direct detail lookup (for specific addresses)
   try {
-    const coords = await geocodeLocation(searchLocation)
-    if (!coords) return []
-
-    const data = await callPropertyAPI(coords.lat, coords.lng)
-    if (!data) return []
-
-    const properties = Array.isArray(data) ? data : [data]
-    return properties.map((p: any) => mapPropertyAPIResponse(p, searchLocation))
+    const detail = await fetchPropertyDetail(searchLocation)
+    if (detail) {
+      console.log("[v0] Got single property detail from PropertyAPI")
+      return [mapPropertyAPIResponse(detail, searchLocation)]
+    }
   } catch (error) {
-    console.error("[PropertyAPI] Geocode+parcel search error:", error)
-    return []
+    console.error("[PropertyAPI] Detail strategy failed:", error)
   }
+
+  console.log("[v0] PropertyAPI returned no results for:", searchLocation)
+  return []
 }
 
-// Property Lookup - single address via PropertyAPI.co
+// Lookup a single property by address
 async function lookupProperty(address: string) {
   if (!PROPERTY_API_KEY || !address) return null
 
-  // Try search endpoint first for better matching
-  try {
-    const results = await searchPropertyAPI(address)
-    if (results.length > 0) {
-      return mapPropertyAPIResponse(results[0], address)
-    }
-  } catch (error) {
-    console.error("[PropertyAPI] Lookup search failed:", error)
-  }
+  const detail = await fetchPropertyDetail(address)
+  if (detail) return mapPropertyAPIResponse(detail, address)
 
-  // Fall back to geocode + parcel lookup
-  try {
-    const coords = await geocodeLocation(address)
-    if (!coords) return null
-
-    const data = await callPropertyAPI(coords.lat, coords.lng)
-    if (!data) return null
-
-    const p = Array.isArray(data) ? data[0] : data
-    return p ? mapPropertyAPIResponse(p, address) : null
-  } catch (error) {
-    console.error("[PropertyAPI] Lookup error:", error)
-    return null
-  }
+  return null
 }
 
-// Owner Lookup - PropertyAPI.co includes owner data in parcel responses
+// Owner lookup — PropertyAPI.co returns owner data in the detail response
 async function lookupOwner(address: string) {
   return lookupProperty(address)
 }
