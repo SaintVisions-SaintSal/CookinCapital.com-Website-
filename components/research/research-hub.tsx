@@ -122,6 +122,9 @@ interface PropertyResult {
   loanBalance?: number
   loanRate?: number
   loanType?: string
+
+  // Data source
+  source?: string
 }
 
 interface LeadResult {
@@ -1197,17 +1200,24 @@ export function ResearchHub() {
                   {/* Property results */}
                   {message.properties && message.properties.length > 0 && (
                     <div className="mt-4">
-                      <p className="text-xs text-gray-500 mb-3 flex items-center gap-1">
-                        <Home className="h-3 w-3" /> {message.properties.length} Properties Found
-                      </p>
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-xs text-gray-500 flex items-center gap-1">
+                          <Home className="h-3 w-3" /> {message.properties.length} Properties Found
+                        </p>
+                        {message.properties[0]?.source === "PropertyRadar" && (
+                          <span className="text-[10px] text-gray-600 bg-gray-800/50 px-2 py-0.5 rounded-full">
+                            Powered by PropertyRadar
+                          </span>
+                        )}
+                      </div>
                       <div className="grid gap-3">
-                        {message.properties.slice(0, 4).map((property, i) => (
+                        {message.properties.slice(0, 10).map((property, i) => (
                           <PropertyCard key={i} property={property} />
                         ))}
                       </div>
-                      {message.properties.length > 4 && (
+                      {message.properties.length > 10 && (
                         <button className="w-full mt-3 py-2 text-sm text-amber-500 hover:text-amber-400 transition-colors">
-                          View all {message.properties.length} properties →
+                          View all {message.properties.length} properties
                         </button>
                       )}
                     </div>
