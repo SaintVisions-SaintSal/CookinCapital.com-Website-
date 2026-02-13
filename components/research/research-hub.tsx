@@ -1159,6 +1159,7 @@ export function ResearchHub() {
     ])
 
     try {
+      console.log("[v0] Sending to /api/mcp:", { query, intent })
       const res = await fetch("/api/mcp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1169,7 +1170,11 @@ export function ResearchHub() {
         }),
       })
 
+      console.log("[v0] MCP response status:", res.status)
       const data = await res.json()
+      console.log("[v0] MCP response data keys:", Object.keys(data))
+      console.log("[v0] MCP properties count:", data.properties?.length || 0)
+      console.log("[v0] MCP intent:", data.intent)
 
       // Update streaming message with real content
       setMessages((prev) =>
@@ -1188,7 +1193,8 @@ export function ResearchHub() {
             : m,
         ),
       )
-    } catch {
+    } catch (err) {
+      console.error("[v0] MCP fetch error:", err)
       setMessages((prev) =>
         prev.map((m) =>
           m.id === streamingId

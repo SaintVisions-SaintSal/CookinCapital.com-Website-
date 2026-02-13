@@ -77,6 +77,7 @@ async function orchestrateQuery(query: string, intent: string) {
   }
 
   try {
+    console.log("[v0] Orchestrating intent:", intent, "for query:", query.slice(0, 80))
     switch (intent) {
       case "conversational":
       case "help":
@@ -87,6 +88,7 @@ async function orchestrateQuery(query: string, intent: string) {
 
       case "foreclosure_search":
       case "property_search":
+        console.log("[v0] Running property/foreclosure search branch")
         // Search properties via PropertyAPI + Web search for context
         const [propertyResults, webContext] = await Promise.all([
           searchProperties(query, intent),
@@ -748,6 +750,11 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { query, intent: providedIntent, tool } = body
+
+    console.log("[v0] MCP POST called with query:", query?.slice(0, 100), "intent:", providedIntent)
+    console.log("[v0] ENV CHECK - PROPERTY_API:", PROPERTY_API_KEY ? `SET (${PROPERTY_API_KEY.slice(0, 8)}...)` : "NOT SET")
+    console.log("[v0] ENV CHECK - RENTCAST_API_KEY:", RENTCAST_API_KEY ? `SET (${RENTCAST_API_KEY.slice(0, 8)}...)` : "NOT SET")
+    console.log("[v0] ENV CHECK - TAVILY_API_KEY:", TAVILY_API_KEY ? "SET" : "NOT SET")
 
     if (!query) {
       return NextResponse.json({ error: "Query required" }, { status: 400 })
