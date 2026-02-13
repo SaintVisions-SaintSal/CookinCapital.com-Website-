@@ -9,9 +9,9 @@ import { generateText } from "ai"
 
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY
 const PROPERTY_API_KEY = process.env.PROPERTY_API
+const RENTCAST_API_KEY = process.env.RENTCAST_API_KEY
 const GHL_API_KEY = process.env.GHL_API_KEY
 const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID
-const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API
 
 async function handleConversation(query: string): Promise<string> {
   try {
@@ -77,6 +77,7 @@ async function orchestrateQuery(query: string, intent: string) {
   }
 
   try {
+    console.log("[v0] Orchestrating intent:", intent, "for query:", query.slice(0, 80))
     switch (intent) {
       case "conversational":
       case "help":
@@ -87,6 +88,7 @@ async function orchestrateQuery(query: string, intent: string) {
 
       case "foreclosure_search":
       case "property_search":
+        console.log("[v0] Running property/foreclosure search branch")
         // Search properties via PropertyAPI + Web search for context
         const [propertyResults, webContext] = await Promise.all([
           searchProperties(query, intent),
@@ -230,11 +232,16 @@ async function tavilySearch(query: string, options: any = {}) {
 }
 
 // ===========================================
-// PROPERTYAPI.CO INTEGRATION
-// Base URL: https://api.propertyapi.co
-// Auth: X-API-Key header with papi_ prefixed key
-// Endpoints: /property/detail, /property/comps, /autocomplete/address, /bulk/details
+// DUAL API INTEGRATION
+// 1. RentCast (api.rentcast.io/v1) — Area search, listings, rent/value estimates, market stats
+// 2. PropertyAPI.co (api.propertyapi.co) — Property detail, legal info, owner data, comps
 // ===========================================
+
+const RC_BASE = "https://api.rentcast.io/v1"
+const RC_HEADERS = {
+  "X-Api-Key": RENTCAST_API_KEY || "",
+  "Accept": "application/json",
+}
 
 const PAPI_BASE = "https://api.propertyapi.co"
 const PAPI_HEADERS = {
@@ -243,124 +250,213 @@ const PAPI_HEADERS = {
   "Content-Type": "application/json",
 }
 
-// GET /property/detail?address=... — full property data by address
-async function fetchPropertyDetail(address: string): Promise<any | null> {
+// ------- RENTCAST FUNCTIONS -------
+
+// RentCast: GET /v1/properties — search properties by city/state/zip/status
+async function rentcastSearchProperties(params: {
+  city?: string; state?: string; zipCode?: string; status?: string;
+  propertyType?: string; limit?: number; offset?: number;
+}): Promise<any[]> {
+  if (!RENTCAST_API_KEY) {
+    console.error("[RentCast] RENTCAST_API_KEY not set")
+    return []
+  }
+  try {
+    const searchParams = new URLSearchParams()
+    if (params.city) searchParams.set("city", params.city)
+    if (params.state) searchParams.set("state", params.state)
+    if (params.zipCode) searchParams.set("zipCode", params.zipCode)
+    if (params.status) searchParams.set("status", params.status)
+    if (params.propertyType) searchParams.set("propertyType", params.propertyType)
+    searchParams.set("limit", String(params.limit || 20))
+    if (params.offset) searchParams.set("offset", String(params.offset))
+
+    const url = `${RC_BASE}/properties?${searchParams.toString()}`
+    console.log("[v0] RentCast properties request:", url)
+    const res = await fetch(url, { headers: RC_HEADERS })
+    console.log("[v0] RentCast properties response:", res.status)
+    if (!res.ok) {
+      const errText = await res.text()
+      console.error(`[RentCast] properties error ${res.status}:`, errText)
+      return []
+    }
+    const data = await res.json()
+    console.log("[v0] RentCast properties count:", Array.isArray(data) ? data.length : "non-array")
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error("[RentCast] properties fetch error:", error)
+    return []
+  }
+}
+
+// RentCast: GET /v1/listings/sale — active sale listings
+async function rentcastSaleListings(params: {
+  city?: string; state?: string; zipCode?: string; status?: string;
+  propertyType?: string; limit?: number;
+}): Promise<any[]> {
+  if (!RENTCAST_API_KEY) return []
+  try {
+    const searchParams = new URLSearchParams()
+    if (params.city) searchParams.set("city", params.city)
+    if (params.state) searchParams.set("state", params.state)
+    if (params.zipCode) searchParams.set("zipCode", params.zipCode)
+    if (params.status) searchParams.set("status", params.status)
+    if (params.propertyType) searchParams.set("propertyType", params.propertyType)
+    searchParams.set("limit", String(params.limit || 20))
+
+    const url = `${RC_BASE}/listings/sale?${searchParams.toString()}`
+    console.log("[v0] RentCast sale listings request:", url)
+    const res = await fetch(url, { headers: RC_HEADERS })
+    console.log("[v0] RentCast sale listings response:", res.status)
+    if (!res.ok) {
+      console.error(`[RentCast] listings error ${res.status}:`, await res.text())
+      return []
+    }
+    const data = await res.json()
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error("[RentCast] listings fetch error:", error)
+    return []
+  }
+}
+
+// RentCast: GET /v1/avm/value — property value estimate
+async function rentcastValueEstimate(address: string): Promise<any | null> {
+  if (!RENTCAST_API_KEY) return null
+  try {
+    const url = `${RC_BASE}/avm/value?address=${encodeURIComponent(address)}`
+    const res = await fetch(url, { headers: RC_HEADERS })
+    if (!res.ok) return null
+    return await res.json()
+  } catch { return null }
+}
+
+// RentCast: GET /v1/avm/rent/long-term — rent estimate
+async function rentcastRentEstimate(address: string): Promise<any | null> {
+  if (!RENTCAST_API_KEY) return null
+  try {
+    const url = `${RC_BASE}/avm/rent/long-term?address=${encodeURIComponent(address)}`
+    const res = await fetch(url, { headers: RC_HEADERS })
+    if (!res.ok) return null
+    return await res.json()
+  } catch { return null }
+}
+
+// RentCast: GET /v1/markets — market statistics
+async function rentcastMarketStats(params: { zipCode?: string; city?: string; state?: string }): Promise<any | null> {
+  if (!RENTCAST_API_KEY) return null
+  try {
+    const searchParams = new URLSearchParams()
+    if (params.zipCode) searchParams.set("zipCode", params.zipCode)
+    if (params.city) searchParams.set("city", params.city)
+    if (params.state) searchParams.set("state", params.state)
+    const url = `${RC_BASE}/markets?${searchParams.toString()}`
+    const res = await fetch(url, { headers: RC_HEADERS })
+    if (!res.ok) return null
+    return await res.json()
+  } catch { return null }
+}
+
+// ------- PROPERTYAPI.CO FUNCTIONS -------
+
+// PropertyAPI: GET /property/detail — full property detail + legal + owner
+async function papiPropertyDetail(address: string): Promise<any | null> {
   if (!PROPERTY_API_KEY) {
-    console.error("[PropertyAPI] API key not configured (PROPERTY_API env var)")
+    console.error("[PropertyAPI] PROPERTY_API key not set")
     return null
   }
   try {
     const url = `${PAPI_BASE}/property/detail?address=${encodeURIComponent(address)}`
     console.log("[v0] PropertyAPI detail request:", url)
     const res = await fetch(url, { headers: PAPI_HEADERS })
-    console.log("[v0] PropertyAPI detail response status:", res.status)
+    console.log("[v0] PropertyAPI detail response:", res.status)
     if (!res.ok) {
-      const errText = await res.text()
-      console.error(`[PropertyAPI] detail error ${res.status}:`, errText)
+      console.error(`[PropertyAPI] detail error ${res.status}:`, await res.text())
       return null
     }
     const data = await res.json()
-    console.log("[v0] PropertyAPI detail data keys:", Object.keys(data))
+    console.log("[v0] PropertyAPI detail keys:", Object.keys(data))
     return data
   } catch (error) {
-    console.error("[PropertyAPI] detail fetch error:", error)
+    console.error("[PropertyAPI] detail error:", error)
     return null
   }
 }
 
-// GET /property/comps?address=...&radius=...&limit=... — comparable properties
-async function fetchPropertyComps(address: string, radius: number = 5, limit: number = 20): Promise<any[]> {
+// PropertyAPI: GET /property/comps — comparable properties
+async function papiPropertyComps(address: string, radius: number = 5, limit: number = 20): Promise<any[]> {
   if (!PROPERTY_API_KEY) return []
   try {
     const url = `${PAPI_BASE}/property/comps?address=${encodeURIComponent(address)}&radius=${radius}&limit=${limit}`
-    console.log("[v0] PropertyAPI comps request:", url)
     const res = await fetch(url, { headers: PAPI_HEADERS })
-    console.log("[v0] PropertyAPI comps response status:", res.status)
-    if (!res.ok) {
-      console.error(`[PropertyAPI] comps error ${res.status}:`, await res.text())
-      return []
-    }
+    if (!res.ok) return []
     const data = await res.json()
-    console.log("[v0] PropertyAPI comps result count:", Array.isArray(data) ? data.length : typeof data)
-    // Could be array directly or wrapped in a key
     if (Array.isArray(data)) return data
     if (data.properties) return data.properties
     if (data.comps) return data.comps
     if (data.results) return data.results
-    if (data.data) return data.data
-    return [data]
-  } catch (error) {
-    console.error("[PropertyAPI] comps fetch error:", error)
     return []
+  } catch { return [] }
+}
+
+// ------- RESPONSE MAPPING -------
+
+// Map RentCast property to our PropertyResult interface
+function mapRentCastProperty(p: any) {
+  const addr = p.addressLine1 || p.formattedAddress || p.address || "Unknown"
+  return {
+    address: addr,
+    city: p.city || "",
+    state: p.state || "",
+    zip: p.zipCode || "",
+    county: p.county || undefined,
+    propertyType: p.propertyType || undefined,
+    beds: p.bedrooms || undefined,
+    baths: p.bathrooms || undefined,
+    sqft: p.squareFootage || undefined,
+    lotSize: p.lotSize || undefined,
+    yearBuilt: p.yearBuilt || undefined,
+    units: p.units || undefined,
+    value: p.price || p.estimatedValue || p.assessorMarketValue || undefined,
+    equity: undefined,
+    equityPercent: undefined,
+    loanBalance: undefined,
+    foreclosureStatus: p.status === "Foreclosure" ? "Foreclosure" : (p.propertyTaxes?.delinquentYear ? "Tax Default" : undefined),
+    ownerName: p.ownerName || (p.owner ? `${p.owner.firstName || ""} ${p.owner.lastName || ""}`.trim() : undefined) || undefined,
+    ownerAddress: p.owner?.mailingAddress || undefined,
+    ownerCity: p.owner?.mailingCity || undefined,
+    ownerState: p.owner?.mailingState || undefined,
+    ownerZip: p.owner?.mailingZipCode || undefined,
+    lastSaleDate: p.lastSaleDate || undefined,
+    lastSalePrice: p.lastSalePrice || undefined,
+    apn: p.assessorParcelNumber || undefined,
+    // RentCast-specific extras
+    rentEstimate: p.rentEstimate || undefined,
+    daysOnMarket: p.daysOnMarket || undefined,
+    listedDate: p.listedDate || undefined,
+    listingUrl: p.listingUrl || undefined,
+    source: "RentCast",
   }
 }
 
-// GET /autocomplete/address?query=... — address suggestions
-async function autocompleteAddress(query: string): Promise<string[]> {
-  if (!PROPERTY_API_KEY) return []
-  try {
-    const url = `${PAPI_BASE}/autocomplete/address?query=${encodeURIComponent(query)}`
-    const res = await fetch(url, { headers: PAPI_HEADERS })
-    if (!res.ok) return []
-    const data = await res.json()
-    // Return array of address strings
-    if (Array.isArray(data)) return data.map((d: any) => typeof d === "string" ? d : d.address || d.fullAddress || JSON.stringify(d))
-    if (data.suggestions) return data.suggestions
-    if (data.addresses) return data.addresses
-    if (data.results) return data.results.map((d: any) => d.address || d.fullAddress || "")
-    return []
-  } catch (error) {
-    console.error("[PropertyAPI] autocomplete error:", error)
-    return []
-  }
-}
-
-// POST /bulk/details — up to 1,000 addresses at once
-async function bulkPropertyDetails(addresses: string[]): Promise<any[]> {
-  if (!PROPERTY_API_KEY || addresses.length === 0) return []
-  try {
-    const url = `${PAPI_BASE}/bulk/details`
-    console.log("[v0] PropertyAPI bulk request for", addresses.length, "addresses")
-    const res = await fetch(url, {
-      method: "POST",
-      headers: PAPI_HEADERS,
-      body: JSON.stringify({ addresses }),
-    })
-    console.log("[v0] PropertyAPI bulk response status:", res.status)
-    if (!res.ok) {
-      console.error(`[PropertyAPI] bulk error ${res.status}:`, await res.text())
-      return []
-    }
-    const data = await res.json()
-    if (Array.isArray(data)) return data
-    if (data.properties) return data.properties
-    if (data.results) return data.results
-    if (data.data) return data.data
-    return []
-  } catch (error) {
-    console.error("[PropertyAPI] bulk fetch error:", error)
-    return []
-  }
-}
-
-// Map PropertyAPI.co response to our internal PropertyResult interface
-function mapPropertyAPIResponse(p: any, fallbackAddress?: string) {
+// Map PropertyAPI.co response to PropertyResult
+function mapPapiProperty(p: any, fallbackAddress?: string) {
   return {
     address: p.address || p.property_address || p.streetAddress || p.formattedAddress || fallbackAddress || "Unknown",
     city: p.city || p.addr_city || "",
     state: p.state || p.addr_state || "",
     zip: p.zip || p.zipCode || p.addr_zip || "",
     county: p.county || undefined,
-    propertyType: p.propertyType || p.property_type || p.zoning || undefined,
+    propertyType: p.propertyType || p.property_type || undefined,
     beds: p.bedrooms || p.beds || undefined,
     baths: p.bathrooms || p.baths || undefined,
-    sqft: p.livingArea || p.squareFootage || p.sqft || p.buildingArea || undefined,
-    lotSize: p.lotSize || p.lotArea || p.lotAcres || p.lot_size || undefined,
+    sqft: p.squareFootage || p.sqft || p.livingArea || undefined,
+    lotSize: p.lotSize || p.lotAcres || undefined,
     yearBuilt: p.yearBuilt || p.year_built || undefined,
-    value: p.estimatedValue || p.avm || p.assessedValue || p.marketValue || p.value || undefined,
+    value: p.estimatedValue || p.avm || p.assessedValue || p.marketValue || undefined,
     equity: p.equity || p.estimatedEquity || undefined,
     equityPercent: p.equityPercent || undefined,
-    loanBalance: p.loanBalance || p.mortgageBalance || p.totalLoanBalance || undefined,
+    loanBalance: p.loanBalance || p.mortgageBalance || undefined,
     foreclosureStatus: p.foreclosureStatus || p.foreclosure || undefined,
     foreclosureAuctionDate: p.auctionDate || p.foreclosureDate || undefined,
     ownerName: p.ownerName || p.owner || (p.ownerFirstName && p.ownerLastName ? `${p.ownerFirstName} ${p.ownerLastName}` : undefined),
@@ -370,7 +466,7 @@ function mapPropertyAPIResponse(p: any, fallbackAddress?: string) {
     ownerZip: p.mailingZip || undefined,
     lastSaleDate: p.lastSaleDate || p.saleDate || undefined,
     lastSalePrice: p.lastSalePrice || p.salePrice || undefined,
-    apn: p.apn || p.parcelNumber || p.parcelId || undefined,
+    apn: p.apn || p.parcelNumber || undefined,
     uuid: p.id || p.uuid || undefined,
     transferDate: p.lastTransferDate || undefined,
     transferAmount: p.lastTransferAmount || undefined,
@@ -380,104 +476,170 @@ function mapPropertyAPIResponse(p: any, fallbackAddress?: string) {
   }
 }
 
-// Extract a searchable location string from the user's query
-function extractSearchLocation(query: string): string | null {
+// ------- LOCATION PARSING -------
+
+function parseSearchLocation(query: string): { city?: string; state?: string; zipCode?: string; address?: string; county?: string } {
   const q = query.toLowerCase()
 
   // Full street address
   const addressMatch = query.match(
     /\d+\s+[\w\s]+(?:st|street|ave|avenue|blvd|boulevard|dr|drive|rd|road|ln|lane|way|ct|court)[,\s]+[\w\s]+[,\s]+[A-Z]{2}(?:\s+\d{5})?/i,
   )
-  if (addressMatch) return addressMatch[0]
+  if (addressMatch) return { address: addressMatch[0] }
 
   // Zip code
   const zipMatch = q.match(/\b(\d{5})\b/)
-  if (zipMatch) return zipMatch[1]
+  if (zipMatch) return { zipCode: zipMatch[1] }
 
-  // "in [County] County, [State]"
+  // "[County] County, [State]" or "[County] County"
   const countyMatch = q.match(/(?:in\s+)?([\w\s]+?)\s+county(?:\s*,?\s*([a-z]{2}))?/i)
   if (countyMatch) {
-    const county = countyMatch[1].trim()
-    const state = countyMatch[2]?.toUpperCase() || "CA"
-    return `${county} County, ${state}`
+    return { county: countyMatch[1].trim(), city: countyMatch[1].trim(), state: countyMatch[2]?.toUpperCase() || "CA" }
   }
 
   // "in [City], [State]"
   const cityStateMatch = q.match(/in\s+([\w\s]+?)\s*,\s*([a-z]{2})/i)
   if (cityStateMatch) {
-    return `${cityStateMatch[1].trim()}, ${cityStateMatch[2].toUpperCase()}`
+    return { city: cityStateMatch[1].trim(), state: cityStateMatch[2].toUpperCase() }
   }
 
   // "in [Location]"
   const inMatch = q.match(/in\s+([\w\s]+?)(?:\s*$|\s+(?:for|with|that|under|over|where))/i)
-  if (inMatch) return `${inMatch[1].trim()}, CA`
+  if (inMatch) return { city: inMatch[1].trim(), state: "CA" }
 
-  return null
+  return {}
 }
 
-// Main: Search properties in an area using PropertyAPI.co
-// Strategy: use /autocomplete/address to find real addresses in the area, then /property/detail or /property/comps
+// ------- MAIN SEARCH FUNCTIONS -------
+
+// Search properties: RentCast for area search, PropertyAPI.co for detail enrichment
 async function searchProperties(query: string, intent: string) {
-  if (!PROPERTY_API_KEY) {
-    console.error("[PropertyAPI] PROPERTY_API env var not set")
-    return []
-  }
+  const location = parseSearchLocation(query)
+  console.log("[v0] searchProperties parsed location:", JSON.stringify(location), "intent:", intent)
 
-  const searchLocation = extractSearchLocation(query)
-  if (!searchLocation) {
-    console.error("[PropertyAPI] Could not extract location from:", query)
-    return []
-  }
-  console.log("[v0] searchProperties location:", searchLocation, "intent:", intent)
+  // Determine RentCast status filter based on intent
+  let rcStatus: string | undefined
+  if (intent === "foreclosure_search") rcStatus = "Foreclosure"
 
-  // Strategy 1: Use /property/comps with a central address in the area
-  // For area-based searches (county, city, zip), we fabricate a central reference address
-  // and use comps to find nearby properties
-  try {
-    // Use autocomplete to resolve the location to a real address
-    const suggestions = await autocompleteAddress(searchLocation)
-    console.log("[v0] Autocomplete suggestions:", suggestions.length)
-    if (suggestions.length > 0) {
-      const referenceAddress = suggestions[0]
-      console.log("[v0] Using reference address for comps:", referenceAddress)
+  // Strategy 1: RentCast area search (city/state/zip)
+  if (RENTCAST_API_KEY && (location.city || location.zipCode)) {
+    try {
+      // Try property records first (most data)
+      let results = await rentcastSearchProperties({
+        city: location.city,
+        state: location.state,
+        zipCode: location.zipCode,
+        status: rcStatus,
+        limit: 20,
+      })
 
-      // Get comps around this address (wider radius for area searches)
-      const comps = await fetchPropertyComps(referenceAddress, 10, 20)
-      if (comps.length > 0) {
-        console.log("[v0] Got", comps.length, "comps from PropertyAPI")
-        return comps.map((p: any) => mapPropertyAPIResponse(p))
+      // If no property records with status filter, try sale listings
+      if (results.length === 0 && rcStatus) {
+        console.log("[v0] No RentCast property records with status, trying sale listings...")
+        results = await rentcastSaleListings({
+          city: location.city,
+          state: location.state,
+          zipCode: location.zipCode,
+          status: rcStatus,
+          limit: 20,
+        })
       }
+
+      // If still no results with status, try without status filter
+      if (results.length === 0 && rcStatus) {
+        console.log("[v0] Trying RentCast without status filter...")
+        results = await rentcastSearchProperties({
+          city: location.city,
+          state: location.state,
+          zipCode: location.zipCode,
+          limit: 20,
+        })
+      }
+
+      if (results.length > 0) {
+        console.log("[v0] RentCast returned", results.length, "results")
+        return results.map(mapRentCastProperty)
+      }
+    } catch (error) {
+      console.error("[v0] RentCast search failed:", error)
     }
-  } catch (error) {
-    console.error("[PropertyAPI] Comps strategy failed:", error)
   }
 
-  // Strategy 2: Direct detail lookup (for specific addresses)
-  try {
-    const detail = await fetchPropertyDetail(searchLocation)
-    if (detail) {
-      console.log("[v0] Got single property detail from PropertyAPI")
-      return [mapPropertyAPIResponse(detail, searchLocation)]
+  // Strategy 2: PropertyAPI.co detail lookup (for specific addresses)
+  if (PROPERTY_API_KEY && location.address) {
+    try {
+      const detail = await papiPropertyDetail(location.address)
+      if (detail) {
+        console.log("[v0] PropertyAPI returned detail for address")
+        return [mapPapiProperty(detail, location.address)]
+      }
+    } catch (error) {
+      console.error("[v0] PropertyAPI detail failed:", error)
     }
-  } catch (error) {
-    console.error("[PropertyAPI] Detail strategy failed:", error)
   }
 
-  console.log("[v0] PropertyAPI returned no results for:", searchLocation)
+  // Strategy 3: PropertyAPI.co comps (for area search fallback)
+  if (PROPERTY_API_KEY && location.address) {
+    try {
+      const comps = await papiPropertyComps(location.address, 10, 20)
+      if (comps.length > 0) {
+        return comps.map((p: any) => mapPapiProperty(p))
+      }
+    } catch (error) {
+      console.error("[v0] PropertyAPI comps failed:", error)
+    }
+  }
+
+  console.log("[v0] No property results from any API for:", query)
   return []
 }
 
-// Lookup a single property by address
+// Lookup single property: PropertyAPI.co for detail + RentCast for value/rent estimates
 async function lookupProperty(address: string) {
-  if (!PROPERTY_API_KEY || !address) return null
+  if (!address) return null
 
-  const detail = await fetchPropertyDetail(address)
-  if (detail) return mapPropertyAPIResponse(detail, address)
+  let result: any = null
 
-  return null
+  // Try PropertyAPI.co first for full legal/owner detail
+  if (PROPERTY_API_KEY) {
+    const detail = await papiPropertyDetail(address)
+    if (detail) {
+      result = mapPapiProperty(detail, address)
+    }
+  }
+
+  // Enrich with RentCast value + rent estimates
+  if (RENTCAST_API_KEY) {
+    try {
+      const [valueEst, rentEst] = await Promise.all([
+        rentcastValueEstimate(address),
+        rentcastRentEstimate(address),
+      ])
+      if (result) {
+        if (valueEst?.price) result.value = valueEst.price
+        if (valueEst?.priceRangeLow) result.valueLow = valueEst.priceRangeLow
+        if (valueEst?.priceRangeHigh) result.valueHigh = valueEst.priceRangeHigh
+        if (rentEst?.rent) result.rentEstimate = rentEst.rent
+        if (rentEst?.rentRangeLow) result.rentLow = rentEst.rentRangeLow
+        if (rentEst?.rentRangeHigh) result.rentHigh = rentEst.rentRangeHigh
+      } else {
+        // Fall back to RentCast property search by address
+        const rcResults = await rentcastSearchProperties({ city: address, state: "CA", limit: 1 })
+        if (rcResults.length > 0) {
+          result = mapRentCastProperty(rcResults[0])
+          if (valueEst?.price) result.value = valueEst.price
+          if (rentEst?.rent) result.rentEstimate = rentEst.rent
+        }
+      }
+    } catch (error) {
+      console.error("[v0] RentCast enrichment error:", error)
+    }
+  }
+
+  return result
 }
 
-// Owner lookup — PropertyAPI.co returns owner data in the detail response
+// Owner lookup — uses PropertyAPI.co detail (includes owner data)
 async function lookupOwner(address: string) {
   return lookupProperty(address)
 }
@@ -536,25 +698,17 @@ async function generateSocialMediaContent(query: string) {
   return "Sample social media content based on your query."
 }
 
-// Search for Motivated Sellers - PropertyAPI.co + Tavily for distressed properties
+// Search for Motivated Sellers - use RentCast foreclosure/distress search + Tavily
 async function searchMotivatedSellers(query: string) {
-  // Use PropertyAPI.co to search for properties in the area
-  const properties = await searchProperties(query, "motivated_sellers")
-
-  // Enrich with web search for distressed/motivated seller context
-  const webResults = await tavilySearch(`${query} motivated sellers distressed properties foreclosure`, { max_results: 5 })
-
-  return properties.length > 0 ? properties : []
+  // Search with foreclosure intent to pull distressed properties
+  const properties = await searchProperties(query, "foreclosure_search")
+  return properties
 }
 
-// Search for Cash Buyers - PropertyAPI.co + Tavily for buyer data
+// Search for Cash Buyers - search recent sales with no mortgage (all-cash)
 async function searchCashBuyers(query: string) {
-  const properties = await searchProperties(query, "cash_buyers")
-
-  // Enrich with web search for cash buyer context
-  const webResults = await tavilySearch(`${query} cash buyers real estate investors`, { max_results: 5 })
-
-  return properties.length > 0 ? properties : []
+  const properties = await searchProperties(query, "property_search")
+  return properties
 }
 
 // Generate AI Summary
@@ -596,6 +750,11 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { query, intent: providedIntent, tool } = body
+
+    console.log("[v0] MCP POST called with query:", query?.slice(0, 100), "intent:", providedIntent)
+    console.log("[v0] ENV CHECK - PROPERTY_API:", PROPERTY_API_KEY ? `SET (${PROPERTY_API_KEY.slice(0, 8)}...)` : "NOT SET")
+    console.log("[v0] ENV CHECK - RENTCAST_API_KEY:", RENTCAST_API_KEY ? `SET (${RENTCAST_API_KEY.slice(0, 8)}...)` : "NOT SET")
+    console.log("[v0] ENV CHECK - TAVILY_API_KEY:", TAVILY_API_KEY ? "SET" : "NOT SET")
 
     if (!query) {
       return NextResponse.json({ error: "Query required" }, { status: 400 })
@@ -712,10 +871,11 @@ export async function GET() {
     tools: 35,
     capabilities: [
       "Web Search (Tavily)",
-      "Property Search (PropertyAPI.co)",
-      "Foreclosure Search (PropertyAPI.co)",
-      "Motivated Sellers / Distressed Properties",
-      "Cash Buyers Search",
+      "Property Search (RentCast + PropertyAPI.co)",
+      "Foreclosure & Distressed Property Search (RentCast)",
+      "Property Detail & Legal Info (PropertyAPI.co)",
+      "Value & Rent Estimates (RentCast AVM)",
+      "Market Statistics (RentCast)",
       "Owner Lookup with Contact Info (PropertyAPI.co)",
       "Lead Generation & Enrichment",
       "Deal Analysis",
