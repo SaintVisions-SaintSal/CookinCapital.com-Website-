@@ -40,6 +40,8 @@ import {
   Bath,
   Ruler,
   ArrowLeft,
+  TrendingUp,
+  Shield,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -122,6 +124,21 @@ interface PropertyResult {
   loanBalance?: number
   loanRate?: number
   loanType?: string
+
+  // Last Sale
+  lastSaleDate?: string
+  lastSalePrice?: number
+  apn?: string
+
+  // RentCast Enhancements
+  rentEstimate?: number
+  rentLow?: number
+  rentHigh?: number
+  valueLow?: number
+  valueHigh?: number
+  daysOnMarket?: number
+  listedDate?: string
+  listingUrl?: string
 
   // Data source
   source?: string
@@ -318,6 +335,33 @@ function PropertyCard({ property, onSave }: { property: PropertyResult; onSave?:
 
   const distressBadge = getDistressBadge()
 
+  // Calculate investment metrics
+  const monthlyRent = property.rentEstimate || 0
+  const annualRent = monthlyRent * 12
+  const estimatedValue = property.value || 0
+  const grossYield = estimatedValue > 0 && monthlyRent > 0 ? ((annualRent / estimatedValue) * 100).toFixed(1) : null
+  const monthlyCashFlow = monthlyRent > 0 && estimatedValue > 0 ? monthlyRent - (estimatedValue * 0.007) : null // rough PITI estimate
+  const pricePerSqft = estimatedValue > 0 && property.sqft ? Math.round(estimatedValue / property.sqft) : null
+
+  // Investment score (A-F)
+  const getInvestmentGrade = () => {
+    let score = 0
+    if (Number(grossYield) >= 10) score += 3
+    else if (Number(grossYield) >= 7) score += 2
+    else if (Number(grossYield) >= 4) score += 1
+    if ((property.equityPercent || 0) > 40) score += 2
+    else if ((property.equityPercent || 0) > 20) score += 1
+    if (distressBadge) score += 2 // Distressed = opportunity
+    if (property.isVacant) score += 1
+    if ((property.daysOnMarket || 0) > 60) score += 1
+    if (score >= 7) return { grade: "A", color: "text-green-400", bg: "bg-green-500/10 border-green-500/30" }
+    if (score >= 5) return { grade: "B", color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/30" }
+    if (score >= 3) return { grade: "C", color: "text-yellow-400", bg: "bg-yellow-500/10 border-yellow-500/30" }
+    if (score >= 1) return { grade: "D", color: "text-orange-400", bg: "bg-orange-500/10 border-orange-500/30" }
+    return { grade: "—", color: "text-gray-400", bg: "bg-gray-500/10 border-gray-500/30" }
+  }
+  const investmentGrade = getInvestmentGrade()
+
   return (
     <div className="bg-gradient-to-b from-[#141414] to-[#0a0a0a] border border-[#2a2a2a] rounded-2xl overflow-hidden hover:border-amber-500/40 transition-all shadow-xl">
       {/* Header with Address and Status */}
@@ -330,10 +374,17 @@ function PropertyCard({ property, onSave }: { property: PropertyResult; onSave?:
             </div>
             <p className="text-sm text-gray-400 ml-6">
               {property.city}, {property.state} {property.zip}
-              {property.county && <span className="text-gray-500"> • {property.county} County</span>}
+              {property.county && <span className="text-gray-500"> -- {property.county} County</span>}
             </p>
+            {property.apn && (
+              <p className="text-[10px] text-gray-600 ml-6 mt-0.5 font-mono">APN: {property.apn}</p>
+            )}
           </div>
           <div className="flex flex-col items-end gap-1">
+            {/* Investment Grade Badge */}
+            <span className={cn("px-2 py-0.5 text-xs font-black rounded-md border", investmentGrade.bg, investmentGrade.color)}>
+              {investmentGrade.grade}
+            </span>
             {distressBadge && (
               <span className={cn("px-2 py-0.5 text-[10px] font-bold text-white rounded-full", distressBadge.color)}>
                 {distressBadge.label}
@@ -348,33 +399,61 @@ function PropertyCard({ property, onSave }: { property: PropertyResult; onSave?:
         </div>
       </div>
 
-      {/* Key Metrics Grid */}
+      {/* Key Metrics Grid - Row 1 */}
       <div className="grid grid-cols-4 divide-x divide-[#222] bg-[#0d0d0d]">
         <div className="p-3 text-center">
           <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">Value</p>
-          <p className="text-lg font-bold text-white">
-            {property.value ? `$${(property.value / 1000).toFixed(0)}K` : "—"}
+          <p className="text-base font-bold text-white">
+            {property.value ? `$${property.value >= 1000000 ? `${(property.value / 1000000).toFixed(1)}M` : `${(property.value / 1000).toFixed(0)}K`}` : "—"}
           </p>
+          {pricePerSqft && <p className="text-[10px] text-gray-500">${pricePerSqft}/sqft</p>}
         </div>
         <div className="p-3 text-center">
           <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">Equity</p>
-          <p className={cn("text-lg font-bold", (property.equityPercent || 0) > 30 ? "text-green-400" : "text-white")}>
-            {property.equityPercent !== undefined ? `${property.equityPercent}%` : "—"}
+          <p className={cn("text-base font-bold", (property.equityPercent || 0) > 30 ? "text-green-400" : "text-white")}>
+            {property.equityPercent !== undefined ? `${property.equityPercent}%` :
+              property.equity ? `$${(property.equity / 1000).toFixed(0)}K` : "—"}
           </p>
         </div>
         <div className="p-3 text-center">
-          <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">Avail. Equity</p>
-          <p className="text-lg font-bold text-green-400">
-            {property.availableEquity
-              ? `$${(property.availableEquity / 1000).toFixed(0)}K`
-              : property.equity
-                ? `$${(property.equity / 1000).toFixed(0)}K`
-                : "—"}
+          <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">Rent Est.</p>
+          <p className="text-base font-bold text-emerald-400">
+            {property.rentEstimate ? `$${property.rentEstimate.toLocaleString()}` : "—"}
           </p>
+          {property.rentEstimate && <p className="text-[10px] text-gray-500">/month</p>}
         </div>
         <div className="p-3 text-center">
-          <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">Owned</p>
-          <p className="text-lg font-bold text-white">{property.yearsOwned ? `${property.yearsOwned}yr` : "—"}</p>
+          <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">Yield</p>
+          <p className={cn("text-base font-bold", Number(grossYield) >= 7 ? "text-green-400" : Number(grossYield) >= 4 ? "text-yellow-400" : "text-white")}>
+            {grossYield ? `${grossYield}%` : "—"}
+          </p>
+        </div>
+      </div>
+
+      {/* Key Metrics Grid - Row 2 */}
+      <div className="grid grid-cols-4 divide-x divide-[#222] bg-[#0d0d0d] border-t border-[#222]">
+        <div className="p-2.5 text-center">
+          <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Last Sale</p>
+          <p className="text-sm font-semibold text-white">
+            {property.lastSalePrice ? `$${property.lastSalePrice >= 1000000 ? `${(property.lastSalePrice / 1000000).toFixed(1)}M` : `${(property.lastSalePrice / 1000).toFixed(0)}K`}` : "—"}
+          </p>
+          {property.lastSaleDate && <p className="text-[10px] text-gray-500">{property.lastSaleDate}</p>}
+        </div>
+        <div className="p-2.5 text-center">
+          <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Owned</p>
+          <p className="text-sm font-semibold text-white">{property.yearsOwned ? `${property.yearsOwned} yrs` : "—"}</p>
+        </div>
+        <div className="p-2.5 text-center">
+          <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">On Market</p>
+          <p className="text-sm font-semibold text-white">
+            {property.daysOnMarket !== undefined ? `${property.daysOnMarket}d` : "—"}
+          </p>
+        </div>
+        <div className="p-2.5 text-center">
+          <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Loan Bal.</p>
+          <p className="text-sm font-semibold text-white">
+            {property.loanBalance ? `$${property.loanBalance >= 1000000 ? `${(property.loanBalance / 1000000).toFixed(1)}M` : `${(property.loanBalance / 1000).toFixed(0)}K`}` : "—"}
+          </p>
         </div>
       </div>
 
@@ -473,13 +552,18 @@ function PropertyCard({ property, onSave }: { property: PropertyResult; onSave?:
         </div>
       )}
 
-      {/* Distress Details (Expandable) */}
+      {/* Distress & Investment Details (Expandable) */}
       {(property.foreclosureStatus ||
         property.taxDefaultYears ||
         property.inBankruptcy ||
         property.inDivorce ||
         property.hasLiens ||
-        property.loanBalance) && (
+        property.loanBalance ||
+        property.apn ||
+        property.listingUrl ||
+        property.lastSalePrice ||
+        property.rentEstimate ||
+        property.source) && (
         <div className="border-t border-[#222]">
           <button
             onClick={() => setExpanded(!expanded)}
@@ -563,6 +647,109 @@ function PropertyCard({ property, onSave }: { property: PropertyResult; onSave?:
                   {property.loanRate && <p className="text-xs text-gray-400">Rate: {property.loanRate}%</p>}
                 </div>
               )}
+
+              {/* Investment Analysis */}
+              {(grossYield || monthlyCashFlow) && (
+                <div className="p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-lg">
+                  <p className="text-[10px] text-emerald-400 uppercase font-medium mb-2">Investment Analysis</p>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    {grossYield && (
+                      <div>
+                        <span className="text-gray-500">Gross Yield:</span>
+                        <span className={cn("ml-1 font-semibold", Number(grossYield) >= 7 ? "text-green-400" : "text-white")}>{grossYield}%</span>
+                      </div>
+                    )}
+                    {monthlyCashFlow !== null && (
+                      <div>
+                        <span className="text-gray-500">Est. Cash Flow:</span>
+                        <span className={cn("ml-1 font-semibold", monthlyCashFlow > 0 ? "text-green-400" : "text-red-400")}>
+                          ${Math.round(monthlyCashFlow).toLocaleString()}/mo
+                        </span>
+                      </div>
+                    )}
+                    {property.rentLow && property.rentHigh && (
+                      <div>
+                        <span className="text-gray-500">Rent Range:</span>
+                        <span className="ml-1 text-white">${property.rentLow.toLocaleString()} - ${property.rentHigh.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {property.valueLow && property.valueHigh && (
+                      <div>
+                        <span className="text-gray-500">Value Range:</span>
+                        <span className="ml-1 text-white">
+                          ${(property.valueLow / 1000).toFixed(0)}K - ${(property.valueHigh / 1000).toFixed(0)}K
+                        </span>
+                      </div>
+                    )}
+                    {pricePerSqft && (
+                      <div>
+                        <span className="text-gray-500">Price/SqFt:</span>
+                        <span className="ml-1 text-white font-semibold">${pricePerSqft}</span>
+                      </div>
+                    )}
+                    {property.lotSize && (
+                      <div>
+                        <span className="text-gray-500">Lot Size:</span>
+                        <span className="ml-1 text-white">{property.lotSize} acres</span>
+                      </div>
+                    )}
+                    {property.units && property.units > 1 && (
+                      <div>
+                        <span className="text-gray-500">Units:</span>
+                        <span className="ml-1 text-white font-semibold">{property.units}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Transfer / Sale History */}
+              {(property.transferDate || property.lastSalePrice) && (
+                <div className="p-3 bg-[#111] border border-[#222] rounded-lg">
+                  <p className="text-[10px] text-gray-400 uppercase font-medium mb-1">Sale / Transfer History</p>
+                  {property.lastSalePrice && (
+                    <p className="text-sm text-white">
+                      Last Sale: ${property.lastSalePrice.toLocaleString()}
+                      {property.lastSaleDate && <span className="text-gray-400"> on {property.lastSaleDate}</span>}
+                    </p>
+                  )}
+                  {property.transferDate && (
+                    <p className="text-xs text-gray-400 mt-1">
+                      Transfer: {property.transferDate}
+                      {property.transferAmount && ` -- $${property.transferAmount.toLocaleString()}`}
+                      {property.transferType && ` (${property.transferType})`}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Listing Link */}
+              {property.listingUrl && (
+                <a
+                  href={property.listingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between w-full px-3 py-2.5 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 rounded-lg transition-all"
+                >
+                  <div className="flex items-center gap-2">
+                    <ExternalLink className="h-4 w-4 text-blue-400" />
+                    <span className="text-sm font-medium text-blue-400">View Active Listing</span>
+                  </div>
+                  {property.listedDate && (
+                    <span className="text-[10px] text-blue-400/70">Listed {property.listedDate}</span>
+                  )}
+                </a>
+              )}
+
+              {/* Data Source + APN */}
+              <div className="flex items-center justify-between pt-2 border-t border-[#1a1a1a]">
+                {property.apn && (
+                  <p className="text-[10px] text-gray-600 font-mono">APN: {property.apn}</p>
+                )}
+                <p className="text-[10px] text-gray-600">
+                  Data: {property.source || "PropertyAPI"}
+                </p>
+              </div>
             </div>
           )}
         </div>
@@ -1204,9 +1391,9 @@ export function ResearchHub() {
                         <p className="text-xs text-gray-500 flex items-center gap-1">
                           <Home className="h-3 w-3" /> {message.properties.length} Properties Found
                         </p>
-                        {message.properties[0]?.source === "PropertyAPI" && (
+                        {message.properties[0]?.source && (
                           <span className="text-[10px] text-gray-600 bg-gray-800/50 px-2 py-0.5 rounded-full">
-                            Powered by PropertyAPI
+                            {message.properties[0].source === "RentCast" ? "RentCast + PropertyAPI" : `Powered by ${message.properties[0].source}`}
                           </span>
                         )}
                       </div>
