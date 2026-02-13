@@ -17,51 +17,46 @@ async function handleConversation(query: string): Promise<string> {
   try {
     const { text } = await generateText({
       model: "anthropic/claude-sonnet-4-20250514",
-      system: `You are SaintSal™, the AI decision engine for CookinCapital - a real estate finance and investment firm.
+      system: `You are SaintSal™, the AI decision engine for CookinCapital.com - a real estate finance and investment platform.
 
-Your capabilities include:
-- **Property Search**: Find distressed properties, foreclosures, pre-foreclosures, high-equity homes, absentee owners
-- **Owner Lookup**: Get owner contact info (phone, email, mailing address) for any property
-- **Lead Generation**: Find motivated sellers, cash buyers, investors, and people needing loans
+CRITICAL RULES:
+- NEVER recommend external websites (Zillow, Redfin, RealtyTrac, Foreclosure.com, Realtor.com, etc.)
+- YOU are the platform. Users search properties, find leads, and analyze deals RIGHT HERE.
+- Always tell users to "search here" or "ask me to find" properties — never send them elsewhere.
+
+Your capabilities (all built-in, powered by PropertyAPI + RentCast):
+- **Property Search**: Find distressed properties, foreclosures, pre-foreclosures, high-equity homes
+- **Owner Lookup**: Get owner contact info for any property
+- **Lead Generation**: Find motivated sellers, cash buyers, investors
 - **Deal Analysis**: Analyze fix & flip, rental, wholesale deals with ROI calculations
 - **Lending Info**: Current rates for fix & flip loans, DSCR, bridge, commercial, SBA, hard money
-- **Image Generation**: Create marketing images, social media graphics, property renders
-- **Social Media Content**: Generate real estate posts, captions, hashtags for marketing
+- **Image Generation**: Create marketing images, social media graphics
+- **Social Media Content**: Generate real estate posts, captions, hashtags
 
 You are powered by the HACP™ (Human-AI Collaborative Processing) protocol - Patent #10,290,222.
 You provide BUY / PASS / RENEGOTIATE signals with confidence scores.
 You grade deals A through F based on ROI (A=20%+, B+=15-20%, B-=10-15%, C=5-10%, D=0-5%, F=negative).
 
-Be helpful, professional, and focused on helping users make money in real estate.
-Keep responses concise but comprehensive. Use bullet points and formatting for clarity.`,
+Be helpful, professional, data-driven. Use bullet points and formatting.
+When users ask about finding properties, tell them to type their search (e.g., "Find foreclosures in Orange County") and you will pull real data.`,
       prompt: query,
     })
     return text
   } catch (error) {
     console.error("[MCP] Conversation error:", error)
-    return `I'm SaintSal™, your AI decision engine for real estate and lending. Here's what I can help you with:
+    return `I'm SaintSal, your AI decision engine for CookinCapital.com. Here's what I can do for you right here:
 
-**🏠 Property Research**
-- Find foreclosures, pre-foreclosures, distressed properties
-- Search high-equity homes and motivated sellers
-- Get owner contact information
+**Property Search** -- Type "Find foreclosures in [city/county]" and I'll pull real listings from our data feeds.
 
-**📊 Deal Analysis**
-- Analyze fix & flip, BRRRR, wholesale deals
-- Calculate ROI, cash-on-cash returns
-- Get BUY/PASS/RENEGOTIATE recommendations
+**Owner Lookup** -- Give me an address and I'll find the owner name, mailing address, and contact info.
 
-**💰 Lending & Capital**
-- Current rates on 35+ loan products
-- Fix & flip, DSCR, bridge, commercial loans
-- Pre-qualification guidance
+**Deal Analysis** -- Paste a property address and I'll run the numbers: ARV, equity, cash flow, ROI, and give you a BUY/PASS signal.
 
-**🎯 Lead Generation**
-- Find cash buyers and investors
-- Locate motivated sellers
-- Enrich contacts with phone/email
+**Lead Generation** -- I can find motivated sellers, cash buyers, and investors in any market.
 
-Just ask me anything about real estate investing, lending, or finding your next deal!`
+**Lending Rates** -- Ask about fix & flip, DSCR, bridge, SBA, or hard money rates.
+
+Try it now -- type something like "Find foreclosures in Orange County" or "Analyze 123 Main St, Anaheim, CA".`
   }
 }
 
@@ -478,7 +473,42 @@ function mapPapiProperty(p: any, fallbackAddress?: string) {
 
 // ------- LOCATION PARSING -------
 
-function parseSearchLocation(query: string): { city?: string; state?: string; zipCode?: string; address?: string; county?: string } {
+// Map county names to their largest/main cities for RentCast searches
+// RentCast doesn't support county-level search, so we search the county seat / major cities
+const COUNTY_TO_CITIES: Record<string, string[]> = {
+  "orange": ["Santa Ana", "Anaheim", "Irvine", "Huntington Beach", "Fullerton"],
+  "los angeles": ["Los Angeles", "Long Beach", "Glendale", "Pasadena", "Compton"],
+  "san diego": ["San Diego", "Chula Vista", "Oceanside", "Escondido", "Carlsbad"],
+  "riverside": ["Riverside", "Corona", "Moreno Valley", "Murrieta", "Temecula"],
+  "san bernardino": ["San Bernardino", "Fontana", "Ontario", "Rancho Cucamonga", "Victorville"],
+  "sacramento": ["Sacramento", "Elk Grove", "Roseville", "Citrus Heights", "Folsom"],
+  "santa clara": ["San Jose", "Sunnyvale", "Santa Clara", "Mountain View", "Milpitas"],
+  "alameda": ["Oakland", "Fremont", "Hayward", "Berkeley", "San Leandro"],
+  "contra costa": ["Concord", "Richmond", "Antioch", "Walnut Creek", "Pittsburg"],
+  "fresno": ["Fresno", "Clovis"],
+  "kern": ["Bakersfield", "Delano"],
+  "san francisco": ["San Francisco"],
+  "ventura": ["Oxnard", "Thousand Oaks", "Ventura", "Simi Valley", "Camarillo"],
+  "san mateo": ["Daly City", "San Mateo", "Redwood City", "South San Francisco"],
+  "san joaquin": ["Stockton", "Tracy", "Manteca", "Lodi"],
+  "stanislaus": ["Modesto", "Turlock", "Ceres"],
+  "sonoma": ["Santa Rosa", "Petaluma", "Rohnert Park"],
+  "tulare": ["Visalia", "Tulare", "Porterville"],
+  "solano": ["Vallejo", "Fairfield", "Vacaville"],
+  "placer": ["Roseville", "Lincoln", "Rocklin", "Auburn"],
+  "marin": ["San Rafael", "Novato"],
+  "santa barbara": ["Santa Barbara", "Santa Maria", "Goleta"],
+  "monterey": ["Salinas", "Monterey", "Seaside"],
+  // Major non-CA counties
+  "maricopa": ["Phoenix", "Scottsdale", "Mesa", "Tempe", "Chandler"],
+  "clark": ["Las Vegas", "Henderson", "North Las Vegas"],
+  "harris": ["Houston", "Pasadena", "Sugar Land"],
+  "miami-dade": ["Miami", "Hialeah", "Miami Beach", "Coral Gables"],
+  "cook": ["Chicago", "Evanston", "Cicero"],
+  "king": ["Seattle", "Bellevue", "Kent", "Renton"],
+}
+
+function parseSearchLocation(query: string): { city?: string; state?: string; zipCode?: string; address?: string; county?: string; citiesInCounty?: string[] } {
   const q = query.toLowerCase()
 
   // Full street address
@@ -494,7 +524,16 @@ function parseSearchLocation(query: string): { city?: string; state?: string; zi
   // "[County] County, [State]" or "[County] County"
   const countyMatch = q.match(/(?:in\s+)?([\w\s]+?)\s+county(?:\s*,?\s*([a-z]{2}))?/i)
   if (countyMatch) {
-    return { county: countyMatch[1].trim(), city: countyMatch[1].trim(), state: countyMatch[2]?.toUpperCase() || "CA" }
+    const countyName = countyMatch[1].trim()
+    const state = countyMatch[2]?.toUpperCase() || "CA"
+    const cities = COUNTY_TO_CITIES[countyName.toLowerCase()]
+    // Use county seat (first city) as the primary search city
+    return {
+      county: countyName,
+      city: cities?.[0] || countyName,
+      state,
+      citiesInCounty: cities,
+    }
   }
 
   // "in [City], [State]"
@@ -505,7 +544,14 @@ function parseSearchLocation(query: string): { city?: string; state?: string; zi
 
   // "in [Location]"
   const inMatch = q.match(/in\s+([\w\s]+?)(?:\s*$|\s+(?:for|with|that|under|over|where))/i)
-  if (inMatch) return { city: inMatch[1].trim(), state: "CA" }
+  if (inMatch) {
+    const loc = inMatch[1].trim()
+    // Check if it matches a known county name
+    if (COUNTY_TO_CITIES[loc.toLowerCase()]) {
+      return { county: loc, city: COUNTY_TO_CITIES[loc.toLowerCase()][0], state: "CA", citiesInCounty: COUNTY_TO_CITIES[loc.toLowerCase()] }
+    }
+    return { city: loc, state: "CA" }
+  }
 
   return {}
 }
@@ -519,50 +565,71 @@ async function searchProperties(query: string, intent: string) {
 
   // Determine RentCast status filter based on intent
   let rcStatus: string | undefined
-  if (intent === "foreclosure_search") rcStatus = "Foreclosure"
+  const q = query.toLowerCase()
+  if (intent === "foreclosure_search" || q.includes("foreclosure") || q.includes("pre-foreclosure") || q.includes("distressed")) {
+    rcStatus = "Foreclosure"
+  }
 
   // Strategy 1: RentCast area search (city/state/zip)
   if (RENTCAST_API_KEY && (location.city || location.zipCode)) {
     try {
-      // Try property records first (most data)
-      let results = await rentcastSearchProperties({
-        city: location.city,
-        state: location.state,
-        zipCode: location.zipCode,
-        status: rcStatus,
-        limit: 20,
-      })
+      // For county-level searches, search across multiple cities in that county
+      const citiesToSearch = location.citiesInCounty || [location.city].filter(Boolean) as string[]
+      let allResults: any[] = []
 
-      // If no property records with status filter, try sale listings
-      if (results.length === 0 && rcStatus) {
-        console.log("[v0] No RentCast property records with status, trying sale listings...")
-        results = await rentcastSaleListings({
-          city: location.city,
+      for (const cityName of citiesToSearch.slice(0, 5)) { // Max 5 cities to stay in budget
+        console.log("[v0] RentCast searching city:", cityName, "state:", location.state, "status:", rcStatus)
+
+        // Try property records with status filter
+        let results = await rentcastSearchProperties({
+          city: cityName,
           state: location.state,
-          zipCode: location.zipCode,
           status: rcStatus,
-          limit: 20,
+          limit: 10,
         })
+
+        // If no results with status, try sale listings endpoint
+        if (results.length === 0 && rcStatus) {
+          console.log("[v0] Trying sale listings for:", cityName)
+          results = await rentcastSaleListings({
+            city: cityName,
+            state: location.state,
+            status: rcStatus,
+            limit: 10,
+          })
+        }
+
+        if (results.length > 0) {
+          allResults = allResults.concat(results)
+          console.log("[v0] Found", results.length, "in", cityName, "- total:", allResults.length)
+        }
+
+        // If we have enough results, stop early
+        if (allResults.length >= 20) break
       }
 
-      // If still no results with status, try without status filter
-      if (results.length === 0 && rcStatus) {
-        console.log("[v0] Trying RentCast without status filter...")
-        results = await rentcastSearchProperties({
-          city: location.city,
-          state: location.state,
-          zipCode: location.zipCode,
-          limit: 20,
-        })
+      // If no results with status filter across all cities, try primary city without filter
+      if (allResults.length === 0 && rcStatus) {
+        console.log("[v0] No foreclosure results, searching primary city without status filter...")
+        const primaryCity = location.citiesInCounty?.[0] || location.city
+        if (primaryCity) {
+          allResults = await rentcastSearchProperties({
+            city: primaryCity,
+            state: location.state,
+            limit: 20,
+          })
+        }
       }
 
-      if (results.length > 0) {
-        console.log("[v0] RentCast returned", results.length, "results")
-        return results.map(mapRentCastProperty)
+      if (allResults.length > 0) {
+        console.log("[v0] RentCast total results:", allResults.length)
+        return allResults.slice(0, 20).map(mapRentCastProperty)
       }
     } catch (error) {
       console.error("[v0] RentCast search failed:", error)
     }
+  } else {
+    console.log("[v0] Skipping RentCast - API key:", !!RENTCAST_API_KEY, "city:", location.city, "zip:", location.zipCode)
   }
 
   // Strategy 2: PropertyAPI.co detail lookup (for specific addresses)
@@ -713,25 +780,42 @@ async function searchCashBuyers(query: string) {
 
 // Generate AI Summary
 async function generateSummary(query: string, intent: string, context: any) {
+  const propertyCount = context.properties?.length || 0
+  const hasRealData = propertyCount > 0
+
   try {
     const { text } = await generateText({
       model: "anthropic/claude-sonnet-4-20250514",
-      system: `You are SaintSal™, an AI assistant for CookinCapital specializing in real estate investing, lending, and deal analysis. 
-Provide concise, actionable insights. Use markdown formatting. Be direct and helpful.
-For property searches: highlight key metrics like equity %, foreclosure status, and investment potential.
-For leads: summarize the best prospects and why.
-For deals: give a BUY/PASS/RENEGOTIATE signal with reasoning.
-For social media content: provide engaging text or captions for social media posts.`,
+      system: `You are SaintSal™, the AI decision engine for CookinCapital.com - a real estate finance and investment platform.
+
+CRITICAL RULES:
+- You are POWERED BY PropertyAPI and RentCast. You pull REAL property data.
+- NEVER tell users to visit external websites like Zillow, Redfin, RealtyTrac, Foreclosure.com, Realtor.com etc.
+- NEVER suggest users "search on" or "look at" any external platform. YOU are the platform.
+- If you have property data in the context, summarize it with real numbers (addresses, values, equity, foreclosure status).
+- If you have NO property data, say "I searched but didn't find matching properties in that area right now. Try a different city, zip code, or broaden your search."
+- Always reference data as "from our PropertyAPI + RentCast data feeds" not from any external site.
+- For property searches: highlight addresses, values, equity %, foreclosure status, beds/baths, and investment potential.
+- For deals: give a BUY/PASS/RENEGOTIATE signal with confidence score.
+- Use markdown formatting. Be direct and data-driven.`,
       prompt: `Query: ${query}
 Intent: ${intent}
-Context: ${JSON.stringify(context).slice(0, 2000)}
+Properties found: ${propertyCount}
+${hasRealData ? `Property data: ${JSON.stringify(context.properties?.slice(0, 5)).slice(0, 3000)}` : "No property results from API."}
+${context.webContext?.answer ? `Web context: ${context.webContext.answer.slice(0, 500)}` : ""}
 
-Provide a brief, helpful summary (2-4 paragraphs max).`,
+${hasRealData
+  ? `Summarize the ${propertyCount} properties found. Highlight the best investment opportunities. Include actual addresses and numbers from the data.`
+  : `No properties matched this search. Acknowledge this and suggest the user try a different location, zip code, or search type. Do NOT recommend external websites.`
+}`,
     })
 
     return text
   } catch {
-    return context.webContext?.answer || "I found some results for your query."
+    if (hasRealData) {
+      return `Found **${propertyCount} properties** matching your search. Review the property cards below for detailed investment metrics.`
+    }
+    return context.webContext?.answer || "I searched our data feeds but didn't find matching properties. Try a specific city name or zip code."
   }
 }
 
@@ -811,13 +895,29 @@ function detectIntentServer(query: string): string {
     return "conversational"
   }
 
-  if (q.includes("foreclosure") || q.includes("pre-foreclosure") || q.includes("nod") || q.includes("auction")) {
+  if (q.includes("foreclosure") || q.includes("pre-foreclosure") || q.includes("nod") || q.includes("auction") || q.includes("reo") || q.includes("bank owned") || q.includes("short sale")) {
     return "foreclosure_search"
+  }
+  // Distressed / motivated keywords -- route to foreclosure_search to pull real data
+  if (q.includes("distress") || q.includes("motivated") || q.includes("desperate") || q.includes("urgent") || q.includes("bankruptcy") || q.includes("probate") || q.includes("divorce") || q.includes("tax lien") || q.includes("tax default") || q.includes("vacant") || q.includes("abandoned") || q.includes("inherited")) {
+    return "foreclosure_search"
+  }
+  // General property search: "find properties", "search homes", "target investments"
+  if (q.includes("find") || q.includes("search") || q.includes("look for") || q.includes("target")) {
+    if (q.includes("property") || q.includes("properties") || q.includes("home") || q.includes("house") || q.includes("real estate") || q.includes("listing") || q.includes("deal") || q.includes("investment")) {
+      return "property_search"
+    }
+  }
+  // Location-based queries with property context
+  if (q.match(/in\s+[\w\s]+(?:county|,\s*[a-z]{2})/i) || q.match(/\b\d{5}\b/)) {
+    if (q.includes("property") || q.includes("home") || q.includes("house") || q.includes("find") || q.includes("search") || q.includes("foreclosure") || q.includes("listing")) {
+      return "property_search"
+    }
   }
   if (q.includes("property") && (q.includes("find") || q.includes("search"))) {
     return "property_search"
   }
-  if (q.includes("owner") && (q.includes("find") || q.includes("contact") || q.includes("phone"))) {
+  if (q.includes("owner") && (q.includes("find") || q.includes("contact") || q.includes("phone") || q.includes("who owns") || q.includes("lookup"))) {
     return "owner_lookup"
   }
   if (q.match(/\d+\s+\w+\s+(st|street|ave|avenue|blvd|dr|rd|ln|way|ct)/i)) {
@@ -826,13 +926,10 @@ function detectIntentServer(query: string): string {
   if (q.includes("lead") || q.includes("investor") || q.includes("buyer") || q.includes("seller")) {
     return "lead_generation"
   }
-  if (q.includes("motivated") || q.includes("distress") || q.includes("desperate") || q.includes("urgent")) {
-    return "motivated_sellers"
-  }
   if (q.includes("cash buyer") || q.includes("cash investor")) {
     return "cash_buyers"
   }
-  if (q.includes("analyze") || q.includes("deal") || q.includes("flip") || q.includes("roi")) {
+  if (q.includes("analyze") || q.includes("analysis") || q.includes("flip") || q.includes("roi") || q.includes("arv") || q.includes("rehab")) {
     return "deal_analysis"
   }
   if (

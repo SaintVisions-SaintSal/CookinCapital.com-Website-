@@ -189,35 +189,53 @@ const MOBILE_NAV = [
 function detectIntent(query: string): string {
   const q = query.toLowerCase()
 
-  // Property/Real Estate Intent
-  if (q.includes("foreclosure") || q.includes("pre-foreclosure") || q.includes("nod") || q.includes("auction")) {
+  // Foreclosure / Distressed Property Search
+  if (q.includes("foreclosure") || q.includes("pre-foreclosure") || q.includes("nod") || q.includes("auction") || q.includes("reo") || q.includes("bank owned") || q.includes("short sale")) {
     return "foreclosure_search"
   }
+
+  // Distressed / Motivated -- route to property search so we pull real data
+  if (q.includes("distress") || q.includes("motivated") || q.includes("desperate") || q.includes("urgent") || q.includes("bankruptcy") || q.includes("probate") || q.includes("divorce") || q.includes("tax lien") || q.includes("tax default") || q.includes("vacant") || q.includes("abandoned") || q.includes("inherited")) {
+    return "foreclosure_search"
+  }
+
+  // General property search keywords
+  if (q.includes("find") || q.includes("search") || q.includes("look for") || q.includes("target")) {
+    if (q.includes("property") || q.includes("properties") || q.includes("home") || q.includes("house") || q.includes("real estate") || q.includes("listing") || q.includes("deal") || q.includes("investment")) {
+      return "property_search"
+    }
+  }
+
+  // Location-based queries -- if they mention a city, county, or zip + property context
+  if (q.match(/in\s+[\w\s]+(?:county|,\s*[a-z]{2})/i) || q.match(/\b\d{5}\b/)) {
+    if (q.includes("property") || q.includes("home") || q.includes("house") || q.includes("find") || q.includes("search") || q.includes("foreclosure") || q.includes("listing")) {
+      return "property_search"
+    }
+  }
+
   if (q.includes("property") && (q.includes("find") || q.includes("search") || q.includes("look"))) {
     return "property_search"
   }
-  if (
-    q.includes("owner") &&
-    (q.includes("find") || q.includes("contact") || q.includes("phone") || q.includes("email"))
-  ) {
-    return "owner_lookup"
-  }
+
+  // Specific address lookup
   if (q.match(/\d+\s+\w+\s+(st|street|ave|avenue|blvd|boulevard|dr|drive|rd|road|ln|lane|way|ct|court)/i)) {
     return "property_lookup"
   }
 
-  // Lead Generation Intent
-  if (q.includes("lead") || q.includes("investor") || q.includes("buyer") || q.includes("seller")) {
-    if (q.includes("find") || q.includes("search") || q.includes("get")) {
-      return "lead_generation"
-    }
-  }
-  if (q.includes("enrich") || q.includes("contact info") || q.includes("phone number") || q.includes("email")) {
-    return "lead_enrichment"
+  // Owner lookup
+  if (
+    q.includes("owner") &&
+    (q.includes("find") || q.includes("contact") || q.includes("phone") || q.includes("email") || q.includes("who owns") || q.includes("lookup"))
+  ) {
+    return "owner_lookup"
   }
 
-  if (q.includes("motivated") || q.includes("distress") || q.includes("desperate") || q.includes("urgent")) {
-    return "motivated_sellers"
+  // Lead Generation Intent
+  if (q.includes("lead") || q.includes("investor") || q.includes("buyer") || q.includes("seller")) {
+    return "lead_generation"
+  }
+  if (q.includes("enrich") || q.includes("contact info") || q.includes("phone number")) {
+    return "lead_enrichment"
   }
 
   if (q.includes("cash buyer") || q.includes("cash offer") || q.includes("all cash")) {
