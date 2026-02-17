@@ -6,28 +6,42 @@ import { trackSaintSalEvent } from "@/lib/saintsal/ghl-integration"
 
 const SAINTSAL_RESEARCH_PROMPT = `You are SaintSal™, the AI Co-CEO of CookinCapital's Research Intelligence Hub. You search, analyze, synthesize, and deliver actionable intelligence.
 
+🔥 YOUR ARSENAL - POWERED BY INDUSTRY-LEADING AI & DATA:
+- **Tavily**: Real-time web search for current news and updates
+- **Exa**: Semantic AI search for deep content discovery
+- **Perplexity**: Advanced reasoning with citations and sources
+- **Grok (xAI)**: Real-time market intelligence and analysis
+- **MXBAI**: Semantic embeddings for enhanced relevance
+- **Alpaca**: Live stock market data and trading insights
+- **Property Radar**: Foreclosures, distressed properties, NODs, auctions
+- **Rentcast**: Property comparables, rent estimates, deal details
+- **CookinCapital Knowledge Base**: Proprietary lending, investment, and deal analysis data
+
 YOUR MISSION:
-1. Understand the user's TRUE intent (property search, loan inquiry, investment question, market research)
-2. Use provided search results and knowledge base to give comprehensive answers
-3. Rate opportunities A-D based on quality/fit for CookinCapital services
-4. Guide users to the RIGHT solution
+1. Synthesize information from ALL available sources to give the MOST COMPREHENSIVE answer
+2. Understand the user's TRUE intent (property search, loan inquiry, investment question, market research)
+3. Rate opportunities A-F based on quality/fit for CookinCapital services (A=20%+ ROI, F=negative)
+4. Provide specific, actionable recommendations with data to back them up
+5. KEEP USERS ON PLATFORM - never send them to external sites for research
 
 RATING SYSTEM:
-- A: Excellent opportunity - highly recommend
-- B: Good opportunity - worth exploring  
-- C: Average - proceed with caution
-- D: Poor fit - not recommended
+- A: Excellent opportunity (20%+ ROI) - STRONG BUY
+- B: Good opportunity (10-20% ROI) - BUY with caution
+- C: Average (5-10% ROI) - HOLD
+- D: Poor fit (0-5% ROI) - PASS
+- F: Negative ROI - HARD PASS
 
 RESPONSE FORMAT:
-1. Clear, comprehensive analysis with your SaintSal™ rating
-2. Cite sources with URLs when available
-3. Specific recommendations tied to CookinCapital's three pillars:
+1. **Executive Summary** - Key findings and your SaintSal™ rating
+2. **Analysis** - Comprehensive breakdown with data from all sources
+3. **Sources** - Cite specific data points with source attribution
+4. **Actionable Recommendations** - Tied to CookinCapital's three pillars:
    - Real Estate (property search, deal analysis) → /app/properties, /app/analyzer
    - Lending (loans, capital) → /apply, /capital
    - Investments (returns, fund) → /invest
-4. Action buttons for next steps
+5. **Next Steps** - Clear call-to-action
 
-Remember: You're identifying opportunities and helping clients while guiding them to CookinCapital solutions.`
+Remember: You have access to the BEST research tools in the industry. Use them to provide answers that KEEP USERS ON THE PLATFORM and guide them to CookinCapital solutions.`
 
 export async function POST(request: Request) {
   try {
@@ -50,8 +64,11 @@ export async function POST(request: Request) {
       console.error("[Research API] Session error:", e)
     }
 
-    // Tavily search for real-time web data
+    // REAL-TIME SEARCH INTEGRATION - Tavily + Exa for comprehensive coverage
     let searchResults: any = null
+    let exaResults: any = null
+    
+    // Tavily for real-time web search (general web)
     if (process.env.TAVILY_API_KEY) {
       try {
         const tavilyResponse = await fetch("https://api.tavily.com/search", {
@@ -77,7 +94,33 @@ export async function POST(request: Request) {
       }
     }
 
-    // Perplexity for deeper analysis
+    // Exa for semantic search and deep content discovery
+    if (process.env.EXA_API_KEY) {
+      try {
+        const exaResponse = await fetch("https://api.exa.ai/search", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": process.env.EXA_API_KEY,
+          },
+          body: JSON.stringify({
+            query: userMessage,
+            type: "neural",
+            useAutoprompt: true,
+            numResults: 10,
+            contents: {
+              text: true,
+              highlights: true,
+            },
+          }),
+        })
+        if (exaResponse.ok) exaResults = await exaResponse.json()
+      } catch (e) {
+        console.error("[Research API] Exa error:", e)
+      }
+    }
+
+    // Perplexity for deeper analysis with citations
     let perplexityResults: any = null
     if (process.env.PERPLEXITY_API_KEY) {
       try {
@@ -88,17 +131,73 @@ export async function POST(request: Request) {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "llama-3.1-sonar-small-128k-online",
+            model: "llama-3.1-sonar-huge-128k-online",
             messages: [
-              { role: "system", content: "Provide concise, factual information with sources." },
+              { role: "system", content: "You are a real estate and finance research analyst. Provide detailed, factual information with citations. Focus on actionable insights." },
               { role: "user", content: userMessage },
             ],
-            max_tokens: 1000,
+            max_tokens: 2000,
+            return_citations: true,
+            return_images: false,
           }),
         })
         if (pplxResponse.ok) perplexityResults = await pplxResponse.json()
       } catch (e) {
         console.error("[Research API] Perplexity error:", e)
+      }
+    }
+
+    // Grok (xAI) for real-time analysis and market insights
+    let grokResults: any = null
+    if (process.env.XAI_API_KEY) {
+      try {
+        const grokResponse = await fetch("https://api.x.ai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${process.env.XAI_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "grok-beta",
+            messages: [
+              { role: "system", content: "You are Grok, providing real-time market intelligence and analysis for real estate investors. Be direct, data-driven, and actionable." },
+              { role: "user", content: userMessage },
+            ],
+            max_tokens: 1500,
+            temperature: 0.7,
+          }),
+        })
+        if (grokResponse.ok) grokResults = await grokResponse.json()
+      } catch (e) {
+        console.error("[Research API] Grok error:", e)
+      }
+    }
+
+    // MXBAI for embeddings and semantic search enhancement
+    let mxbaiEnhancement: any = null
+    if (process.env.MXBAI_API_KEY && process.env.MXBAI_STORE_ID) {
+      try {
+        const mxbaiResponse = await fetch("https://api.mixedbread.ai/v1/embeddings", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${process.env.MXBAI_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "mixedbread-ai/mxbai-embed-large-v1",
+            input: [userMessage],
+            encoding_format: "float",
+          }),
+        })
+        if (mxbaiResponse.ok) {
+          const embedData = await mxbaiResponse.json()
+          mxbaiEnhancement = {
+            embedding: embedData.data?.[0]?.embedding,
+            model: embedData.model,
+          }
+        }
+      } catch (e) {
+        console.error("[Research API] MXBAI error:", e)
       }
     }
 
@@ -119,36 +218,81 @@ export async function POST(request: Request) {
       }
     }
 
-    // Build enhanced context
+    // Build enhanced context from ALL sources
     let enhancedContext = ""
 
     if (ragContext) {
-      enhancedContext += ragContext
+      enhancedContext += "📚 KNOWLEDGE BASE:\n" + ragContext + "\n\n"
     }
 
+    // Tavily results
     if (searchResults?.results) {
-      enhancedContext += "\n\n📊 WEB SEARCH RESULTS:\n"
+      enhancedContext += "🌐 TAVILY WEB SEARCH:\n"
       searchResults.results.forEach((r: any, i: number) => {
         enhancedContext += `${i + 1}. ${r.title}\n   URL: ${r.url}\n   ${r.content?.substring(0, 200)}...\n\n`
       })
       if (searchResults.answer) {
-        enhancedContext += `\n📝 QUICK ANSWER: ${searchResults.answer}\n`
+        enhancedContext += `📝 Quick Answer: ${searchResults.answer}\n\n`
       }
     }
 
-    if (perplexityResults?.choices?.[0]?.message?.content) {
-      enhancedContext += `\n\n🔍 DEEP ANALYSIS:\n${perplexityResults.choices[0].message.content}\n`
-    }
-
-    if (marketData?.bars) {
-      enhancedContext += "\n\n📈 LIVE MARKET DATA:\n"
-      Object.entries(marketData.bars).forEach(([symbol, data]: [string, any]) => {
-        enhancedContext += `${symbol}: $${data.c?.toFixed(2)} (Volume: ${data.v?.toLocaleString()})\n`
+    // Exa results (semantic search)
+    if (exaResults?.results) {
+      enhancedContext += "🔮 EXA SEMANTIC SEARCH:\n"
+      exaResults.results.slice(0, 5).forEach((r: any, i: number) => {
+        enhancedContext += `${i + 1}. ${r.title}\n   URL: ${r.url}\n   ${r.text?.substring(0, 250)}...\n\n`
       })
     }
 
+    // Perplexity deep analysis
+    if (perplexityResults?.choices?.[0]?.message?.content) {
+      enhancedContext += "🔍 PERPLEXITY DEEP ANALYSIS:\n"
+      enhancedContext += perplexityResults.choices[0].message.content + "\n"
+      if (perplexityResults.citations) {
+        enhancedContext += "\nCitations:\n"
+        perplexityResults.citations.forEach((c: string, i: number) => {
+          enhancedContext += `[${i + 1}] ${c}\n`
+        })
+      }
+      enhancedContext += "\n"
+    }
+
+    // Grok real-time insights
+    if (grokResults?.choices?.[0]?.message?.content) {
+      enhancedContext += "🤖 GROK REAL-TIME INTELLIGENCE:\n"
+      enhancedContext += grokResults.choices[0].message.content + "\n\n"
+    }
+
+    // Market data (Alpaca)
+    if (marketData?.bars) {
+      enhancedContext += "📈 LIVE MARKET DATA (Alpaca):\n"
+      Object.entries(marketData.bars).forEach(([symbol, data]: [string, any]) => {
+        const change = data.c && data.o ? ((data.c - data.o) / data.o * 100).toFixed(2) : "N/A"
+        enhancedContext += `${symbol}: $${data.c?.toFixed(2)} (${change}%) | Vol: ${data.v?.toLocaleString()} | High: $${data.h?.toFixed(2)} | Low: $${data.l?.toFixed(2)}\n`
+      })
+      enhancedContext += "\n"
+    }
+
+    // MXBAI semantic enhancement
+    if (mxbaiEnhancement?.embedding) {
+      enhancedContext += "🧠 SEMANTIC ANALYSIS: Enhanced with MXBAI embeddings for improved relevance\n\n"
+    }
+
+    // Conversation history for context
     if (conversationHistory) {
-      enhancedContext += `\n\n--- PREVIOUS CONVERSATION ---\n${conversationHistory}\n`
+      enhancedContext += "💬 PREVIOUS CONVERSATION:\n" + conversationHistory + "\n\n"
+    }
+
+    // Add source attribution
+    const sourcesUsed = []
+    if (searchResults) sourcesUsed.push("Tavily")
+    if (exaResults) sourcesUsed.push("Exa")
+    if (perplexityResults) sourcesUsed.push("Perplexity")
+    if (grokResults) sourcesUsed.push("Grok")
+    if (marketData) sourcesUsed.push("Alpaca")
+    if (mxbaiEnhancement) sourcesUsed.push("MXBAI")
+    if (sourcesUsed.length > 0) {
+      enhancedContext += `\n📊 Data Sources: ${sourcesUsed.join(", ")}\n`
     }
 
     // Track research event

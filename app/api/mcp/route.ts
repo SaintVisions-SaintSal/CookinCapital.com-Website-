@@ -9,6 +9,7 @@ import { generateText } from "ai"
 
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY
 const PROPERTY_API_KEY = process.env.PROPERTY_API
+const PROPERTYRADAR_API_KEY = process.env.PROPERTYRADAR_API_KEY
 const RENTCAST_API_KEY = process.env.RENTCAST_API_KEY
 const GHL_API_KEY = process.env.GHL_API_KEY
 const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID
@@ -162,7 +163,9 @@ async function orchestrateQuery(query: string, intent: string) {
       case "social_media":
         const socialMediaContent = await generateSocialMediaContent(query)
         results.socialMediaContent = socialMediaContent
-        results.summary = "Generated social media content based on your prompt."
+        results.summary = typeof socialMediaContent === "string"
+          ? socialMediaContent
+          : `✨ **Social Media Content Generated!**\n\n${socialMediaContent.caption || socialMediaContent.hook}\n\n${socialMediaContent.videoStatus === "completed" ? "✅ Video ready!" : "⏳ Video generating..."}\n\nUse the content below to post on ${socialMediaContent.platform || "social media"}.`
         break
 
       case "motivated_sellers":
@@ -350,6 +353,108 @@ async function rentcastMarketStats(params: { zipCode?: string; city?: string; st
     if (!res.ok) return null
     return await res.json()
   } catch { return null }
+}
+
+// ------- PROPERTY RADAR FUNCTIONS -------
+// Property Radar specializes in distressed properties, foreclosures, pre-foreclosures, NODs, auctions
+
+async function propertyRadarSearch(params: {
+  city?: string
+  state?: string
+  county?: string
+  status?: string
+  limit?: number
+}): Promise<any[]> {
+  if (!PROPERTYRADAR_API_KEY) {
+    console.error("[PropertyRadar] API key not set")
+    return []
+  }
+
+  try {
+    const searchParams = new URLSearchParams()
+    if (params.city) searchParams.set("city", params.city)
+    if (params.state) searchParams.set("state", params.state)
+    if (params.county) searchParams.set("county", params.county)
+    searchParams.set("limit", String(params.limit || 20))
+
+    // Property Radar filters for distressed properties
+    if (params.status === "foreclosure" || params.status === "Foreclosure") {
+      searchParams.set("foreclosure_status", "active")
+    }
+
+    const url = `https://api.propertyradar.com/v1/properties?${searchParams.toString()}`
+    console.log("[v0] PropertyRadar search request:", url)
+
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${PROPERTYRADAR_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+    })
+
+    console.log("[v0] PropertyRadar response:", response.status)
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error(`[PropertyRadar] error ${response.status}:`, errorText)
+      return []
+    }
+
+    const data = await response.json()
+    const properties = Array.isArray(data) ? data : data.results || data.properties || []
+    console.log("[v0] PropertyRadar properties count:", properties.length)
+    return properties
+  } catch (error) {
+    console.error("[PropertyRadar] search error:", error)
+    return []
+  }
+}
+
+// Map Property Radar response to our PropertyResult interface
+function mapPropertyRadarProperty(p: any) {
+  return {
+    address: p.address || p.situs_address || p.property_address || "Unknown",
+    city: p.city || p.situs_city || "",
+    state: p.state || p.situs_state || "",
+    zip: p.zip || p.zipcode || p.situs_zip || "",
+    county: p.county || undefined,
+    propertyType: p.property_type || p.use_code_description || undefined,
+    beds: p.bedrooms || p.beds || undefined,
+    baths: p.bathrooms || p.baths || undefined,
+    sqft: p.building_sqft || p.square_feet || undefined,
+    lotSize: p.lot_sqft || p.lot_size || undefined,
+    yearBuilt: p.year_built || undefined,
+    value: p.assessed_value || p.market_value || undefined,
+    equity: p.estimated_equity || undefined,
+    equityPercent: p.equity_percent || undefined,
+    loanBalance: p.total_loan_amount || undefined,
+    // Foreclosure-specific data
+    foreclosureStatus: p.foreclosure_status || p.nod_status || undefined,
+    foreclosureAuctionDate: p.auction_date || p.trustee_sale_date || undefined,
+    foreclosureOpeningBid: p.opening_bid || undefined,
+    taxDefaultYears: p.tax_delinquent_years || undefined,
+    taxDefaultAmount: p.delinquent_tax_amount || undefined,
+    // Owner data
+    ownerName: p.owner_name || (p.owner_first_name && p.owner_last_name ? `${p.owner_first_name} ${p.owner_last_name}` : undefined),
+    ownerPhone: p.owner_phone || undefined,
+    ownerEmail: p.owner_email || undefined,
+    ownerAddress: p.owner_mailing_address || p.mailing_address || undefined,
+    ownerCity: p.owner_mailing_city || undefined,
+    ownerState: p.owner_mailing_state || undefined,
+    ownerZip: p.owner_mailing_zip || undefined,
+    // Additional distress signals
+    inBankruptcy: p.bankruptcy_flag || false,
+    hasLiens: p.lien_count > 0 || false,
+    lienAmount: p.total_lien_amount || undefined,
+    isVacant: p.vacant_flag || p.is_vacant || false,
+    isDeceased: p.deceased_flag || false,
+    inDivorce: p.divorce_flag || false,
+    lastSaleDate: p.last_sale_date || undefined,
+    lastSalePrice: p.last_sale_price || undefined,
+    apn: p.apn || p.parcel_number || undefined,
+    radarId: p.id || p.radar_id || undefined,
+    source: "PropertyRadar",
+  }
 }
 
 // ------- PROPERTYAPI.CO FUNCTIONS -------
@@ -645,7 +750,28 @@ async function searchProperties(query: string, intent: string) {
     }
   }
 
-  // Strategy 3: PropertyAPI.co comps (for area search fallback)
+  // Strategy 3: Property Radar (specializes in foreclosures, NODs, distressed properties)
+  if (PROPERTYRADAR_API_KEY && (intent === "foreclosure_search" || rcStatus)) {
+    try {
+      console.log("[v0] Trying Property Radar for foreclosure search...")
+      const radarResults = await propertyRadarSearch({
+        city: location.city,
+        state: location.state || "CA",
+        county: location.county,
+        status: "foreclosure",
+        limit: 20,
+      })
+
+      if (radarResults.length > 0) {
+        console.log("[v0] PropertyRadar returned", radarResults.length, "foreclosure results")
+        return radarResults.map(mapPropertyRadarProperty)
+      }
+    } catch (error) {
+      console.error("[v0] PropertyRadar search failed:", error)
+    }
+  }
+
+  // Strategy 4: PropertyAPI.co comps (for area search fallback)
   if (PROPERTY_API_KEY && location.address) {
     try {
       const comps = await papiPropertyComps(location.address, 10, 20)
@@ -759,10 +885,136 @@ async function generateImage(query: string) {
   }
 }
 
-// Social Media Content Generation
+// Social Media Content Generation with Runway/Replicate
 async function generateSocialMediaContent(query: string) {
-  // Placeholder for social media content generation logic
-  return "Sample social media content based on your query."
+  const RUNWAY_API_KEY = process.env.RUNWAY_API_KEY
+  const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN
+  const XAI_API_KEY = process.env.XAI_API_KEY
+
+  try {
+    // First, use Grok to generate compelling social media copy and video concept
+    const { text: socialCopy } = await generateText({
+      model: XAI_API_KEY ? "xai/grok-beta" : "anthropic/claude-sonnet-4-20250514",
+      system: `You are a top-tier social media content strategist for real estate and finance. Create engaging posts that drive engagement and conversions.`,
+      prompt: `Create a compelling social media post based on this: "${query}"
+
+Include:
+1. **Main Caption** (150-200 characters, hook-driven)
+2. **Full Post Copy** (with emojis and line breaks for readability)
+3. **Video Concept** (30-60 sec video description with specific visual elements)
+4. **Hashtags** (10-15 relevant hashtags)
+5. **Call-to-Action** (clear CTA to drive engagement)
+6. **Best Platform** (Instagram, TikTok, LinkedIn, or YouTube Shorts)
+
+Format as JSON:
+{
+  "caption": "...",
+  "fullCopy": "...",
+  "videoConcept": "...",
+  "videoPrompt": "detailed prompt for AI video generation...",
+  "hashtags": ["hashtag1", "hashtag2"],
+  "cta": "...",
+  "platform": "..."
+}`,
+    })
+
+    let socialData
+    try {
+      // Try to parse JSON response
+      const jsonMatch = socialCopy.match(/\{[\s\S]*\}/)
+      socialData = jsonMatch ? JSON.parse(jsonMatch[0]) : null
+    } catch {
+      // Fallback if parsing fails
+      socialData = {
+        caption: socialCopy.split('\n')[0],
+        fullCopy: socialCopy,
+        videoConcept: "Engaging real estate content with dynamic visuals",
+        videoPrompt: query,
+        hashtags: ["realestate", "investing", "property", "wealth"],
+        cta: "Learn more at CookinCapital.com",
+        platform: "Instagram"
+      }
+    }
+
+    // Generate video with Runway or Replicate
+    let videoUrl = null
+    let videoStatus = "generating"
+    
+    if (RUNWAY_API_KEY) {
+      try {
+        // Use Runway for high-quality video generation
+        const runwayResponse = await fetch("https://api.runwayml.com/v1/generate", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${RUNWAY_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            prompt: socialData.videoPrompt || query,
+            model: "gen3",
+            duration: 5,
+            resolution: "1080p",
+          }),
+        })
+
+        if (runwayResponse.ok) {
+          const runwayData = await runwayResponse.json()
+          videoUrl = runwayData.url || runwayData.video_url
+          videoStatus = "completed"
+        }
+      } catch (error) {
+        console.error("[Runway] Video generation error:", error)
+      }
+    }
+
+    // Fallback to Replicate if Runway fails or isn't available
+    if (!videoUrl && REPLICATE_API_TOKEN) {
+      try {
+        const replicateResponse = await fetch("https://api.replicate.com/v1/predictions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Token ${REPLICATE_API_TOKEN}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            version: "lucataco/animate-diff:1531004ee4c98894ab11f8a4ce6206099e732c1da15121987a8eef54828f0663",
+            input: {
+              prompt: socialData.videoPrompt || query,
+              num_frames: 16,
+              num_inference_steps: 25,
+            },
+          }),
+        })
+
+        if (replicateResponse.ok) {
+          const replicateData = await replicateResponse.json()
+          videoUrl = replicateData.urls?.get || null
+          videoStatus = videoUrl ? "completed" : "processing"
+        }
+      } catch (error) {
+        console.error("[Replicate] Video generation error:", error)
+      }
+    }
+
+    return {
+      ...socialData,
+      videoUrl,
+      videoStatus,
+      generatedAt: new Date().toISOString(),
+      provider: videoUrl ? (RUNWAY_API_KEY ? "Runway" : "Replicate") : "none",
+    }
+  } catch (error) {
+    console.error("[Social Media] Generation error:", error)
+    return {
+      caption: "Check out this amazing opportunity!",
+      fullCopy: query,
+      videoConcept: "Engaging social media video",
+      hashtags: ["realestate", "investing"],
+      cta: "Visit CookinCapital.com",
+      platform: "Instagram",
+      error: "Could not generate full content",
+    }
+  }
 }
 
 // Search for Motivated Sellers - use RentCast foreclosure/distress search + Tavily
