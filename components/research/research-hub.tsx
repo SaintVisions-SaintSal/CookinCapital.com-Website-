@@ -167,6 +167,7 @@ interface Message {
   summary?: string
   intent?: string
   isStreaming?: boolean
+  socialMediaContent?: any
 }
 
 const QUICK_PROMPTS = [
@@ -1206,6 +1207,7 @@ export function ResearchHub() {
                 leads: data.leads,
                 images: data.images,
                 summary: data.summary,
+                socialMediaContent: data.socialMediaContent,
                 isStreaming: false,
               }
             : m,
@@ -1454,6 +1456,105 @@ export function ResearchHub() {
                       {message.images.map((img, i) => (
                         <img key={i} src={img || "/placeholder.svg"} alt="" className="rounded-xl w-full" />
                       ))}
+                    </div>
+                  )}
+
+                  {/* Social Media Content */}
+                  {message.intent === "social_media" && (message as any).socialMediaContent && (
+                    <div className="mt-4 p-4 bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-xl">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Wand2 className="h-5 w-5 text-purple-400" />
+                        <h3 className="text-sm font-semibold text-white">Social Media Content Ready</h3>
+                      </div>
+
+                      {(() => {
+                        const content = (message as any).socialMediaContent
+                        if (typeof content === "string") return <p className="text-sm text-gray-300">{content}</p>
+
+                        return (
+                          <div className="space-y-3">
+                            {/* Hook/Caption */}
+                            {content.hook && (
+                              <div>
+                                <p className="text-xs text-gray-500 mb-1">Hook</p>
+                                <p className="text-sm font-medium text-white">{content.hook}</p>
+                              </div>
+                            )}
+
+                            {/* Full Copy */}
+                            {content.fullCopy && (
+                              <div>
+                                <p className="text-xs text-gray-500 mb-1">Post Copy</p>
+                                <div className="text-sm text-gray-300 whitespace-pre-wrap bg-[#1a1a1a] p-3 rounded-lg">
+                                  {content.fullCopy}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Video */}
+                            {content.videoUrl && (
+                              <div>
+                                <p className="text-xs text-gray-500 mb-1">Generated Video</p>
+                                <video
+                                  src={content.videoUrl}
+                                  controls
+                                  className="w-full rounded-lg bg-black"
+                                  poster="/video-placeholder.jpg"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Generated via {content.provider || "AI"}
+                                </p>
+                              </div>
+                            )}
+
+                            {content.videoStatus === "processing" && (
+                              <div className="flex items-center gap-2 text-amber-400 text-sm">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <span>Video generating... Check back in a moment</span>
+                              </div>
+                            )}
+
+                            {/* Hashtags */}
+                            {content.hashtags && content.hashtags.length > 0 && (
+                              <div>
+                                <p className="text-xs text-gray-500 mb-1">Hashtags</p>
+                                <div className="flex flex-wrap gap-1">
+                                  {content.hashtags.map((tag: string, i: number) => (
+                                    <span
+                                      key={i}
+                                      className="text-xs bg-[#1a1a1a] text-purple-400 px-2 py-1 rounded-full"
+                                    >
+                                      #{tag}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* CTA & Platform */}
+                            <div className="flex items-center justify-between pt-2 border-t border-purple-500/20">
+                              {content.cta && <p className="text-xs text-gray-400">{content.cta}</p>}
+                              {content.platform && (
+                                <span className="text-xs bg-purple-500/20 text-purple-300 px-2 py-1 rounded-full">
+                                  {content.platform}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Copy button */}
+                            <button
+                              onClick={() => {
+                                const textToCopy = `${content.fullCopy || content.caption}\n\n${content.hashtags?.map((t: string) => `#${t}`).join(" ") || ""}`
+                                navigator.clipboard.writeText(textToCopy)
+                              }}
+                              className="w-full py-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                            >
+                              <Copy className="h-4 w-4" />
+                              Copy to Clipboard
+                            </button>
+                          </div>
+                        )
+                      })()}
                     </div>
                   )}
                 </div>
