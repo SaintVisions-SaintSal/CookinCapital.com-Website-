@@ -1419,7 +1419,7 @@ export function ResearchHub() {
                         </p>
                         {message.properties[0]?.source && (
                           <span className="text-[10px] text-gray-600 bg-gray-800/50 px-2 py-0.5 rounded-full">
-                            {message.properties[0].source === "RentCast" ? "RentCast + PropertyAPI" : `Powered by ${message.properties[0].source}`}
+                            {message.properties[0].source === "PropertyRadar" ? "PropertyRadar (250+ Criteria)" : message.properties[0].source === "RentCast" ? "RentCast + PropertyAPI" : `Powered by ${message.properties[0].source}`}
                           </span>
                         )}
                       </div>

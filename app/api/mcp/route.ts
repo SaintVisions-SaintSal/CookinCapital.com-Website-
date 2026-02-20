@@ -1,5 +1,20 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { generateText } from "ai"
+import {
+  searchProperties as prSearchProperties,
+  searchPropertiesAdvanced,
+  getProperty as prGetProperty,
+  mapToPropertyResult,
+  buildLocationCriteria,
+  buildForeclosureCriteria,
+  buildDistressCriteria,
+  buildPropertyTypeCriteria,
+  buildOwnerOccupiedFilter,
+  SEARCH_FIELDS,
+  ALL_FIELDS,
+  type CriterionItem,
+  type PropertySearchParams,
+} from "@/lib/propertyradar"
 
 // ===========================================
 // SAINTSAL™ MCP SERVER v3.0 - AI ORCHESTRATION
@@ -355,105 +370,100 @@ async function rentcastMarketStats(params: { zipCode?: string; city?: string; st
   } catch { return null }
 }
 
-// ------- PROPERTY RADAR FUNCTIONS -------
-// Property Radar specializes in distressed properties, foreclosures, pre-foreclosures, NODs, auctions
+// ------- PROPERTY RADAR FUNCTIONS (via lib/propertyradar.ts) -------
+// PropertyRadar API v4.26 – POST /v1/properties with Criteria objects
+// Nationwide property, owner, distress, equity, foreclosure data with 250+ criteria
 
-async function propertyRadarSearch(params: {
-  city?: string
-  state?: string
-  county?: string
-  status?: string
-  limit?: number
-}): Promise<any[]> {
+/**
+ * Build PropertyRadar search from parsed location + intent
+ * Returns results mapped to our standard PropertyResult shape
+ */
+async function propertyRadarSearchFromQuery(
+  location: { address?: string; city?: string; state?: string; county?: string; zipCode?: string; citiesInCounty?: string[] },
+  intent: string,
+  query: string,
+  limit: number = 20,
+): Promise<any[]> {
   if (!PROPERTYRADAR_API_KEY) {
     console.error("[PropertyRadar] API key not set")
     return []
   }
 
   try {
-    const searchParams = new URLSearchParams()
-    if (params.city) searchParams.set("city", params.city)
-    if (params.state) searchParams.set("state", params.state)
-    if (params.county) searchParams.set("county", params.county)
-    searchParams.set("limit", String(params.limit || 20))
+    const q = query.toLowerCase()
 
-    // Property Radar filters for distressed properties
-    if (params.status === "foreclosure" || params.status === "Foreclosure") {
-      searchParams.set("foreclosure_status", "active")
+    // Build search params from location + intent
+    const params: PropertySearchParams = {
+      state: location.state || "CA",
+      city: location.city || undefined,
+      zip: location.zipCode || undefined,
+      address: location.address || undefined,
+      limit,
+      purchase: 1,
     }
 
-    const url = `https://api.propertyradar.com/v1/properties?${searchParams.toString()}`
-    console.log("[v0] PropertyRadar search request:", url)
-
-    const response = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${PROPERTYRADAR_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-    })
-
-    console.log("[v0] PropertyRadar response:", response.status)
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error(`[PropertyRadar] error ${response.status}:`, errorText)
-      return []
+    // Intent-based filters
+    if (intent === "foreclosure_search" || q.includes("foreclosure") || q.includes("pre-foreclosure")) {
+      params.foreclosure = true
+      if (q.includes("pre-foreclosure") || q.includes("preforeclosure")) {
+        params.foreclosureStage = "Preforeclosure"
+      } else if (q.includes("auction")) {
+        params.foreclosureStage = "Auction"
+      } else if (q.includes("bank owned") || q.includes("reo")) {
+        params.foreclosureStage = "BankOwned"
+      }
     }
 
-    const data = await response.json()
-    const properties = Array.isArray(data) ? data : data.results || data.properties || []
-    console.log("[v0] PropertyRadar properties count:", properties.length)
-    return properties
+    // Motivated sellers / distress signals
+    if (q.includes("motivated") || q.includes("distressed") || intent === "motivated_sellers") {
+      params.foreclosure = true
+      params.taxDelinquent = true
+      params.divorce = true
+      params.bankruptcy = true
+      params.vacant = true
+    }
+
+    // Specific distress types
+    if (q.includes("tax default") || q.includes("tax delinquent") || q.includes("tax lien")) params.taxDelinquent = true
+    if (q.includes("bankrupt")) params.bankruptcy = true
+    if (q.includes("divorce")) params.divorce = true
+    if (q.includes("vacant")) params.vacant = true
+    if (q.includes("deceased") || q.includes("probate")) params.deceased = true
+
+    // Property type
+    if (q.includes("single family") || q.includes("sfr")) params.propertyType = "SFR"
+    if (q.includes("multi family") || q.includes("multifamily") || q.includes("mfr")) params.propertyType = "MFR"
+    if (q.includes("condo")) params.propertyType = "CND"
+    if (q.includes("commercial")) params.propertyType = "COM"
+    if (q.includes("land") || q.includes("vacant land")) params.propertyType = "VL"
+
+    // Owner type
+    if (q.includes("absentee") || q.includes("investor owned")) params.absenteeOwner = true
+    if (q.includes("owner occupied")) params.ownerOccupied = true
+
+    // High equity
+    if (q.includes("high equity") || q.includes("free and clear")) {
+      params.equityMin = 50
+    }
+
+    // Listed for sale
+    if (q.includes("listed") || q.includes("for sale") || q.includes("on market")) {
+      params.listedForSale = true
+    }
+
+    console.log("[v0] PropertyRadar search params:", JSON.stringify(params))
+
+    const { properties } = await searchPropertiesAdvanced(params)
+
+    if (properties.length > 0) {
+      console.log("[v0] PropertyRadar returned", properties.length, "results")
+      return properties.map(mapToPropertyResult)
+    }
+
+    return []
   } catch (error) {
     console.error("[PropertyRadar] search error:", error)
     return []
-  }
-}
-
-// Map Property Radar response to our PropertyResult interface
-function mapPropertyRadarProperty(p: any) {
-  return {
-    address: p.address || p.situs_address || p.property_address || "Unknown",
-    city: p.city || p.situs_city || "",
-    state: p.state || p.situs_state || "",
-    zip: p.zip || p.zipcode || p.situs_zip || "",
-    county: p.county || undefined,
-    propertyType: p.property_type || p.use_code_description || undefined,
-    beds: p.bedrooms || p.beds || undefined,
-    baths: p.bathrooms || p.baths || undefined,
-    sqft: p.building_sqft || p.square_feet || undefined,
-    lotSize: p.lot_sqft || p.lot_size || undefined,
-    yearBuilt: p.year_built || undefined,
-    value: p.assessed_value || p.market_value || undefined,
-    equity: p.estimated_equity || undefined,
-    equityPercent: p.equity_percent || undefined,
-    loanBalance: p.total_loan_amount || undefined,
-    // Foreclosure-specific data
-    foreclosureStatus: p.foreclosure_status || p.nod_status || undefined,
-    foreclosureAuctionDate: p.auction_date || p.trustee_sale_date || undefined,
-    foreclosureOpeningBid: p.opening_bid || undefined,
-    taxDefaultYears: p.tax_delinquent_years || undefined,
-    taxDefaultAmount: p.delinquent_tax_amount || undefined,
-    // Owner data
-    ownerName: p.owner_name || (p.owner_first_name && p.owner_last_name ? `${p.owner_first_name} ${p.owner_last_name}` : undefined),
-    ownerPhone: p.owner_phone || undefined,
-    ownerEmail: p.owner_email || undefined,
-    ownerAddress: p.owner_mailing_address || p.mailing_address || undefined,
-    ownerCity: p.owner_mailing_city || undefined,
-    ownerState: p.owner_mailing_state || undefined,
-    ownerZip: p.owner_mailing_zip || undefined,
-    // Additional distress signals
-    inBankruptcy: p.bankruptcy_flag || false,
-    hasLiens: p.lien_count > 0 || false,
-    lienAmount: p.total_lien_amount || undefined,
-    isVacant: p.vacant_flag || p.is_vacant || false,
-    isDeceased: p.deceased_flag || false,
-    inDivorce: p.divorce_flag || false,
-    lastSaleDate: p.last_sale_date || undefined,
-    lastSalePrice: p.last_sale_price || undefined,
-    apn: p.apn || p.parcel_number || undefined,
-    radarId: p.id || p.radar_id || undefined,
-    source: "PropertyRadar",
   }
 }
 
@@ -675,17 +685,36 @@ async function searchProperties(query: string, intent: string) {
     rcStatus = "Foreclosure"
   }
 
-  // Strategy 1: RentCast area search (city/state/zip)
+  // ============================================================
+  // Strategy 1 (PRIMARY): PropertyRadar – 250+ criteria, nationwide
+  // Covers: foreclosures, distress, equity, owner data, valuations
+  // ============================================================
+  if (PROPERTYRADAR_API_KEY && (location.city || location.zipCode || location.address || location.county)) {
+    try {
+      console.log("[v0] Strategy 1: PropertyRadar search for:", query)
+      const radarResults = await propertyRadarSearchFromQuery(location, intent, query, 20)
+
+      if (radarResults.length > 0) {
+        console.log("[v0] PropertyRadar returned", radarResults.length, "results (primary strategy)")
+        return radarResults
+      }
+    } catch (error) {
+      console.error("[v0] PropertyRadar search failed, falling back:", error)
+    }
+  }
+
+  // ============================================================
+  // Strategy 2 (FALLBACK): RentCast area search (city/state/zip)
+  // Good for: rent estimates, market data, property records
+  // ============================================================
   if (RENTCAST_API_KEY && (location.city || location.zipCode)) {
     try {
-      // For county-level searches, search across multiple cities in that county
       const citiesToSearch = location.citiesInCounty || [location.city].filter(Boolean) as string[]
       let allResults: any[] = []
 
-      for (const cityName of citiesToSearch.slice(0, 5)) { // Max 5 cities to stay in budget
+      for (const cityName of citiesToSearch.slice(0, 5)) {
         console.log("[v0] RentCast searching city:", cityName, "state:", location.state, "status:", rcStatus)
 
-        // Try property records with status filter
         let results = await rentcastSearchProperties({
           city: cityName,
           state: location.state,
@@ -693,9 +722,7 @@ async function searchProperties(query: string, intent: string) {
           limit: 10,
         })
 
-        // If no results with status, try sale listings endpoint
         if (results.length === 0 && rcStatus) {
-          console.log("[v0] Trying sale listings for:", cityName)
           results = await rentcastSaleListings({
             city: cityName,
             state: location.state,
@@ -706,16 +733,12 @@ async function searchProperties(query: string, intent: string) {
 
         if (results.length > 0) {
           allResults = allResults.concat(results)
-          console.log("[v0] Found", results.length, "in", cityName, "- total:", allResults.length)
         }
 
-        // If we have enough results, stop early
         if (allResults.length >= 20) break
       }
 
-      // If no results with status filter across all cities, try primary city without filter
       if (allResults.length === 0 && rcStatus) {
-        console.log("[v0] No foreclosure results, searching primary city without status filter...")
         const primaryCity = location.citiesInCounty?.[0] || location.city
         if (primaryCity) {
           allResults = await rentcastSearchProperties({
@@ -733,11 +756,11 @@ async function searchProperties(query: string, intent: string) {
     } catch (error) {
       console.error("[v0] RentCast search failed:", error)
     }
-  } else {
-    console.log("[v0] Skipping RentCast - API key:", !!RENTCAST_API_KEY, "city:", location.city, "zip:", location.zipCode)
   }
 
-  // Strategy 2: PropertyAPI.co detail lookup (for specific addresses)
+  // ============================================================
+  // Strategy 3: PropertyAPI.co detail lookup (for specific addresses)
+  // ============================================================
   if (PROPERTY_API_KEY && location.address) {
     try {
       const detail = await papiPropertyDetail(location.address)
@@ -750,28 +773,9 @@ async function searchProperties(query: string, intent: string) {
     }
   }
 
-  // Strategy 3: Property Radar (specializes in foreclosures, NODs, distressed properties)
-  if (PROPERTYRADAR_API_KEY && (intent === "foreclosure_search" || rcStatus)) {
-    try {
-      console.log("[v0] Trying Property Radar for foreclosure search...")
-      const radarResults = await propertyRadarSearch({
-        city: location.city,
-        state: location.state || "CA",
-        county: location.county,
-        status: "foreclosure",
-        limit: 20,
-      })
-
-      if (radarResults.length > 0) {
-        console.log("[v0] PropertyRadar returned", radarResults.length, "foreclosure results")
-        return radarResults.map(mapPropertyRadarProperty)
-      }
-    } catch (error) {
-      console.error("[v0] PropertyRadar search failed:", error)
-    }
-  }
-
-  // Strategy 4: PropertyAPI.co comps (for area search fallback)
+  // ============================================================
+  // Strategy 4: PropertyAPI.co comps (area search fallback)
+  // ============================================================
   if (PROPERTY_API_KEY && location.address) {
     try {
       const comps = await papiPropertyComps(location.address, 10, 20)
