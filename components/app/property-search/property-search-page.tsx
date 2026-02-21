@@ -1135,7 +1135,7 @@ export default function PropertySearchPage() {
 
         {/* Quick Search Presets */}
         {!hasSearched && !isSearching && (
-          <div className="max-w-2xl mx-auto mb-12">
+          <div className="max-w-3xl mx-auto mb-12">
             <p className="text-xs text-muted-foreground mb-3 text-center">Quick Searches</p>
             <div className="flex flex-wrap items-center justify-center gap-2">
               {[
@@ -1143,6 +1143,10 @@ export default function PropertySearchPage() {
                 { label: "Tax Default - Sacramento", city: "Sacramento", state: "CA", taxDelinquent: true },
                 { label: "Absentee Owners - Phoenix", city: "Phoenix", state: "AZ", absenteeOwner: true },
                 { label: "Vacant Properties - Miami", city: "Miami", state: "FL", vacant: true },
+                { label: "High Equity - Dallas", city: "Dallas", state: "TX", equityMin: "50" },
+                { label: "Pre-Foreclosure - Atlanta", city: "Atlanta", state: "GA", foreclosure: true },
+                { label: "Divorce Sales - Las Vegas", city: "Las Vegas", state: "NV", divorce: true },
+                { label: "Deceased Owner - Houston", city: "Houston", state: "TX", deceased: true },
               ].map((preset) => (
                 <button
                   key={preset.label}
@@ -1156,8 +1160,10 @@ export default function PropertySearchPage() {
                       taxDelinquent: preset.taxDelinquent || false,
                       absenteeOwner: preset.absenteeOwner || false,
                       vacant: preset.vacant || false,
+                      divorce: ("divorce" in preset && preset.divorce) || false,
+                      deceased: ("deceased" in preset && preset.deceased) || false,
+                      equityMin: ("equityMin" in preset && preset.equityMin as string) || "",
                     })
-                    // Trigger search after state update
                     setTimeout(() => {
                       document.querySelector<HTMLButtonElement>("[data-search-trigger]")?.click()
                     }, 50)
@@ -1167,6 +1173,21 @@ export default function PropertySearchPage() {
                   {preset.label}
                 </button>
               ))}
+            </div>
+
+            {/* Campaign CTA */}
+            <div className="mt-6 text-center">
+              <Link
+                href="/app/campaigns"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary/10 border border-primary/20 hover:bg-primary/15 text-primary font-semibold rounded-xl text-sm transition-colors"
+              >
+                <Filter className="w-4 h-4" />
+                Run Full AI Lead Campaign
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+              <p className="text-xs text-muted-foreground mt-2">
+                8 pre-built campaigns with AI lead scoring, grading, and CSV export
+              </p>
             </div>
           </div>
         )}
@@ -1253,6 +1274,13 @@ export default function PropertySearchPage() {
                   {activeFilterCount > 0 ? ` | ${activeFilterCount} filters active` : ""}
                 </p>
               </div>
+              <Link
+                href="/app/campaigns"
+                className="px-4 py-2 bg-primary/10 border border-primary/20 hover:bg-primary/15 text-primary font-semibold rounded-lg text-sm transition-colors flex items-center gap-2"
+              >
+                <Sparkles className="w-4 h-4" />
+                Score & Grade Leads
+              </Link>
             </div>
 
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
