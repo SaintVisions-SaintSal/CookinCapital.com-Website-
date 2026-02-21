@@ -15,6 +15,7 @@ import {
   type CriterionItem,
   type PropertySearchParams,
 } from "@/lib/propertyradar"
+import { scoreBatch, type EnrichedLead } from "@/lib/saint-lead"
 
 // ===========================================
 // SAINTSAL™ MCP SERVER v3.0 - AI ORCHESTRATION
@@ -97,18 +98,37 @@ async function orchestrateQuery(query: string, intent: string) {
         // No sources, properties, or leads for pure conversation
         break
 
-      case "foreclosure_search":
-      case "property_search":
-        console.log("[v0] Running property/foreclosure search branch")
-        // Search properties via PropertyAPI + Web search for context
-        const [propertyResults, webContext] = await Promise.all([
-          searchProperties(query, intent),
-          tavilySearch(query, { include_answer: true, search_depth: "advanced" }),
-        ])
-        results.properties = propertyResults
-        results.sources = webContext.sources || []
-        results.summary = await generateSummary(query, intent, { properties: propertyResults, webContext })
-        break
+  case "foreclosure_search":
+  case "property_search":
+  console.log("[v0] Running property/foreclosure search branch")
+  // Search properties via PropertyRadar + Web search for context
+  const [propertyResults, webContext] = await Promise.all([
+  searchProperties(query, intent),
+  tavilySearch(query, { include_answer: true, search_depth: "advanced" }),
+  ])
+  results.properties = propertyResults
+  results.sources = webContext.sources || []
+
+  // Score leads with SAINT LEAD engine when we have PropertyRadar results
+  if (propertyResults.length > 0) {
+    const scored = scoreBatch(propertyResults as Record<string, unknown>[])
+    results.leadScoring = {
+      avgScore: scored.avgScore,
+      gradeSummary: scored.gradeSummary,
+      topUseCases: scored.topUseCases,
+      topLeads: scored.leads.slice(0, 5).map((l: EnrichedLead) => ({
+        address: l.property.address,
+        grade: l.leadGrade,
+        score: l.leadScore,
+        useCase: l.primaryUseCase,
+        productFit: l.bestProductFit,
+      })),
+    }
+    console.log("[v0] SAINT LEAD scored", scored.leads.length, "leads. Avg:", scored.avgScore, "Grade A:", scored.gradeSummary.A || 0)
+  }
+
+  results.summary = await generateSummary(query, intent, { properties: propertyResults, webContext })
+  break
 
       case "property_lookup":
         const address = extractAddress(query)
@@ -1118,6 +1138,7 @@ export async function POST(request: NextRequest) {
       sources: results.sources,
       properties: results.properties,
       leads: results.leads,
+      leadScoring: results.leadScoring || null,
       images: results.images,
       socialMediaContent: results.socialMediaContent,
       intent,
@@ -1179,8 +1200,12 @@ function detectIntentServer(query: string): string {
   if (q.match(/\d+\s+\w+\s+(st|street|ave|avenue|blvd|dr|rd|ln|way|ct)/i)) {
     return "property_lookup"
   }
-  if (q.includes("lead") || q.includes("investor") || q.includes("buyer") || q.includes("seller")) {
+  if (q.includes("lead") || q.includes("investor") || q.includes("buyer") || q.includes("seller") || q.includes("campaign") || q.includes("score leads") || q.includes("motivated seller")) {
     return "lead_generation"
+  }
+  // Campaign / high-equity / absentee queries -> property search
+  if (q.includes("high equity") || q.includes("free and clear") || q.includes("absentee") || q.includes("cash out") || q.includes("refi target")) {
+    return "property_search"
   }
   if (q.includes("cash buyer") || q.includes("cash investor")) {
     return "cash_buyers"
@@ -1221,15 +1246,17 @@ export async function GET() {
     name: "SaintSal™ MCP Server",
     version: "3.0",
     description: "AI-Orchestrated Research & Lead Generation",
-    tools: 35,
+    tools: 40,
     capabilities: [
       "Web Search (Tavily)",
-      "Property Search (RentCast + PropertyAPI.co)",
-      "Foreclosure & Distressed Property Search (RentCast)",
-      "Property Detail & Legal Info (PropertyAPI.co)",
+      "Property Search (PropertyRadar 250+ Criteria)",
+      "Foreclosure & Distressed Property Search (PropertyRadar)",
+      "Property Detail & Legal Info (PropertyRadar + PropertyAPI.co)",
       "Value & Rent Estimates (RentCast AVM)",
       "Market Statistics (RentCast)",
-      "Owner Lookup with Contact Info (PropertyAPI.co)",
+      "Owner Lookup with Contact Info (PropertyRadar)",
+      "SAINT LEAD Scoring Engine (AI-powered lead grading)",
+      "Campaign Templates (8 pre-built campaigns)",
       "Lead Generation & Enrichment",
       "Deal Analysis",
       "Image Generation (fal.ai)",
