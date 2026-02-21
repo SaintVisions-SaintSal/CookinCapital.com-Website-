@@ -51,72 +51,72 @@ export interface PRProperty {
   ZipFive?: string
   County?: string
   APN?: string
-  Latitude?: number
-  Longitude?: number
+  Latitude?: number | string
+  Longitude?: number | string
   // Property details
   PType?: string
+  AdvancedPropertyType?: string
   Beds?: number
   Baths?: number
   SqFt?: number
-  LotSqFt?: number
+  LotSize?: number
+  LotSizeAcres?: number
   YearBuilt?: number
   Units?: number
-  Pool?: string
-  OwnerOccupied?: string
+  Pool?: number
+  isSameMailingOrExempt?: number
+  isNotSameMailingOrExempt?: number
   // Valuation
   AVM?: number
   AVMPerSqFt?: number
-  EquityPercent?: number
-  EquityEstimated?: number
+  EquityPercent?: number | string
+  AvailableEquity?: number
   CLTV?: number
-  OpenLoansBalance?: number
-  HUDFairMarketRent?: number
+  TotalLoanBalance?: number
+  HUDRent?: number
   // Owner
-  OwnerNames?: string
-  OwnerMailAddress?: string
-  OwnerMailCity?: string
-  OwnerMailState?: string
-  OwnerMailZip?: string
+  Owner?: string
+  Owner2?: string
+  Taxpayer?: string
   YearsOwned?: number
   NumberOfPropertiesOwned?: number
-  Deceased?: string
+  isDeceasedProperty?: number
+  isCashBuyer?: number
   // Distress
-  InForeclosure?: string
+  inForeclosure?: number
   ForeclosureStage?: string
-  NoticeRecordingDate?: string
+  ForeclosureRecDate?: string
   SaleDate?: string
   OpeningBid?: number
   PublishedBid?: number
   DefaultAmount?: number
-  ForeclosingLoanAmount?: number
-  TaxDelinquent?: string
-  YearsTaxDelinquent?: number
-  TaxDelinquentAmount?: number
-  InBankruptcy?: string
-  BankruptcyChapter?: string
-  BankruptcyStatus?: string
-  BankruptcyRecordingDate?: string
-  HasDivorce?: string
-  DivorceRecordingDate?: string
-  SiteVacant?: string
+  DefaultAsOf?: string
+  inTaxDelinquency?: number
+  inBankruptcyProperty?: number
+  inDivorce?: number
+  isSiteVacant?: number
+  isPreforeclosure?: number
+  isAuction?: number
+  isBankOwned?: number
   // Transfer
-  PurchaseDate?: string
-  PurchaseAmount?: number
-  PurchaseType?: string
-  TransferType?: string
-  TransferDate?: string
-  TransferAmount?: number
-  CashTransfer?: string
+  LastTransferRecDate?: string
+  LastTransferValue?: number
+  LastTransferType?: string
+  LastTransferSeller?: string
+  LastTransferDownPaymentPercent?: number
+  isRecentSale?: number
+  isRecentFlip?: number
   // Loans
-  LoanAmount?: number
-  LoanRate?: number
-  LoanType?: string
-  LoanPurpose?: string
-  LoanDate?: string
-  LoanTerm?: string
+  FirstAmount?: number
+  FirstRate?: number
+  FirstLoanType?: string
+  FirstPurpose?: string
+  FirstDate?: string
+  FirstTermInYears?: string
+  NumberLoans?: number
   // Listing
-  ListedForSale?: string
-  ListPrice?: number
+  isListedForSale?: number
+  ListingPrice?: number
   ListingDate?: string
   DaysOnMarket?: number
   ListingStatus?: string
@@ -124,6 +124,7 @@ export interface PRProperty {
   // Tax
   AssessedValue?: number
   AnnualTaxes?: number
+  EstimatedTaxRate?: number
   // Misc
   [key: string]: unknown
 }
@@ -149,82 +150,84 @@ export const PROPERTY_FIELDS = [
   "Beds",
   "Baths",
   "SqFt",
-  "LotSqFt",
+  "LotSize",
+  "LotSizeAcres",
   "YearBuilt",
   "Units",
   "Pool",
-  "OwnerOccupied",
+  "isSameMailingOrExempt",
+  "isNotSameMailingOrExempt",
 ].join(",")
 
 export const VALUE_FIELDS = [
   "AVM",
   "AVMPerSqFt",
   "EquityPercent",
-  "EquityEstimated",
+  "AvailableEquity",
   "CLTV",
-  "OpenLoansBalance",
-  "HUDFairMarketRent",
+  "TotalLoanBalance",
+  "HUDRent",
 ].join(",")
 
 export const OWNER_FIELDS = [
-  "OwnerNames",
-  "OwnerMailAddress",
-  "OwnerMailCity",
-  "OwnerMailState",
-  "OwnerMailZip",
+  "Owner",
+  "Owner2",
+  "Taxpayer",
   "YearsOwned",
   "NumberOfPropertiesOwned",
-  "Deceased",
+  "isDeceasedProperty",
+  "isCashBuyer",
 ].join(",")
 
 export const DISTRESS_FIELDS = [
-  "InForeclosure",
+  "inForeclosure",
   "ForeclosureStage",
-  "NoticeRecordingDate",
+  "ForeclosureRecDate",
   "SaleDate",
   "OpeningBid",
   "PublishedBid",
   "DefaultAmount",
-  "TaxDelinquent",
-  "YearsTaxDelinquent",
-  "TaxDelinquentAmount",
-  "InBankruptcy",
-  "BankruptcyChapter",
-  "BankruptcyStatus",
-  "HasDivorce",
-  "DivorceRecordingDate",
-  "SiteVacant",
+  "DefaultAsOf",
+  "inTaxDelinquency",
+  "inBankruptcyProperty",
+  "inDivorce",
+  "isSiteVacant",
+  "isDeceasedProperty",
+  "isPreforeclosure",
+  "isAuction",
+  "isBankOwned",
 ].join(",")
 
 export const TRANSFER_FIELDS = [
-  "PurchaseDate",
-  "PurchaseAmount",
-  "PurchaseType",
-  "TransferDate",
-  "TransferAmount",
-  "TransferType",
-  "CashTransfer",
+  "LastTransferRecDate",
+  "LastTransferValue",
+  "LastTransferType",
+  "LastTransferSeller",
+  "LastTransferDownPaymentPercent",
+  "isRecentSale",
+  "isRecentFlip",
 ].join(",")
 
 export const LOAN_FIELDS = [
-  "LoanAmount",
-  "LoanRate",
-  "LoanType",
-  "LoanPurpose",
-  "LoanDate",
-  "LoanTerm",
+  "FirstAmount",
+  "FirstRate",
+  "FirstLoanType",
+  "FirstPurpose",
+  "FirstDate",
+  "FirstTermInYears",
+  "NumberLoans",
 ].join(",")
 
 export const LISTING_FIELDS = [
-  "ListedForSale",
-  "ListPrice",
+  "isListedForSale",
+  "ListingPrice",
   "ListingDate",
   "DaysOnMarket",
   "ListingStatus",
   "ListingType",
 ].join(",")
 
-export const TAX_FIELDS = ["AssessedValue", "AnnualTaxes"].join(",")
+export const TAX_FIELDS = ["AssessedValue", "AnnualTaxes", "EstimatedTaxRate"].join(",")
 
 /** All important fields combined for a full property lookup */
 export const ALL_FIELDS = [
@@ -245,12 +248,12 @@ export const SEARCH_FIELDS = [
   PROPERTY_FIELDS,
   VALUE_FIELDS,
   DISTRESS_FIELDS,
-  "OwnerNames",
+  "Owner",
   "YearsOwned",
-  "PurchaseDate",
-  "PurchaseAmount",
-  "ListedForSale",
-  "ListPrice",
+  "LastTransferRecDate",
+  "LastTransferValue",
+  "isListedForSale",
+  "ListingPrice",
   "AssessedValue",
   "AnnualTaxes",
 ].join(",")
@@ -312,11 +315,11 @@ export function buildPropertyTypeCriteria(type: string): CriterionItem[] {
 
 export function buildForeclosureCriteria(stage?: string): CriterionItem[] {
   if (stage) {
-    // Specific stage: Preforeclosure, Auction, BankOwned
+    // Specific stage: Preforeclosure, Preforeclosure-NTS, Auction, BankOwned
     return [{ name: "ForeclosureStage", value: [stage] }]
   }
-  // Any active foreclosure
-  return [{ name: "InForeclosure", value: ["Yes"] }]
+  // Any active foreclosure (Boolean criterion – uses [1])
+  return [{ name: "inForeclosure", value: [1] }]
 }
 
 export function buildDistressCriteria(types: string[]): CriterionItem[] {
@@ -324,22 +327,22 @@ export function buildDistressCriteria(types: string[]): CriterionItem[] {
   for (const t of types) {
     const lower = t.toLowerCase()
     if (lower.includes("foreclosure") || lower.includes("preforeclosure")) {
-      criteria.push({ name: "InForeclosure", value: ["Yes"] })
+      criteria.push({ name: "inForeclosure", value: [1] })
     }
     if (lower.includes("tax") || lower.includes("delinquent")) {
-      criteria.push({ name: "TaxDelinquent", value: ["Yes"] })
+      criteria.push({ name: "inTaxDelinquency", value: [1] })
     }
     if (lower.includes("bankruptcy")) {
-      criteria.push({ name: "InBankruptcy", value: ["Yes"] })
+      criteria.push({ name: "inBankruptcyProperty", value: [1] })
     }
     if (lower.includes("divorce")) {
-      criteria.push({ name: "HasDivorce", value: ["Yes"] })
+      criteria.push({ name: "inDivorce", value: [1] })
     }
     if (lower.includes("vacant")) {
-      criteria.push({ name: "SiteVacant", value: ["Yes"] })
+      criteria.push({ name: "isSiteVacant", value: [1] })
     }
     if (lower.includes("deceased")) {
-      criteria.push({ name: "Deceased", value: ["Yes"] })
+      criteria.push({ name: "isDeceasedProperty", value: [1] })
     }
   }
   return criteria
@@ -352,16 +355,17 @@ export function buildEquityCriteria(opts: {
   maxCLTV?: number
 }): CriterionItem[] {
   const criteria: CriterionItem[] = []
+  // EquityPercent uses Multiple Range: [[min, max]] with null for open-ended
   if (opts.minEquityPercent !== undefined || opts.maxEquityPercent !== undefined) {
     criteria.push({
       name: "EquityPercent",
-      value: [opts.minEquityPercent ?? -100, opts.maxEquityPercent ?? 100],
+      value: [[opts.minEquityPercent ?? null, opts.maxEquityPercent ?? null]] as unknown as string[],
     })
   }
   if (opts.minCLTV !== undefined || opts.maxCLTV !== undefined) {
     criteria.push({
       name: "CLTV",
-      value: [opts.minCLTV ?? 0, opts.maxCLTV ?? 200],
+      value: [[opts.minCLTV ?? null, opts.maxCLTV ?? null]] as unknown as string[],
     })
   }
   return criteria
@@ -372,35 +376,41 @@ export function buildValueCriteria(opts: {
   maxValue?: number
 }): CriterionItem[] {
   if (opts.minValue === undefined && opts.maxValue === undefined) return []
+  // AVM uses Multiple Range: [[min, max]] with null for open-ended
   return [
     {
       name: "AVM",
-      value: [opts.minValue ?? 0, opts.maxValue ?? 99999999],
+      value: [[opts.minValue ?? null, opts.maxValue ?? null]] as unknown as string[],
     },
   ]
 }
 
 export function buildBedsFilter(min?: number, max?: number): CriterionItem[] {
   if (min === undefined && max === undefined) return []
-  return [{ name: "Beds", value: [min ?? 0, max ?? 99] }]
+  // Beds uses Multiple Range: [[min, max]] with null for open-ended
+  return [{ name: "Beds", value: [[min ?? null, max ?? null]] as unknown as string[] }]
 }
 
 export function buildBathsFilter(min?: number, max?: number): CriterionItem[] {
   if (min === undefined && max === undefined) return []
-  return [{ name: "Baths", value: [min ?? 0, max ?? 99] }]
+  return [{ name: "Baths", value: [[min ?? null, max ?? null]] as unknown as string[] }]
 }
 
 export function buildYearBuiltFilter(min?: number, max?: number): CriterionItem[] {
   if (min === undefined && max === undefined) return []
-  return [{ name: "YearBuilt", value: [min ?? 1800, max ?? new Date().getFullYear()] }]
+  return [{ name: "YearBuilt", value: [[min ?? null, max ?? null]] as unknown as string[] }]
 }
 
 export function buildOwnerOccupiedFilter(ownerOccupied: boolean): CriterionItem[] {
-  return [{ name: "OwnerOccupied", value: [ownerOccupied ? "Yes" : "No"] }]
+  // isSameMailingOrExempt = owner-occupied, isNotSameMailingOrExempt = absentee
+  if (ownerOccupied) {
+    return [{ name: "isSameMailingOrExempt", value: [1] }]
+  }
+  return [{ name: "isNotSameMailingOrExempt", value: [1] }]
 }
 
 export function buildListedForSaleFilter(listed: boolean): CriterionItem[] {
-  return [{ name: "ListedForSale", value: [listed ? "Yes" : "No"] }]
+  return [{ name: "isListedForSale", value: [listed ? 1 : 0] }]
 }
 
 // ---------------------------------------------------------------------------
@@ -438,12 +448,13 @@ export async function searchProperties(
   }
 
   const data = await res.json()
-  // The API returns an array of property objects
-  const properties: PRProperty[] = Array.isArray(data) ? data : data.results || data.properties || []
+  // The API returns { results: [...], resultCount, totalResultCount, totalCost }
+  const properties: PRProperty[] = Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : []
+  const totalResultCount = data?.totalResultCount ?? data?.resultCount ?? properties.length
 
-  console.log("[PropertyRadar] Returned", properties.length, "properties")
+  console.log("[PropertyRadar] Returned", properties.length, "of", totalResultCount, "total properties")
 
-  return { properties, resultCount: properties.length }
+  return { properties, resultCount: totalResultCount }
 }
 
 /**
@@ -466,7 +477,9 @@ export async function getProperty(
   }
 
   const data = await res.json()
-  return Array.isArray(data) ? data[0] || null : data
+  // Response: { results: [...], resultCount, totalCost }
+  const results = data?.results || data
+  return Array.isArray(results) ? results[0] || null : results
 }
 
 /**
@@ -487,7 +500,7 @@ export async function getPropertyPersons(
   }
 
   const data = await res.json()
-  return Array.isArray(data) ? data : []
+  return Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : []
 }
 
 /**
@@ -508,7 +521,7 @@ export async function getSalesComps(
   }
 
   const data = await res.json()
-  return Array.isArray(data) ? data : []
+  return Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : []
 }
 
 /**
@@ -529,7 +542,7 @@ export async function getListingComps(
   }
 
   const data = await res.json()
-  return Array.isArray(data) ? data : []
+  return Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : []
 }
 
 /**
@@ -686,55 +699,57 @@ export function mapToPropertyResult(p: PRProperty) {
     zip: p.ZipFive || "",
     county: p.County || undefined,
     apn: p.APN || undefined,
-    latitude: p.Latitude,
-    longitude: p.Longitude,
+    latitude: p.Latitude != null ? Number(p.Latitude) : undefined,
+    longitude: p.Longitude != null ? Number(p.Longitude) : undefined,
     propertyType: p.PType || undefined,
     beds: p.Beds ?? undefined,
     baths: p.Baths ?? undefined,
     sqft: p.SqFt ?? undefined,
-    lotSize: p.LotSqFt ?? undefined,
+    lotSize: p.LotSize ?? undefined,
     yearBuilt: p.YearBuilt ?? undefined,
     units: p.Units ?? undefined,
     // Valuation
     value: p.AVM ?? undefined,
-    equity: p.EquityEstimated ?? undefined,
-    equityPercent: p.EquityPercent ?? undefined,
-    availableEquity: p.EquityEstimated ?? undefined,
-    loanBalance: p.OpenLoansBalance ?? undefined,
-    // Owner
-    ownerName: p.OwnerNames || undefined,
-    ownerAddress: p.OwnerMailAddress || undefined,
-    ownerCity: p.OwnerMailCity || undefined,
-    ownerState: p.OwnerMailState || undefined,
-    ownerZip: p.OwnerMailZip || undefined,
+    equity: p.AvailableEquity ?? undefined,
+    equityPercent: p.EquityPercent != null ? Number(p.EquityPercent) : undefined,
+    availableEquity: p.AvailableEquity ?? undefined,
+    loanBalance: p.TotalLoanBalance ?? undefined,
+    // Owner (Persons data comes in a separate endpoint but Owner field is a summary)
+    ownerName: p.Owner || p.Owner2 || undefined,
+    ownerOccupied: p.isSameMailingOrExempt === 1,
+    absenteeOwner: p.isNotSameMailingOrExempt === 1,
     yearsOwned: p.YearsOwned ?? undefined,
-    // Distress signals
-    foreclosureStatus: p.InForeclosure === "Yes" ? (p.ForeclosureStage || "Active") : undefined,
+    // Distress signals (API returns 1/0 booleans)
+    foreclosureStatus: p.inForeclosure === 1 ? (p.ForeclosureStage || "Active") : undefined,
+    isPreforeclosure: p.isPreforeclosure === 1,
+    isAuction: p.isAuction === 1,
+    isBankOwned: p.isBankOwned === 1,
     foreclosureAuctionDate: p.SaleDate || undefined,
     foreclosureOpeningBid: p.OpeningBid ?? undefined,
-    taxDefaultYears: p.YearsTaxDelinquent ?? undefined,
-    taxDefaultAmount: p.TaxDelinquentAmount ?? undefined,
-    inBankruptcy: p.InBankruptcy === "Yes",
-    bankruptcyStatus: p.BankruptcyStatus || undefined,
-    bankruptcyChapter: p.BankruptcyChapter || undefined,
-    inDivorce: p.HasDivorce === "Yes",
-    divorceRecordingDate: p.DivorceRecordingDate || undefined,
-    isVacant: p.SiteVacant === "Yes",
-    isDeceased: p.Deceased === "Yes",
-    hasLiens: false,
-    lienAmount: undefined,
+    foreclosureRecDate: p.ForeclosureRecDate || undefined,
+    defaultAmount: p.DefaultAmount ?? undefined,
+    inTaxDelinquency: p.inTaxDelinquency === 1,
+    // Compat with UI (taxDefaultYears used as boolean-ish in property cards)
+    taxDefaultYears: p.inTaxDelinquency === 1 ? 1 : 0,
+    taxDefaultAmount: undefined,
+    inBankruptcy: p.inBankruptcyProperty === 1,
+    inDivorce: p.inDivorce === 1,
+    isVacant: p.isSiteVacant === 1,
+    isDeceased: p.isDeceasedProperty === 1,
     // Transfer
-    transferType: p.TransferType || p.PurchaseType || undefined,
-    transferDate: p.TransferDate || p.PurchaseDate || undefined,
-    transferAmount: p.TransferAmount || p.PurchaseAmount || undefined,
-    lastSaleDate: p.PurchaseDate || undefined,
-    lastSalePrice: p.PurchaseAmount ?? undefined,
+    transferType: p.LastTransferType || undefined,
+    transferDate: p.LastTransferRecDate || undefined,
+    transferAmount: p.LastTransferValue ?? undefined,
+    lastSaleDate: p.LastTransferRecDate || undefined,
+    lastSalePrice: p.LastTransferValue ?? undefined,
     // Loan
-    loanRate: p.LoanRate ?? undefined,
-    loanType: p.LoanType || undefined,
+    loanAmount: p.FirstAmount ?? undefined,
+    loanRate: p.FirstRate ?? undefined,
+    loanType: p.FirstLoanType || undefined,
+    loanPurpose: p.FirstPurpose || undefined,
     // Listing
-    listedForSale: p.ListedForSale === "Yes",
-    listPrice: p.ListPrice ?? undefined,
+    listedForSale: p.isListedForSale === 1,
+    listPrice: p.ListingPrice ?? undefined,
     listingDate: p.ListingDate || undefined,
     daysOnMarket: p.DaysOnMarket ?? undefined,
     // Tax
