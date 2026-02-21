@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
@@ -17,6 +17,11 @@ const navItems = [
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
@@ -55,37 +60,47 @@ export function Header() {
                 Sign In
               </Button>
             </Link>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="text-sm font-medium border-primary/50 text-primary hover:bg-primary/10 bg-transparent"
-                >
-                  Apply Now
-                  <ChevronDown className="ml-1 h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 bg-background border-border">
-                <DropdownMenuItem asChild>
-                  <Link href="/prequal" className="flex items-center gap-2 cursor-pointer">
-                    <ClipboardCheck className="h-4 w-4 text-primary" />
-                    <div>
-                      <p className="font-medium">Pre-Qualification</p>
-                      <p className="text-xs text-muted-foreground">Quick 2-min application</p>
-                    </div>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/apply" className="flex items-center gap-2 cursor-pointer">
-                    <FileText className="h-4 w-4 text-primary" />
-                    <div>
-                      <p className="font-medium">Extended Application</p>
-                      <p className="text-xs text-muted-foreground">Full funding application</p>
-                    </div>
-                  </Link>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {mounted ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="text-sm font-medium border-primary/50 text-primary hover:bg-primary/10 bg-transparent"
+                  >
+                    Apply Now
+                    <ChevronDown className="ml-1 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 bg-background border-border">
+                  <DropdownMenuItem asChild>
+                    <Link href="/prequal" className="flex items-center gap-2 cursor-pointer">
+                      <ClipboardCheck className="h-4 w-4 text-primary" />
+                      <div>
+                        <p className="font-medium">Pre-Qualification</p>
+                        <p className="text-xs text-muted-foreground">Quick 2-min application</p>
+                      </div>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/apply" className="flex items-center gap-2 cursor-pointer">
+                      <FileText className="h-4 w-4 text-primary" />
+                      <div>
+                        <p className="font-medium">Extended Application</p>
+                        <p className="text-xs text-muted-foreground">Full funding application</p>
+                      </div>
+                    </Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button
+                variant="outline"
+                className="text-sm font-medium border-primary/50 text-primary hover:bg-primary/10 bg-transparent"
+              >
+                Apply Now
+                <ChevronDown className="ml-1 h-4 w-4" />
+              </Button>
+            )}
             <Link href="/app/analyzer">
               <Button className="bg-primary text-primary-foreground hover:bg-primary/90">Analyze a Deal</Button>
             </Link>
