@@ -65,7 +65,6 @@ export interface PRProperty {
   Units?: number
   Pool?: number
   isSameMailingOrExempt?: number
-  isNotSameMailingOrExempt?: number
   // Valuation
   AVM?: number
   AVMPerSqFt?: number
@@ -78,9 +77,6 @@ export interface PRProperty {
   Owner?: string
   Owner2?: string
   Taxpayer?: string
-  YearsOwned?: number
-  NumberOfPropertiesOwned?: number
-  isDeceasedProperty?: number
   isCashBuyer?: number
   // Distress
   inForeclosure?: number
@@ -88,13 +84,13 @@ export interface PRProperty {
   ForeclosureRecDate?: string
   SaleDate?: string
   OpeningBid?: number
-  PublishedBid?: number
   DefaultAmount?: number
   DefaultAsOf?: string
   inTaxDelinquency?: number
-  inBankruptcyProperty?: number
+  inBankruptcyProperty?: number // available as field, not criteria
   inDivorce?: number
   isSiteVacant?: number
+  isDeceasedProperty?: number // available as field, not criteria
   isPreforeclosure?: number
   isAuction?: number
   isBankOwned?: number
@@ -156,7 +152,6 @@ export const PROPERTY_FIELDS = [
   "Units",
   "Pool",
   "isSameMailingOrExempt",
-  "isNotSameMailingOrExempt",
 ].join(",")
 
 export const VALUE_FIELDS = [
@@ -173,9 +168,6 @@ export const OWNER_FIELDS = [
   "Owner",
   "Owner2",
   "Taxpayer",
-  "YearsOwned",
-  "NumberOfPropertiesOwned",
-  "isDeceasedProperty",
   "isCashBuyer",
 ].join(",")
 
@@ -185,14 +177,13 @@ export const DISTRESS_FIELDS = [
   "ForeclosureRecDate",
   "SaleDate",
   "OpeningBid",
-  "PublishedBid",
   "DefaultAmount",
   "DefaultAsOf",
   "inTaxDelinquency",
-  "inBankruptcyProperty",
+  "inBankruptcyProperty", // works as field, not as criteria
   "inDivorce",
   "isSiteVacant",
-  "isDeceasedProperty",
+  "isDeceasedProperty", // works as field, not as criteria
   "isPreforeclosure",
   "isAuction",
   "isBankOwned",
@@ -249,7 +240,8 @@ export const SEARCH_FIELDS = [
   VALUE_FIELDS,
   DISTRESS_FIELDS,
   "Owner",
-  "YearsOwned",
+  "Taxpayer",
+  "isCashBuyer",
   "LastTransferRecDate",
   "LastTransferValue",
   "isListedForSale",
@@ -332,17 +324,14 @@ export function buildDistressCriteria(types: string[]): CriterionItem[] {
     if (lower.includes("tax") || lower.includes("delinquent")) {
       criteria.push({ name: "inTaxDelinquency", value: [1] })
     }
-    if (lower.includes("bankruptcy")) {
-      criteria.push({ name: "inBankruptcyProperty", value: [1] })
-    }
+    // Note: inBankruptcyProperty and isDeceasedProperty are plan-restricted
+    // and will cause 400 errors. Skip them as criteria but we can still
+    // display them if the API returns them as fields.
     if (lower.includes("divorce")) {
       criteria.push({ name: "inDivorce", value: [1] })
     }
     if (lower.includes("vacant")) {
       criteria.push({ name: "isSiteVacant", value: [1] })
-    }
-    if (lower.includes("deceased")) {
-      criteria.push({ name: "isDeceasedProperty", value: [1] })
     }
   }
   return criteria
@@ -402,11 +391,9 @@ export function buildYearBuiltFilter(min?: number, max?: number): CriterionItem[
 }
 
 export function buildOwnerOccupiedFilter(ownerOccupied: boolean): CriterionItem[] {
-  // isSameMailingOrExempt = owner-occupied, isNotSameMailingOrExempt = absentee
-  if (ownerOccupied) {
-    return [{ name: "isSameMailingOrExempt", value: [1] }]
-  }
-  return [{ name: "isNotSameMailingOrExempt", value: [1] }]
+  // isSameMailingOrExempt works for both: [1] = owner-occupied, [0] = absentee
+  // Note: isNotSameMailingOrExempt is plan-restricted, so we use [0] instead
+  return [{ name: "isSameMailingOrExempt", value: [ownerOccupied ? 1 : 0] }]
 }
 
 export function buildListedForSaleFilter(listed: boolean): CriterionItem[] {
@@ -653,14 +640,13 @@ export async function searchPropertiesAdvanced(
     )
   }
 
-  // Distress signals
+  // Distress signals (only include API-supported criteria)
   const distressTypes: string[] = []
   if (params.foreclosure) distressTypes.push("foreclosure")
   if (params.taxDelinquent) distressTypes.push("tax delinquent")
-  if (params.bankruptcy) distressTypes.push("bankruptcy")
+  // bankruptcy and deceased are plan-restricted, skip as criteria
   if (params.divorce) distressTypes.push("divorce")
   if (params.vacant) distressTypes.push("vacant")
-  if (params.deceased) distressTypes.push("deceased")
   if (distressTypes.length > 0) {
     criteria.push(...buildDistressCriteria(distressTypes))
   }
@@ -670,12 +656,11 @@ export async function searchPropertiesAdvanced(
     criteria.push(...buildForeclosureCriteria(params.foreclosureStage))
   }
 
-  // Owner occupancy
-  if (params.ownerOccupied !== undefined) {
-    criteria.push(...buildOwnerOccupiedFilter(params.ownerOccupied))
-  }
+  // Owner occupancy (absenteeOwner uses isSameMailingOrExempt=0)
   if (params.absenteeOwner) {
     criteria.push(...buildOwnerOccupiedFilter(false))
+  } else if (params.ownerOccupied !== undefined) {
+    criteria.push(...buildOwnerOccupiedFilter(params.ownerOccupied))
   }
 
   // Listed for sale
@@ -717,8 +702,7 @@ export function mapToPropertyResult(p: PRProperty) {
     // Owner (Persons data comes in a separate endpoint but Owner field is a summary)
     ownerName: p.Owner || p.Owner2 || undefined,
     ownerOccupied: p.isSameMailingOrExempt === 1,
-    absenteeOwner: p.isNotSameMailingOrExempt === 1,
-    yearsOwned: p.YearsOwned ?? undefined,
+    absenteeOwner: p.isSameMailingOrExempt === 0,
     // Distress signals (API returns 1/0 booleans)
     foreclosureStatus: p.inForeclosure === 1 ? (p.ForeclosureStage || "Active") : undefined,
     isPreforeclosure: p.isPreforeclosure === 1,
@@ -732,10 +716,10 @@ export function mapToPropertyResult(p: PRProperty) {
     // Compat with UI (taxDefaultYears used as boolean-ish in property cards)
     taxDefaultYears: p.inTaxDelinquency === 1 ? 1 : 0,
     taxDefaultAmount: undefined,
-    inBankruptcy: p.inBankruptcyProperty === 1,
+    inBankruptcy: p.inBankruptcyProperty === 1, // read from field data
     inDivorce: p.inDivorce === 1,
     isVacant: p.isSiteVacant === 1,
-    isDeceased: p.isDeceasedProperty === 1,
+    isDeceased: p.isDeceasedProperty === 1, // read from field data
     // Transfer
     transferType: p.LastTransferType || undefined,
     transferDate: p.LastTransferRecDate || undefined,

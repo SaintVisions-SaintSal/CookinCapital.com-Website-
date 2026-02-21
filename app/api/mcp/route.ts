@@ -434,21 +434,18 @@ async function propertyRadarSearchFromQuery(
       }
     }
 
-    // Motivated sellers / distress signals
+    // Motivated sellers / distress signals (only use API-supported criteria)
     if (q.includes("motivated") || q.includes("distressed") || intent === "motivated_sellers") {
       params.foreclosure = true
       params.taxDelinquent = true
       params.divorce = true
-      params.bankruptcy = true
       params.vacant = true
     }
 
-    // Specific distress types
+    // Specific distress types (bankruptcy/deceased are plan-restricted, skip)
     if (q.includes("tax default") || q.includes("tax delinquent") || q.includes("tax lien")) params.taxDelinquent = true
-    if (q.includes("bankrupt")) params.bankruptcy = true
     if (q.includes("divorce")) params.divorce = true
     if (q.includes("vacant")) params.vacant = true
-    if (q.includes("deceased") || q.includes("probate")) params.deceased = true
 
     // Property type
     if (q.includes("single family") || q.includes("sfr")) params.propertyType = "SFR"
@@ -457,8 +454,8 @@ async function propertyRadarSearchFromQuery(
     if (q.includes("commercial")) params.propertyType = "COM"
     if (q.includes("land") || q.includes("vacant land")) params.propertyType = "VL"
 
-    // Owner type
-    if (q.includes("absentee") || q.includes("investor owned")) params.absenteeOwner = true
+    // Owner type (absentee uses ownerOccupied=false via isSameMailingOrExempt=0)
+    if (q.includes("absentee") || q.includes("investor owned")) params.ownerOccupied = false
     if (q.includes("owner occupied")) params.ownerOccupied = true
 
     // High equity
