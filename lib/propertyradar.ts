@@ -431,6 +431,46 @@ export async function searchProperties(
   if (!res.ok) {
     const errorText = await res.text()
     console.error(`[PropertyRadar] search error ${res.status}:`, errorText)
+
+    // If a field name is rejected, retry with only CORE_FIELDS (always safe)
+    if (res.status === 400 && errorText.includes("specified in Fields param")) {
+      console.warn("[PropertyRadar] Field rejected, retrying with minimal fields...")
+      const retryUrl = `${BASE_URL}/v1/properties?Purchase=${purchase}&Fields=${CORE_FIELDS}&Limit=${limit}`
+      const retryRes = await fetch(retryUrl, {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify({ Criteria: criteria }),
+      })
+      if (retryRes.ok) {
+        const retryData = await retryRes.json()
+        const retryProps: PRProperty[] = Array.isArray(retryData?.results) ? retryData.results : Array.isArray(retryData) ? retryData : []
+        console.log("[PropertyRadar] Retry returned", retryProps.length, "results with minimal fields")
+        return { properties: retryProps, resultCount: retryData?.totalResultCount ?? retryProps.length }
+      }
+    }
+
+    // If a criteria is rejected, retry without the bad criteria
+    if (res.status === 400 && errorText.includes("specified in Criteria")) {
+      console.warn("[PropertyRadar] Criteria rejected, retrying with location-only criteria...")
+      const locationCriteria = criteria.filter((c: CriterionItem) =>
+        ["State", "City", "ZipFive", "County", "Address"].includes(c.name)
+      )
+      if (locationCriteria.length > 0) {
+        const retryUrl = `${BASE_URL}/v1/properties?Purchase=${purchase}&Fields=${fields}&Limit=${limit}`
+        const retryRes = await fetch(retryUrl, {
+          method: "POST",
+          headers: headers(),
+          body: JSON.stringify({ Criteria: locationCriteria }),
+        })
+        if (retryRes.ok) {
+          const retryData = await retryRes.json()
+          const retryProps: PRProperty[] = Array.isArray(retryData?.results) ? retryData.results : Array.isArray(retryData) ? retryData : []
+          console.log("[PropertyRadar] Criteria retry returned", retryProps.length, "results")
+          return { properties: retryProps, resultCount: retryData?.totalResultCount ?? retryProps.length }
+        }
+      }
+    }
+
     throw new Error(`PropertyRadar search failed (${res.status}): ${errorText}`)
   }
 
