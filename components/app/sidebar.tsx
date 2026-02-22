@@ -27,7 +27,7 @@ const navigation = [
   { name: "Dashboard", href: "/app", icon: LayoutDashboard },
   { name: "Research", href: "/research", icon: Search },
   { name: "Properties", href: "/app/properties", icon: Home },
-  { name: "Campaigns", href: "/app/campaigns", icon: Target },
+  { name: "Lead Research", href: "/app/campaigns", icon: Target },
   { name: "Deal Analyzer", href: "/app/analyzer", icon: Calculator },
   { name: "My Deals", href: "/app/library", icon: FolderOpen },
   { name: "Legal Help", href: "/app/legal", icon: Scale },
