@@ -114,6 +114,25 @@ export type CampaignType =
   | "commercial_lending"
   | "free_and_clear"
   | "custom"
+  // Elite Tier Campaigns
+  | "elite_pre_foreclosure"
+  | "elite_tax_delinquent"
+  | "elite_probate"
+  | "elite_absentee_longhold"
+  | "elite_senior_free_clear"
+  | "elite_divorce"
+  | "elite_cash_buyers"
+  | "elite_rent_burdened"
+
+export type EliteTier = "tier1" | "tier2" | "tier3"
+
+export interface StackedListResult {
+  leads: EnrichedLead[]
+  stackDepth: Record<number, number> // how many leads at each stack depth (1,2,3,4,5+)
+  totalFound: number
+  avgStackDepth: number
+  hotLeads: EnrichedLead[]  // leads with 3+ stacked criteria
+}
 
 export interface CampaignConfig {
   name: string
@@ -516,6 +535,238 @@ export const CAMPAIGN_TEMPLATES: Record<CampaignType, Omit<CampaignConfig, "sear
     icon: "Settings",
     defaultSearch: { limit: 50 },
   },
+}
+
+// ---------------------------------------------------------------------------
+// Elite Tier Campaign Templates (from the Elite Real Estate Lead Research Flow)
+// ---------------------------------------------------------------------------
+
+export const ELITE_CAMPAIGNS: {
+  type: CampaignType
+  tier: EliteTier
+  name: string
+  description: string
+  whyItConverts: string
+  responseRate: string
+  icon: string
+  accent: string
+  defaultSearch: CampaignConfig["search"]
+  scoring?: Partial<ScoringWeights>
+}[] = [
+  // TIER 1 - HOTTEST LEADS
+  {
+    type: "elite_pre_foreclosure",
+    tier: "tier1",
+    name: "Pre-Foreclosure Stack",
+    description: "Owners facing foreclosure with $50K+ equity. Gun to their head - most motivated sellers on the planet.",
+    whyItConverts: "Owner facing credit destruction + losing home. Response rate 3-5x above any other list.",
+    responseRate: "3-5x normal",
+    icon: "Gavel",
+    accent: "text-red-400 bg-red-500/10 border-red-500/20",
+    defaultSearch: {
+      foreclosure: true,
+      foreclosureStage: "Preforeclosure",
+      equityMin: 20,
+      propertyType: "SFR",
+      ownerOccupied: true,
+      limit: 50,
+    },
+    scoring: { distress: 35, timing: 20, motivation: 25 },
+  },
+  {
+    type: "elite_tax_delinquent",
+    tier: "tier1",
+    name: "Tax Delinquent High Equity",
+    description: "Behind on taxes 2+ years but sitting on 40%+ equity. County coming for them in 12-24 months.",
+    whyItConverts: "Can't pay taxes but has equity. County is coming within 12-24 months.",
+    responseRate: "4-6x normal",
+    icon: "AlertTriangle",
+    accent: "text-orange-400 bg-orange-500/10 border-orange-500/20",
+    defaultSearch: {
+      taxDelinquent: true,
+      equityMin: 40,
+      limit: 50,
+    },
+    scoring: { distress: 30, equity: 25, timing: 20 },
+  },
+  {
+    type: "elite_probate",
+    tier: "tier1",
+    name: "Probate / Inherited Property",
+    description: "Heirs don't want the house - they want the cash. Average days to contract: 14-21.",
+    whyItConverts: "Emotional detachment + carrying costs they don't want = motivated. Fast close.",
+    responseRate: "3-4x normal",
+    icon: "Shield",
+    accent: "text-purple-400 bg-purple-500/10 border-purple-500/20",
+    defaultSearch: {
+      deceased: true,
+      equityMin: 30,
+      propertyType: "SFR",
+      limit: 50,
+    },
+    scoring: { motivation: 30, equity: 25, timing: 15 },
+  },
+  // TIER 2 - SMART MONEY
+  {
+    type: "elite_absentee_longhold",
+    tier: "tier2",
+    name: "Absentee Owner Long-Term Hold",
+    description: "Out-of-state landlords holding 15+ years with 60%+ equity. Tired of managing remotely.",
+    whyItConverts: "Bought cheap decades ago. Tired of managing. Getting them on the phone = deal.",
+    responseRate: "2-3x normal",
+    icon: "Building2",
+    accent: "text-blue-400 bg-blue-500/10 border-blue-500/20",
+    defaultSearch: {
+      absenteeOwner: true,
+      equityMin: 60,
+      limit: 50,
+    },
+    scoring: { equity: 30, motivation: 25, property: 15 },
+  },
+  {
+    type: "elite_senior_free_clear",
+    tier: "tier2",
+    name: "Senior Owner Free & Clear",
+    description: "65+ years old, owns outright, fixed income. Often needs liquidity for medical or life transition.",
+    whyItConverts: "Paid off. Has equity. Life changing. This is the list agents and investors fight over.",
+    responseRate: "2-4x normal",
+    icon: "Heart",
+    accent: "text-pink-400 bg-pink-500/10 border-pink-500/20",
+    defaultSearch: {
+      equityMin: 90,
+      ownerOccupied: true,
+      propertyType: "SFR",
+      limit: 50,
+    },
+    scoring: { equity: 35, motivation: 25, timing: 10 },
+  },
+  {
+    type: "elite_divorce",
+    tier: "tier2",
+    name: "Divorce / Life Event",
+    description: "Court-ordered sale or couple splitting assets. They need a decision NOW.",
+    whyItConverts: "Court timelines and emotional urgency - best closing pressure you'll never have to manufacture.",
+    responseRate: "2-3x normal",
+    icon: "Users",
+    accent: "text-amber-400 bg-amber-500/10 border-amber-500/20",
+    defaultSearch: {
+      divorce: true,
+      equityMin: 30,
+      propertyType: "SFR",
+      limit: 50,
+    },
+    scoring: { distress: 30, timing: 25, motivation: 20 },
+  },
+  // TIER 3 - VOLUME PLAY
+  {
+    type: "elite_cash_buyers",
+    tier: "tier3",
+    name: "Cash Buyer Repeat Investors",
+    description: "People buying deals RIGHT NOW with cash. These become YOUR buyers list for wholesaling.",
+    whyItConverts: "Not sellers - they're your END BUYERS. Wholesale deals in 48 hours with this list.",
+    responseRate: "Buyers list",
+    icon: "DollarSign",
+    accent: "text-green-400 bg-green-500/10 border-green-500/20",
+    defaultSearch: {
+      equityMin: 80,
+      absenteeOwner: true,
+      limit: 50,
+    },
+    scoring: { equity: 30, property: 25, motivation: 15 },
+  },
+  {
+    type: "elite_rent_burdened",
+    tier: "tier3",
+    name: "High Equity Absentee - Rent Burdened",
+    description: "Landlords getting squeezed by tenant protections + rising costs in hot markets.",
+    whyItConverts: "Rising costs, tenant headaches, and sitting on equity. Ready to exit.",
+    responseRate: "1.5-2x normal",
+    icon: "Building2",
+    accent: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+    defaultSearch: {
+      absenteeOwner: true,
+      equityMin: 50,
+      limit: 50,
+    },
+    scoring: { equity: 25, motivation: 20, property: 20 },
+  },
+]
+
+// ---------------------------------------------------------------------------
+// List Stacking Engine - Multiple criteria on one property = HOT lead
+// ---------------------------------------------------------------------------
+
+/**
+ * Calculate the "stack depth" for a lead - how many distress/motivation criteria it hits
+ */
+export function calculateStackDepth(lead: EnrichedLead): number {
+  let depth = 0
+  if (lead.distress.foreclosure) depth++
+  if (lead.distress.taxDelinquent) depth++
+  if (lead.distress.bankruptcy) depth++
+  if (lead.distress.divorce) depth++
+  if (lead.distress.vacant) depth++
+  if (lead.distress.lien) depth++
+  if (lead.owner.deceased) depth++
+  if (!lead.owner.ownerOccupied) depth++ // absentee
+  if ((lead.financial.equityPercent || 0) >= 60) depth++ // high equity
+  if ((lead.owner.yearsOwned || 0) >= 10) depth++ // long-term hold
+  return depth
+}
+
+/**
+ * Stack and re-score leads based on criteria overlap.
+ * The more criteria that stack on one property, the hotter the lead.
+ * Response rates: single-criteria 2-4%, stacked 15-25%
+ */
+export function stackAndRescore(leads: EnrichedLead[]): StackedListResult {
+  // Calculate stack depth for each lead
+  const leadsWithStack = leads.map((lead) => {
+    const depth = calculateStackDepth(lead)
+    // Boost score based on stack depth (each additional criterion = +8 points, capped at 100)
+    const boostedScore = Math.min(100, lead.leadScore + (depth - 1) * 8)
+    const boostedGrade: EnrichedLead["leadGrade"] =
+      boostedScore >= 80 ? "A" :
+      boostedScore >= 60 ? "B" :
+      boostedScore >= 40 ? "C" :
+      boostedScore >= 20 ? "D" : "F"
+
+    return {
+      ...lead,
+      leadScore: boostedScore,
+      leadGrade: boostedGrade,
+      motivationScore: Math.max(lead.motivationScore, Math.min(10, depth * 2)),
+      stackDepth: depth,
+    }
+  })
+
+  // Sort by stack depth first, then by score
+  leadsWithStack.sort((a, b) => {
+    if (b.stackDepth !== a.stackDepth) return b.stackDepth - a.stackDepth
+    return b.leadScore - a.leadScore
+  })
+
+  // Calculate stack depth distribution
+  const stackDepthDist: Record<number, number> = {}
+  for (const l of leadsWithStack) {
+    const d = l.stackDepth
+    stackDepthDist[d] = (stackDepthDist[d] || 0) + 1
+  }
+
+  const avgDepth = leadsWithStack.length > 0
+    ? leadsWithStack.reduce((s, l) => s + l.stackDepth, 0) / leadsWithStack.length
+    : 0
+
+  // Hot leads = 3+ stacked criteria (15-25% response rate)
+  const hotLeads = leadsWithStack.filter((l) => l.stackDepth >= 3)
+
+  return {
+    leads: leadsWithStack,
+    stackDepth: stackDepthDist,
+    totalFound: leadsWithStack.length,
+    avgStackDepth: Math.round(avgDepth * 10) / 10,
+    hotLeads,
+  }
 }
 
 // ---------------------------------------------------------------------------
