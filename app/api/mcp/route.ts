@@ -24,8 +24,12 @@ import { scoreBatch, type EnrichedLead } from "@/lib/saint-lead"
 // ===========================================
 
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY
-const PROPERTY_API_KEY = process.env.PROPERTY_API
-const PROPERTYRADAR_API_KEY = process.env.PROPERTYRADAR_API_KEY
+const PROPERTY_API_KEY =
+  process.env.PROPERTYAPI_KEY || process.env.PROPERTY_API || process.env.PROPERTY_API_KEY
+const PROPERTYRADAR_API_KEY =
+  process.env.PROPERTY_RADAR_API_TOKEN ||
+  process.env.PROPERTY_RADAR_API_KEY ||
+  process.env.PROPERTYRADAR_API_KEY
 const RENTCAST_API_KEY = process.env.RENTCAST_API_KEY
 const GHL_API_KEY = process.env.GHL_API_KEY
 const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useRef, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   MapPin,
@@ -123,6 +123,13 @@ interface SearchFilters {
   equityMax: string
   yearBuiltMin: string
   yearBuiltMax: string
+}
+
+interface AutocompletePrediction {
+  placeId: string
+  description: string
+  mainText: string
+  secondaryText?: string
 }
 
 const DEFAULT_FILTERS: SearchFilters = {
@@ -870,7 +877,7 @@ function DetailItem({ label, value }: { label: string; value: string }) {
 // ---------------------------------------------------------------------------
 
 export default function PropertySearchPage() {
-  const [searchMode, setSearchMode] = useState<"area" | "address">("area")
+  const [searchMode, setSearchMode] = useState<"area" | "address">("address")
   const [filters, setFilters] = useState<SearchFilters>(DEFAULT_FILTERS)
   const [addressQuery, setAddressQuery] = useState("")
   const [isSearching, setIsSearching] = useState(false)
@@ -880,6 +887,57 @@ export default function PropertySearchPage() {
   const [error, setError] = useState<string | null>(null)
   const [resultCount, setResultCount] = useState(0)
   const [detailProperty, setDetailProperty] = useState<PropertyResult | null>(null)
+
+  // Autocomplete state
+  const [suggestions, setSuggestions] = useState<AutocompletePrediction[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [loadingAutocomplete, setLoadingAutocomplete] = useState(false)
+  const [selectedSuggestion, setSelectedSuggestion] = useState<AutocompletePrediction | null>(null)
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Fetch autocomplete suggestions
+  const fetchAutocomplete = useCallback(async (input: string) => {
+    if (!input || input.trim().length < 2) {
+      setSuggestions([])
+      setShowSuggestions(false)
+      return
+    }
+
+    try {
+      setLoadingAutocomplete(true)
+      const response = await fetch(`/api/autocomplete?input=${encodeURIComponent(input)}`)
+      const data = await response.json()
+
+      if (data.predictions) {
+        setSuggestions(data.predictions)
+        setShowSuggestions(true)
+      } else {
+        setSuggestions([])
+      }
+    } catch (err) {
+      console.error("Autocomplete error:", err)
+      setSuggestions([])
+    } finally {
+      setLoadingAutocomplete(false)
+    }
+  }, [])
+
+  // Debounced autocomplete
+  useEffect(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      fetchAutocomplete(addressQuery)
+    }, 300)
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+      }
+    }
+  }, [addressQuery, fetchAutocomplete])
 
   // Count active advanced filters (beyond city/state/zip)
   const activeFilterCount = [
@@ -904,9 +962,11 @@ export default function PropertySearchPage() {
     filters.yearBuiltMax,
   ].filter(Boolean).length
 
-  const handleAreaSearch = useCallback(async () => {
-    if (!filters.city && !filters.zip) {
-      setError("Please enter a city or zip code")
+  const handleSearch = useCallback(async (params: { address?: string } = {}) => {
+    const { address } = params
+
+    if (!filters.city && !filters.zip && !address) {
+      setError("Please enter a city, zip code, or address")
       return
     }
 
@@ -920,8 +980,13 @@ export default function PropertySearchPage() {
         purchase: 1,
       }
 
-      if (filters.city) body.city = filters.city
-      if (filters.zip) body.zip = filters.zip
+      if (address) {
+        body.address = address
+      } else {
+        if (filters.city) body.city = filters.city
+        if (filters.zip) body.zip = filters.zip
+      }
+
       if (filters.propertyType) body.propertyType = filters.propertyType
       if (filters.foreclosure) body.foreclosure = true
       if (filters.taxDelinquent) body.taxDelinquent = true
@@ -973,6 +1038,15 @@ export default function PropertySearchPage() {
     setFavorites((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]))
   }
 
+  const handleAddressSearch = () => {
+    const address = addressQuery.trim()
+    if (!address) {
+      setError("Please enter an address")
+      return
+    }
+    handleSearch({ address })
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
@@ -983,9 +1057,9 @@ export default function PropertySearchPage() {
               <Image src="/logo.png" alt="SaintSal" width={32} height={32} className="rounded-full" />
               <div>
                 <h1 className="text-xl font-bold text-foreground">
-                  Property<span className="text-primary">Radar</span> Search
+                  Property<span className="text-primary">Search</span>
                 </h1>
-                <p className="text-xs text-muted-foreground">250+ Criteria | Powered by PropertyRadar</p>
+                <p className="text-xs text-muted-foreground">Powered by PropertyAPI</p>
               </div>
             </div>
             <Link
@@ -1002,17 +1076,6 @@ export default function PropertySearchPage() {
         {/* Search Mode Tabs */}
         <div className="flex items-center gap-1 mb-6 max-w-2xl mx-auto bg-secondary/50 rounded-xl p-1">
           <button
-            onClick={() => setSearchMode("area")}
-            className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2 ${
-              searchMode === "area"
-                ? "bg-card text-primary shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <MapPin className="w-4 h-4" />
-            Area Search
-          </button>
-          <button
             onClick={() => setSearchMode("address")}
             className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2 ${
               searchMode === "address"
@@ -1023,172 +1086,121 @@ export default function PropertySearchPage() {
             <Home className="w-4 h-4" />
             Address Lookup
           </button>
+          <div className="flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold text-muted-foreground/50 flex items-center justify-center gap-2" title="Area search requires a specific address">
+            <MapPin className="w-4 h-4" />
+            <span className="opacity-50">Area Search (Address Only)</span>
+          </div>
         </div>
 
-        {/* Area Search Mode */}
-        {searchMode === "area" && (
-          <div className="space-y-4 max-w-2xl mx-auto mb-8">
-            {/* Location Inputs */}
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <input
-                  type="text"
-                  value={filters.city}
-                  onChange={(e) => setFilters({ ...filters, city: e.target.value })}
-                  onKeyDown={(e) => e.key === "Enter" && handleAreaSearch()}
-                  placeholder="City (e.g. Los Angeles)"
-                  className="w-full bg-input border border-border rounded-xl py-3.5 px-4 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary"
-                />
-              </div>
-              <div className="w-24">
-                <select
-                  value={filters.state}
-                  onChange={(e) => setFilters({ ...filters, state: e.target.value })}
-                  className="w-full bg-input border border-border rounded-xl py-3.5 px-3 text-foreground focus:outline-none focus:border-primary text-sm"
-                >
-                  {US_STATES.map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="w-32">
-                <input
-                  type="text"
-                  value={filters.zip}
-                  onChange={(e) => setFilters({ ...filters, zip: e.target.value })}
-                  onKeyDown={(e) => e.key === "Enter" && handleAreaSearch()}
-                  placeholder="Zip"
-                  className="w-full bg-input border border-border rounded-xl py-3.5 px-4 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary"
-                />
-              </div>
-              <button
-                onClick={handleAreaSearch}
-                disabled={isSearching}
-                className="px-6 py-3.5 bg-primary hover:bg-primary/90 disabled:bg-primary/50 text-primary-foreground font-semibold rounded-xl transition-colors flex items-center gap-2"
-              >
-                {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-              </button>
-            </div>
-
-            {/* Advanced Filters */}
-            <FilterPanel
-              filters={filters}
-              setFilters={setFilters}
-              onSearch={handleAreaSearch}
-              isSearching={isSearching}
-              activeFilterCount={activeFilterCount}
-            />
-          </div>
-        )}
-
         {/* Address Lookup Mode */}
-        {searchMode === "address" && (
-          <div className="max-w-2xl mx-auto mb-8">
-            <div className="relative">
-              <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/50" />
-              <input
-                type="text"
-                value={addressQuery}
-                onChange={(e) => setAddressQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    // Use the area search with address
-                    if (addressQuery.trim()) {
-                      setFilters({ ...filters, city: "", zip: "" })
-                      // Parse simple city, state from address
-                      const parts = addressQuery.split(",").map((p) => p.trim())
-                      if (parts.length >= 2) {
-                        const stateZip = parts[parts.length - 1].match(/([A-Z]{2})\s*(\d{5})?/i)
-                        if (stateZip) {
-                          setFilters((prev) => ({
-                            ...prev,
-                            city: parts.length >= 3 ? parts[1] : "",
-                            state: stateZip[1].toUpperCase(),
-                            zip: stateZip[2] || "",
-                          }))
-                        }
-                      }
-                      handleAreaSearch()
-                    }
+        <div className="max-w-2xl mx-auto mb-8">
+          <div className="relative">
+            <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/50" />
+            <input
+              type="text"
+              value={addressQuery}
+              onChange={(e) => {
+                setAddressQuery(e.target.value)
+                setSelectedSuggestion(null)
+              }}
+              onFocus={() => {
+                if (suggestions.length > 0) setShowSuggestions(true)
+              }}
+              onBlur={() => {
+                setTimeout(() => setShowSuggestions(false), 200)
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  if (selectedSuggestion) {
+                    setAddressQuery(selectedSuggestion.description)
+                    setShowSuggestions(false)
                   }
-                }}
-                placeholder="Enter address: 123 Main St, Austin, TX 78701"
-                className="w-full bg-input border border-border rounded-xl py-3.5 pl-12 pr-32 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary"
-              />
-              <button
-                onClick={handleAreaSearch}
-                disabled={isSearching}
-                className="absolute right-2 top-1/2 -translate-y-1/2 px-6 py-2 bg-primary hover:bg-primary/90 disabled:bg-primary/50 text-primary-foreground font-semibold rounded-lg transition-colors flex items-center gap-2"
-              >
-                {isSearching ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span className="hidden sm:inline">Searching...</span>
-                  </>
-                ) : (
-                  "Search"
-                )}
-              </button>
-            </div>
-          </div>
-        )}
+                  handleAddressSearch()
+                }
+              }}
+              placeholder="Enter complete address: 123 Main St, Los Angeles, CA 90001"
+              className="w-full bg-input border border-border rounded-xl py-3.5 pl-12 pr-32 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary"
+              autoComplete="off"
+            />
+            <button
+              type="button"
+              onClick={handleAddressSearch}
+              disabled={isSearching}
+              className="absolute right-2 top-1/2 -translate-y-1/2 px-6 py-2 bg-primary hover:bg-primary/90 disabled:bg-primary/50 text-primary-foreground font-semibold rounded-lg transition-colors flex items-center gap-2"
+            >
+              {isSearching ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="hidden sm:inline">Searching...</span>
+                </>
+              ) : (
+                "Search"
+              )}
+            </button>
 
-        {/* Quick Search Presets */}
-        {!hasSearched && !isSearching && (
-          <div className="max-w-3xl mx-auto mb-12">
-            <p className="text-xs text-muted-foreground mb-3 text-center">Quick Searches</p>
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              {[
-                { label: "Foreclosures in LA", city: "Los Angeles", state: "CA", foreclosure: true },
-                { label: "Tax Default - Sacramento", city: "Sacramento", state: "CA", taxDelinquent: true },
-                { label: "Absentee Owners - Phoenix", city: "Phoenix", state: "AZ", absenteeOwner: true },
-                { label: "Vacant Properties - Miami", city: "Miami", state: "FL", vacant: true },
-                { label: "High Equity - Dallas", city: "Dallas", state: "TX", equityMin: "50" },
-                { label: "Pre-Foreclosure - Atlanta", city: "Atlanta", state: "GA", foreclosure: true },
-                { label: "Divorce Sales - Las Vegas", city: "Las Vegas", state: "NV", divorce: true },
-                { label: "Deceased Owner - Houston", city: "Houston", state: "TX", deceased: true },
-              ].map((preset) => (
-                <button
-                  key={preset.label}
-                  onClick={() => {
-                    setSearchMode("area")
-                    setFilters({
-                      ...DEFAULT_FILTERS,
-                      city: preset.city,
-                      state: preset.state,
-                      foreclosure: preset.foreclosure || false,
-                      taxDelinquent: preset.taxDelinquent || false,
-                      absenteeOwner: preset.absenteeOwner || false,
-                      vacant: preset.vacant || false,
-                      divorce: ("divorce" in preset && preset.divorce) || false,
-                      deceased: ("deceased" in preset && preset.deceased) || false,
-                      equityMin: ("equityMin" in preset && preset.equityMin as string) || "",
-                    })
-                    setTimeout(() => {
-                      document.querySelector<HTMLButtonElement>("[data-search-trigger]")?.click()
-                    }, 50)
-                  }}
-                  className="px-4 py-2 bg-card border border-border rounded-lg text-sm text-muted-foreground hover:text-primary hover:border-primary/30 transition-colors"
+            {/* Autocomplete Suggestions */}
+            <AnimatePresence>
+              {showSuggestions && suggestions.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -5 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-xl shadow-lg z-50 max-h-80 overflow-y-auto"
                 >
-                  {preset.label}
-                </button>
-              ))}
+                  {suggestions.map((suggestion, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        setAddressQuery(suggestion.description)
+                        setSelectedSuggestion(suggestion)
+                        setShowSuggestions(false)
+                      }}
+                      className="w-full flex items-start gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors border-b border-border/50 last:border-0 text-left"
+                    >
+                      <MapPin className="w-4 h-4 text-primary/60 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-foreground truncate">
+                          {suggestion.mainText}
+                        </div>
+                        {suggestion.secondaryText && (
+                          <div className="text-xs text-muted-foreground truncate">
+                            {suggestion.secondaryText}
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            {loadingAutocomplete ? "Loading suggestions..." : "Powered by PropertyAPI - Enter a complete street address for property details"}
+          </p>
+        </div>
+
+        {/* Quick Tips */}
+        {!hasSearched && !isSearching && (
+          <div className="max-w-3xl mx-auto mb-12 text-center">
+            <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 mb-6">
+              <p className="text-sm text-muted-foreground">
+                💡 <span className="text-foreground font-medium">PropertyAPI Tip:</span> Enter a specific street address for detailed property information including owner data, valuations, and legal details.
+              </p>
             </div>
 
             {/* Campaign CTA */}
-            <div className="mt-6 text-center">
-              <Link
-                href="/app/campaigns"
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary/10 border border-primary/20 hover:bg-primary/15 text-primary font-semibold rounded-xl text-sm transition-colors"
-              >
-                <Filter className="w-4 h-4" />
-                Run Full AI Lead Campaign
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-              <p className="text-xs text-muted-foreground mt-2">
-                8 pre-built campaigns with AI lead scoring, grading, and CSV export
-              </p>
-            </div>
+            <Link
+              href="/app/campaigns"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary/10 border border-primary/20 hover:bg-primary/15 text-primary font-semibold rounded-xl text-sm transition-colors"
+            >
+              <Filter className="w-4 h-4" />
+              Run Full AI Lead Campaign
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+            <p className="text-xs text-muted-foreground mt-2">
+              8 pre-built campaigns with AI lead scoring and CSV export
+            </p>
           </div>
         )}
 
@@ -1214,8 +1226,8 @@ export default function PropertySearchPage() {
               </h2>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
                 {[
-                  { num: "1", title: "Search", desc: "Search by city, zip, or address with 250+ criteria" },
-                  { num: "2", title: "Filter", desc: "Foreclosures, distress, equity, owner type & more" },
+                  { num: "1", title: "Search", desc: "Search by full street address for parcel details" },
+                  { num: "2", title: "Filter", desc: "View owner, valuation, and legal data" },
                   { num: "3", title: "Analyze", desc: "Run numbers in the Deal Analyzer" },
                   { num: "4", title: "Submit", desc: "Apply for capital with 1 click" },
                 ].map((step, idx) => (
@@ -1246,7 +1258,7 @@ export default function PropertySearchPage() {
                 Search 150M+ Properties Nationwide
               </h2>
               <p className="text-muted-foreground max-w-md mx-auto text-pretty">
-                Use PropertyRadar's 250+ search criteria to find foreclosures, distressed properties, motivated sellers, and hidden deals.
+                Use PropertyAPI address lookup to find owner data, valuations, legal details, and parcel information.
               </p>
             </motion.div>
           </>
@@ -1256,8 +1268,8 @@ export default function PropertySearchPage() {
         {isSearching && (
           <div className="text-center py-20">
             <Loader2 className="w-12 h-12 mx-auto mb-4 text-primary animate-spin" />
-            <h2 className="text-xl font-semibold text-foreground mb-2">Searching PropertyRadar...</h2>
-            <p className="text-muted-foreground">Querying 150M+ property records with your criteria</p>
+            <h2 className="text-xl font-semibold text-foreground mb-2">Searching PropertyAPI...</h2>
+            <p className="text-muted-foreground">Looking up the address for detailed property information</p>
           </div>
         )}
 
@@ -1270,7 +1282,7 @@ export default function PropertySearchPage() {
                   {resultCount} {resultCount === 1 ? "Property" : "Properties"} Found
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  Real-time data from PropertyRadar
+                  Real-time data from PropertyAPI
                   {activeFilterCount > 0 ? ` | ${activeFilterCount} filters active` : ""}
                 </p>
               </div>
@@ -1322,7 +1334,7 @@ export default function PropertySearchPage() {
       </AnimatePresence>
 
       {/* Hidden search trigger for quick presets */}
-      <button data-search-trigger className="hidden" onClick={handleAreaSearch} />
+      <button data-search-trigger className="hidden" onClick={() => handleSearch()} />
     </div>
   )
 }

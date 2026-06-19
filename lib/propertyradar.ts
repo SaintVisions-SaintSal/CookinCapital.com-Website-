@@ -15,7 +15,11 @@
 const BASE_URL = "https://api.propertyradar.com"
 
 function getApiKey(): string {
-  const key = process.env.PROPERTYRADAR_API_KEY
+  const key =
+    process.env.PROPERTYRADAR_API_KEY ||
+    process.env.PROPERTY_RADAR_API_TOKEN ||
+    process.env.PROPERTY_RADAR_API_KEY
+
   if (!key) throw new Error("[PropertyRadar] PROPERTYRADAR_API_KEY not set")
   return key
 }
