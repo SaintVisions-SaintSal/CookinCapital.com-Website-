@@ -4,8 +4,10 @@ import {
   mapToPropertyResult,
   type PropertySearchParams,
 } from "@/lib/propertyradar"
-import { formatApiError, parseAddressQuery } from "@/lib/property-search-utils"
-import { getPropertyImagePath } from "@/lib/google-maps"
+import { formatApiError, getPropertySearchErrorStatus, parseAddressQuery } from "@/lib/property-search-utils"
+import { getPropertyImagePath, resolveSearchLocation } from "@/lib/google-maps"
+
+export const maxDuration = 60
 
 const PROPERTY_API_KEY =
   process.env.PROPERTYAPI_KEY || process.env.PROPERTY_API || process.env.PROPERTY_API_KEY
@@ -24,18 +26,28 @@ function hasPropertyRadarKey(): boolean {
   )
 }
 
-function buildSearchParams(body: Record<string, unknown>): PropertySearchParams {
+async function buildSearchParams(body: Record<string, unknown>): Promise<PropertySearchParams> {
   const addressInput =
     (body.address as string) ||
     `${body.streetAddress || ""} ${body.city || ""} ${body.state || ""} ${body.zip || ""}`.trim()
 
   const parsed = addressInput ? parseAddressQuery(addressInput) : null
+  const geocoded = addressInput ? await resolveSearchLocation(addressInput) : null
+
+  const stateOnly = geocoded?.stateOnly || parsed?.stateOnly
+  const countyOnly = geocoded?.countyOnly || parsed?.countyOnly
 
   const params: PropertySearchParams = {
-    state: (body.state as string) || parsed?.state || "CA",
-    city: (body.city as string) || parsed?.city,
-    zip: (body.zip as string) || parsed?.zip,
-    address: parsed?.address || (parsed?.hasStreetNumber ? addressInput : undefined),
+    state: geocoded?.state || parsed?.state || (body.state as string),
+    city: stateOnly || countyOnly
+      ? undefined
+      : geocoded?.city || parsed?.city || (body.city as string),
+    zip: geocoded?.zip || parsed?.zip || (body.zip as string),
+    county: geocoded?.county || parsed?.county || (body.county as string),
+    address:
+      geocoded?.address ||
+      parsed?.address ||
+      (parsed?.hasStreetNumber ? addressInput : undefined),
     limit: typeof body.limit === "number" ? body.limit : 20,
     purchase: body.purchase === 0 ? 0 : 1,
   }
@@ -91,14 +103,14 @@ export async function GET(request: NextRequest) {
 
   if (!address) {
     return NextResponse.json(
-      { error: "address query parameter is required (e.g., ?address=Los%20Angeles,%20CA)" },
+      { error: "address query parameter is required (e.g., ?address=Houston,%20TX)" },
       { status: 400 },
     )
   }
 
   try {
     if (hasPropertyRadarKey()) {
-      const params = buildSearchParams({ address, state: sp.get("state") || "CA" })
+      const params = await buildSearchParams({ address, state: sp.get("state") || undefined })
       const radar = await searchPropertyRadar(params)
       if (radar.properties.length > 0) return NextResponse.json(radar)
     }
@@ -110,13 +122,13 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: "No properties found for this location. Try a different city or full street address." },
+      { error: "No properties found for this location. Try a city, state, or full street address." },
       { status: 404 },
     )
   } catch (error) {
     console.error("Property search GET error:", error)
     const msg = error instanceof Error ? error.message : "Property search failed"
-    return NextResponse.json({ error: formatApiError(msg) }, { status: 502 })
+    return NextResponse.json({ error: formatApiError(msg) }, { status: getPropertySearchErrorStatus(msg) })
   }
 }
 
@@ -133,15 +145,14 @@ export async function POST(request: NextRequest) {
 
   if (!addressInput && !body.city && !body.zip) {
     return NextResponse.json(
-      { error: "Enter a city, zip code, or address to search." },
+      { error: "Enter a city, state, zip code, or address to search." },
       { status: 400 },
     )
   }
 
   try {
-    // 1. PropertyRadar (primary)
     if (hasPropertyRadarKey()) {
-      const params = buildSearchParams(body)
+      const params = await buildSearchParams(body)
       console.log("[property-search] PropertyRadar params:", JSON.stringify(params))
 
       const radar = await searchPropertyRadar(params)
@@ -150,7 +161,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 2. PropertyAPI fallback for full street addresses
     const parsed = parseAddressQuery(addressInput || "")
     if (parsed.hasStreetNumber && PROPERTY_API_KEY) {
       console.log("[property-search] PropertyAPI fallback for:", addressInput)
@@ -162,14 +172,14 @@ export async function POST(request: NextRequest) {
       {
         error: parsed.hasStreetNumber
           ? "No property found at this address. Try a different address or check spelling."
-          : "No properties found in this area. Try another city or add a state (e.g., Los Angeles, CA).",
+          : "No properties found for this location. Try a city and state (e.g., Houston, TX) or search an entire state (e.g., Texas, USA).",
       },
       { status: 404 },
     )
   } catch (error) {
     console.error("Property search POST error:", error)
     const msg = error instanceof Error ? error.message : "Property search failed"
-    return NextResponse.json({ error: formatApiError(msg) }, { status: 502 })
+    return NextResponse.json({ error: formatApiError(msg) }, { status: getPropertySearchErrorStatus(msg) })
   }
 }
 

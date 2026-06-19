@@ -129,8 +129,10 @@ interface SearchFilters {
 interface AutocompletePrediction {
   placeId: string
   description: string
+  searchQuery: string
   mainText: string
   secondaryText?: string
+  locationType?: string
 }
 
 const DEFAULT_FILTERS: SearchFilters = {
@@ -960,6 +962,7 @@ export default function PropertySearchPage() {
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [loadingAutocomplete, setLoadingAutocomplete] = useState(false)
   const [selectedSuggestion, setSelectedSuggestion] = useState<AutocompletePrediction | null>(null)
+  const [highlightedIndex, setHighlightedIndex] = useState(-1)
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
   const autocompleteLockedRef = useRef(false)
   const sessionTokenRef = useRef<string>(
@@ -983,6 +986,7 @@ export default function PropertySearchPage() {
 
       if (data.predictions) {
         setSuggestions(data.predictions)
+        setHighlightedIndex(-1)
         setShowSuggestions(true)
       } else {
         setSuggestions([])
@@ -1052,7 +1056,6 @@ export default function PropertySearchPage() {
 
     try {
       const body: Record<string, unknown> = {
-        state: filters.state || "CA",
         limit: 20,
         purchase: 1,
       }
@@ -1060,6 +1063,7 @@ export default function PropertySearchPage() {
       if (address) {
         body.address = address
       } else {
+        body.state = filters.state || "CA"
         if (filters.city) body.city = filters.city
         if (filters.zip) body.zip = filters.zip
       }
@@ -1122,8 +1126,17 @@ export default function PropertySearchPage() {
     setSelectedSuggestion(suggestion)
     setSuggestions([])
     setShowSuggestions(false)
+    setHighlightedIndex(-1)
     setLoadingAutocomplete(false)
-    handleSearch({ address: suggestion.description })
+    setError(null)
+
+    // New Places session after a confirmed selection (Google billing)
+    sessionTokenRef.current =
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `session-${Date.now()}`
+
+    handleSearch({ address: suggestion.searchQuery || suggestion.description })
   }, [handleSearch])
 
   const toggleFavorite = (id: string) => {
@@ -1131,15 +1144,17 @@ export default function PropertySearchPage() {
   }
 
   const handleAddressSearch = () => {
-    const address = (selectedSuggestion?.description || addressQuery).trim()
-    if (!address) {
-      setError("Please enter a city or address")
+    if (highlightedIndex >= 0 && suggestions[highlightedIndex]) {
+      applyLocationSelection(suggestions[highlightedIndex])
       return
     }
+
     if (selectedSuggestion) {
-      setAddressQuery(selectedSuggestion.description)
+      applyLocationSelection(selectedSuggestion)
+      return
     }
-    handleSearch({ address })
+
+    setError("Please select a city or state from the dropdown suggestions.")
   }
 
   const handleViewDetail = useCallback(async (property: PropertyResult) => {
@@ -1226,6 +1241,8 @@ export default function PropertySearchPage() {
                 autocompleteLockedRef.current = false
                 setAddressQuery(e.target.value)
                 setSelectedSuggestion(null)
+                setHighlightedIndex(-1)
+                setError(null)
               }}
               onFocus={() => {
                 if (!autocompleteLockedRef.current && suggestions.length > 0) {
@@ -1236,23 +1253,46 @@ export default function PropertySearchPage() {
                 setTimeout(() => setShowSuggestions(false), 200)
               }}
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  if (selectedSuggestion) {
-                    applyLocationSelection(selectedSuggestion)
-                    return
+                if (e.key === "ArrowDown") {
+                  e.preventDefault()
+                  if (suggestions.length > 0) {
+                    setShowSuggestions(true)
+                    setHighlightedIndex((prev) => (prev + 1) % suggestions.length)
                   }
+                  return
+                }
+                if (e.key === "ArrowUp") {
+                  e.preventDefault()
+                  if (suggestions.length > 0) {
+                    setShowSuggestions(true)
+                    setHighlightedIndex((prev) =>
+                      prev <= 0 ? suggestions.length - 1 : prev - 1
+                    )
+                  }
+                  return
+                }
+                if (e.key === "Escape") {
+                  setShowSuggestions(false)
+                  setHighlightedIndex(-1)
+                  return
+                }
+                if (e.key === "Enter") {
+                  e.preventDefault()
                   handleAddressSearch()
                 }
               }}
-              placeholder="Search by city or address: Los Angeles, CA or 123 Main St, Los Angeles, CA"
+              placeholder="Type a city or state, then pick from the list"
               className="w-full bg-input border border-border rounded-xl py-3.5 pl-12 pr-32 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary"
               autoComplete="off"
+              role="combobox"
+              aria-expanded={showSuggestions}
+              aria-autocomplete="list"
             />
             <button
               type="button"
               onClick={handleAddressSearch}
-              disabled={isSearching}
-              className="absolute right-2 top-1/2 -translate-y-1/2 px-6 py-2 bg-primary hover:bg-primary/90 disabled:bg-primary/50 text-primary-foreground font-semibold rounded-lg transition-colors flex items-center gap-2"
+              disabled={isSearching || (!selectedSuggestion && highlightedIndex < 0)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 px-6 py-2 bg-primary hover:bg-primary/90 disabled:bg-primary/50 disabled:cursor-not-allowed text-primary-foreground font-semibold rounded-lg transition-colors flex items-center gap-2"
             >
               {isSearching ? (
                 <>
@@ -1276,9 +1316,16 @@ export default function PropertySearchPage() {
                 >
                   {suggestions.map((suggestion, idx) => (
                     <button
-                      key={idx}
+                      key={suggestion.placeId}
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
                       onClick={() => applyLocationSelection(suggestion)}
-                      className="w-full flex items-start gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors border-b border-border/50 last:border-0 text-left"
+                      onMouseEnter={() => setHighlightedIndex(idx)}
+                      className={`w-full flex items-start gap-3 px-4 py-3 transition-colors border-b border-border/50 last:border-0 text-left ${
+                        highlightedIndex === idx
+                          ? "bg-primary/10"
+                          : "hover:bg-secondary/50"
+                      }`}
                     >
                       <MapPin className="w-4 h-4 text-primary/60 flex-shrink-0 mt-0.5" />
                       <div className="flex-1 min-w-0">
@@ -1300,7 +1347,9 @@ export default function PropertySearchPage() {
           <p className="text-xs text-muted-foreground mt-2">
             {loadingAutocomplete
               ? "Loading location suggestions..."
-              : "Location suggestions powered by Google Places · Property data from PropertyRadar"}
+              : selectedSuggestion
+                ? `Selected: ${selectedSuggestion.description} · Click Search or press Enter`
+                : "Select a city or state from the dropdown — manual search is disabled"}
           </p>
         </div>
 
@@ -1309,7 +1358,7 @@ export default function PropertySearchPage() {
           <div className="max-w-3xl mx-auto mb-12 text-center">
             <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 mb-6">
               <p className="text-sm text-muted-foreground">
-                💡 <span className="text-foreground font-medium">Search tip:</span> Type a city (e.g. Los Angeles, CA) to browse properties, or a full street address for a specific parcel. Click a result for full owner and legal details.
+                💡 <span className="text-foreground font-medium">How to search:</span> Start typing a city or state, choose a suggestion from the dropdown (e.g. <span className="text-foreground">Houston, TX</span> or <span className="text-foreground">Texas</span>), then search. Click a property for full details.
               </p>
             </div>
 
@@ -1382,7 +1431,7 @@ export default function PropertySearchPage() {
                 Search 150M+ Properties Nationwide
               </h2>
               <p className="text-muted-foreground max-w-md mx-auto text-pretty">
-                Use PropertyRadar to search 150M+ properties nationwide — owner data, valuations, distress signals, and parcel details.
+                Use PropertyRadar to search nationwide — pick a location from the dropdown, then browse owner data, valuations, and distress signals.
               </p>
             </motion.div>
           </>

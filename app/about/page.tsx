@@ -78,7 +78,7 @@ export default function AboutPage() {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <main className="pt-32 pb-20">
+      <main className="pt-12 pb-20">
         {/* Hero Section */}
         <section className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">

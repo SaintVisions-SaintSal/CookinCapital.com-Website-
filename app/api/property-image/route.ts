@@ -11,6 +11,8 @@ export async function GET(request: NextRequest) {
   const latParam = sp.get("lat")
   const lngParam = sp.get("lng")
   const address = sp.get("address")
+  const heading = Number(sp.get("heading") || 0)
+  const view = sp.get("view")
 
   let lat = latParam ? Number(latParam) : NaN
   let lng = lngParam ? Number(lngParam) : NaN
@@ -28,10 +30,17 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const streetViewAvailable = await hasStreetViewImagery(lat, lng)
-    const imageUrl = streetViewAvailable
-      ? getStreetViewUrl(lat, lng, 640, 360)
-      : getStaticMapUrl(lat, lng, 18, 640, 360)
+    const useSatellite = view === "satellite"
+    let imageUrl = ""
+
+    if (useSatellite) {
+      imageUrl = getStaticMapUrl(lat, lng, 19, 960, 540)
+    } else {
+      const streetViewAvailable = await hasStreetViewImagery(lat, lng)
+      imageUrl = streetViewAvailable
+        ? getStreetViewUrl(lat, lng, 960, 540, heading)
+        : getStaticMapUrl(lat, lng, 18, 960, 540)
+    }
 
     if (!imageUrl) {
       return NextResponse.json({ error: "Google Maps API key not configured" }, { status: 500 })

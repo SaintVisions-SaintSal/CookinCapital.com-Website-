@@ -679,7 +679,7 @@ export function CapitalPage() {
     .map(([key, product]) => ({ ...product, key }))
 
   return (
-    <div className="pt-20">
+    <div>
       {/* Hero Section */}
       <section className="relative overflow-hidden py-24 lg:py-32">
         <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent" />

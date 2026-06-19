@@ -38,7 +38,7 @@ export default function HelpPage() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="pt-32 pb-20">
+      <main className="pt-12 pb-20">
         <Suspense fallback={<HelpCenterSkeleton />}>
           <HelpCenter />
         </Suspense>

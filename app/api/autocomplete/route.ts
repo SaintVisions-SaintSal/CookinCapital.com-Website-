@@ -1,10 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { formatPlacePrediction } from "@/lib/place-format"
 
 const GOOGLE_PLACES_API_KEY = process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_MAPS_API
 
 // -------------------------------------------------------
 // GET /api/autocomplete
-// Address autocomplete using Google Places API
+// Location autocomplete — cities, states, counties, zips
 // -------------------------------------------------------
 export async function GET(request: NextRequest) {
   const input = request.nextUrl.searchParams.get("input")
@@ -22,12 +23,12 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Call Google Places API for address predictions
     const url = new URL("https://maps.googleapis.com/maps/api/place/autocomplete/json")
     url.searchParams.set("input", input)
     url.searchParams.set("key", GOOGLE_PLACES_API_KEY)
-    url.searchParams.set("components", "country:us") // Restrict to US
-    url.searchParams.set("types", "geocode") // Only geocoded locations (addresses, buildings, etc)
+    url.searchParams.set("components", "country:us")
+    // Cities, states, counties, and postal codes — not highways or vague geocodes
+    url.searchParams.set("types", "(regions)")
 
     if (sessionToken) {
       url.searchParams.set("sessiontoken", sessionToken)
@@ -38,16 +39,7 @@ export async function GET(request: NextRequest) {
 
     if (data.status === "OK" && data.predictions) {
       return NextResponse.json({
-        predictions: data.predictions.map((p: {
-          place_id: string
-          description: string
-          structured_formatting?: { main_text?: string; secondary_text?: string }
-        }) => ({
-          placeId: p.place_id,
-          description: p.description,
-          mainText: p.structured_formatting?.main_text || p.description,
-          secondaryText: p.structured_formatting?.secondary_text,
-        })),
+        predictions: data.predictions.map(formatPlacePrediction),
       })
     }
 
@@ -62,7 +54,6 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Other statuses like OVER_QUERY_LIMIT, REQUEST_DENIED, UNKNOWN_ERROR
     console.error("[Autocomplete] Google API error:", data.status, data.error_message)
     return NextResponse.json(
       { error: "Autocomplete service unavailable" },
@@ -76,7 +67,7 @@ export async function GET(request: NextRequest) {
 }
 
 // -------------------------------------------------------
-// POST /api/autocomplete/details
+// POST /api/autocomplete
 // Get detailed place information (address components)
 // -------------------------------------------------------
 export async function POST(request: NextRequest) {
@@ -95,13 +86,12 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Call Google Place Details API
     const url = new URL("https://maps.googleapis.com/maps/api/place/details/json")
     url.searchParams.set("place_id", placeId)
     url.searchParams.set("key", GOOGLE_PLACES_API_KEY)
     url.searchParams.set(
       "fields",
-      "formatted_address,geometry,address_components,place_id"
+      "formatted_address,geometry,address_components,place_id,types"
     )
 
     if (sessionToken) {
@@ -119,6 +109,7 @@ export async function POST(request: NextRequest) {
         lng: result.geometry?.location?.lng,
         components: result.address_components || [],
         placeId: result.place_id,
+        types: result.types || [],
       })
     }
 

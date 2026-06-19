@@ -24,9 +24,10 @@ export function Header() {
   }, [])
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <nav className="flex h-20 items-center justify-between">
+    <>
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <nav className="flex h-20 items-center justify-between">
           <Link href="/" className="flex items-center gap-3 flex-shrink-0 min-w-fit">
             <div className="relative h-12 w-12 flex-shrink-0">
               <Image src="/saintsal-logo.png" alt="SaintSal" fill className="rounded-xl object-contain" />
@@ -157,7 +158,9 @@ export function Header() {
             </div>
           </div>
         )}
-      </div>
-    </header>
+        </div>
+      </header>
+      <div className="h-20 shrink-0" aria-hidden="true" />
+    </>
   )
 }

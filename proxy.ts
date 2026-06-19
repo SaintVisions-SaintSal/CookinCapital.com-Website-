@@ -34,6 +34,7 @@ export async function proxy(request: NextRequest) {
     "/prequal",
     "/apply",
     "/research",
+    "/properties",
     "/auth/login",
     "/auth/sign-up",
     "/auth/callback",

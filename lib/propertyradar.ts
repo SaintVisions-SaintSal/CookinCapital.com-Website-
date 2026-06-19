@@ -4,9 +4,119 @@
  * Docs: https://developers.propertyradar.com
  */
 
+import { request as httpsRequest } from "node:https"
 import { getPropertyImagePath } from "@/lib/google-maps"
 
 const BASE_URL = "https://api.propertyradar.com"
+const RADAR_FETCH_RETRIES = 3
+const RADAR_REQUEST_TIMEOUT_MS = 45_000
+
+interface RadarHttpResponse {
+  ok: boolean
+  status: number
+  text: () => Promise<string>
+  json: () => Promise<unknown>
+}
+
+function isRetryableRadarError(error: unknown): boolean {
+  const candidates: unknown[] = [error]
+  if (error instanceof Error && error.cause) candidates.push(error.cause)
+
+  return candidates.some((candidate) => {
+    if (!(candidate instanceof Error)) return false
+    const code = (candidate as NodeJS.ErrnoException).code
+    return (
+      code === "UND_ERR_CONNECT_TIMEOUT" ||
+      code === "UND_ERR_HEADERS_TIMEOUT" ||
+      code === "UND_ERR_BODY_TIMEOUT" ||
+      code === "ETIMEDOUT" ||
+      code === "ECONNRESET" ||
+      code === "ENOTFOUND" ||
+      code === "EAI_AGAIN" ||
+      /timeout|fetch failed|socket hang up/i.test(candidate.message)
+    )
+  })
+}
+
+function httpsFetchOnce(
+  url: string,
+  method: string,
+  headers: Record<string, string>,
+  body?: string,
+): Promise<RadarHttpResponse> {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(url)
+    const req = httpsRequest(
+      {
+        protocol: parsed.protocol,
+        hostname: parsed.hostname,
+        port: parsed.port || 443,
+        path: `${parsed.pathname}${parsed.search}`,
+        method,
+        headers: body
+          ? { ...headers, "Content-Length": String(Buffer.byteLength(body)) }
+          : headers,
+        timeout: RADAR_REQUEST_TIMEOUT_MS,
+      },
+      (res) => {
+        const chunks: Buffer[] = []
+        res.on("data", (chunk) => chunks.push(chunk))
+        res.on("end", () => {
+          const text = Buffer.concat(chunks).toString("utf8")
+          const status = res.statusCode || 500
+          resolve({
+            ok: status >= 200 && status < 300,
+            status,
+            text: async () => text,
+            json: async () => JSON.parse(text),
+          })
+        })
+      },
+    )
+
+    req.on("timeout", () => {
+      req.destroy()
+      reject(Object.assign(new Error("PropertyRadar request timed out"), { code: "ETIMEDOUT" }))
+    })
+    req.on("error", reject)
+    if (body) req.write(body)
+    req.end()
+  })
+}
+
+async function radarFetch(url: string, init?: RequestInit): Promise<RadarHttpResponse> {
+  const method = init?.method || "GET"
+  const headerInit = init?.headers
+  const headers: Record<string, string> = {}
+
+  if (headerInit instanceof Headers) {
+    headerInit.forEach((value, key) => {
+      headers[key] = value
+    })
+  } else if (Array.isArray(headerInit)) {
+    headerInit.forEach(([key, value]) => {
+      headers[key] = value
+    })
+  } else if (headerInit) {
+    Object.assign(headers, headerInit)
+  }
+
+  const body = typeof init?.body === "string" ? init.body : undefined
+  let lastError: unknown
+
+  for (let attempt = 0; attempt <= RADAR_FETCH_RETRIES; attempt++) {
+    try {
+      return await httpsFetchOnce(url, method, headers, body)
+    } catch (error) {
+      lastError = error
+      if (!isRetryableRadarError(error) || attempt === RADAR_FETCH_RETRIES) break
+      console.warn(`[PropertyRadar] request failed (attempt ${attempt + 1}), retrying...`, error)
+      await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)))
+    }
+  }
+
+  throw lastError
+}
 
 function getApiKey(): string {
   const key =
@@ -469,7 +579,7 @@ export async function searchProperties(
   console.log("[PropertyRadar] POST", url)
   console.log("[PropertyRadar] Criteria:", JSON.stringify(criteria, null, 2))
 
-  const res = await fetch(url, {
+  const res = await radarFetch(url, {
     method: "POST",
     headers: headers(),
     body: JSON.stringify({ Criteria: criteria }),
@@ -503,7 +613,7 @@ export async function getProperty(
 
   console.log("[PropertyRadar] GET property:", radarId)
 
-  const res = await fetch(url, { headers: headers() })
+  const res = await radarFetch(url, { headers: headers() })
 
   if (!res.ok) {
     console.error(`[PropertyRadar] getProperty error ${res.status}:`, await res.text())
@@ -527,7 +637,7 @@ export async function getPropertyPersons(
 
   console.log("[PropertyRadar] GET persons:", radarId)
 
-  const res = await fetch(url, { headers: headers() })
+  const res = await radarFetch(url, { headers: headers() })
   if (!res.ok) {
     console.error(`[PropertyRadar] getPersons error ${res.status}`)
     return []
@@ -548,7 +658,7 @@ export async function getSalesComps(
 
   console.log("[PropertyRadar] GET sales comps:", radarId)
 
-  const res = await fetch(url, { headers: headers() })
+  const res = await radarFetch(url, { headers: headers() })
   if (!res.ok) {
     console.error(`[PropertyRadar] getSalesComps error ${res.status}`)
     return []
@@ -569,7 +679,7 @@ export async function getListingComps(
 
   console.log("[PropertyRadar] GET listing comps:", radarId)
 
-  const res = await fetch(url, { headers: headers() })
+  const res = await radarFetch(url, { headers: headers() })
   if (!res.ok) {
     console.error(`[PropertyRadar] getListingComps error ${res.status}`)
     return []
@@ -585,7 +695,7 @@ export async function getListingComps(
 export async function lookupFips(countyName: string): Promise<{ fips: string; name: string }[]> {
   const url = `${BASE_URL}/v1/suggestions/fips?SuggestionInput=${encodeURIComponent(countyName)}`
 
-  const res = await fetch(url, { headers: headers() })
+  const res = await radarFetch(url, { headers: headers() })
   if (!res.ok) return []
 
   const data = await res.json()

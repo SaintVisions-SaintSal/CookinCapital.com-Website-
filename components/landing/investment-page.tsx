@@ -100,7 +100,7 @@ export function InvestmentPage() {
       <Header />
 
       {/* Hero Section */}
-      <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-32 overflow-hidden">
+      <section className="relative pt-12 pb-20 lg:pt-20 lg:pb-32 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent" />
         <div className="mx-auto max-w-7xl px-6 lg:px-8 relative">
           <div className="mx-auto max-w-3xl text-center">

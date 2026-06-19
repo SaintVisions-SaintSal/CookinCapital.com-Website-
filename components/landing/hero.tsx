@@ -1,10 +1,11 @@
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { ArrowRight, Brain, Database, Lock, Globe, Zap, Cpu } from "lucide-react"
+import { HomePropertySearch } from "@/components/landing/home-property-search"
 
 export function Hero() {
   return (
-    <section className="relative overflow-hidden pt-28 pb-20 lg:pt-36 lg:pb-28">
+    <section className="relative overflow-hidden pt-8 pb-20 lg:pt-16 lg:pb-28">
       <div className="absolute inset-0 -z-10">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--border)/0.3)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--border)/0.3)_1px,transparent_1px)] bg-[size:4rem_4rem]" />
         <div className="absolute top-0 left-1/2 -translate-x-1/2 h-[800px] w-[800px] rounded-full bg-primary/5 blur-[120px]" />
@@ -32,6 +33,8 @@ export function Hero() {
               intelligence converge. Every deal analyzed, graded, and executed with precision—powered by{" "}
               <span className="text-primary font-medium">SaintSal™</span>, our proprietary decision engine.
             </p>
+
+            <HomePropertySearch />
           </div>
 
           <div className="mt-16 grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -43,7 +46,7 @@ export function Hero() {
             <div className="group relative rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm p-5 transition-all hover:border-primary/30 hover:bg-card">
               <Database className="h-6 w-6 text-primary mb-3" />
               <p className="font-medium text-foreground text-sm">35+ Data Endpoints</p>
-              <p className="mt-1 text-xs text-muted-foreground">PropertyAPI, MLS, County Records</p>
+              <p className="mt-1 text-xs text-muted-foreground">PropertyRadar, MLS, County Records</p>
             </div>
             <div className="group relative rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm p-5 transition-all hover:border-primary/30 hover:bg-card">
               <Lock className="h-6 w-6 text-primary mb-3" />

@@ -1,5 +1,5 @@
-import PropertySearchPage from "@/components/app/property-search/property-search-page"
+import { redirect } from "next/navigation"
 
 export default function PropertiesPage() {
-  return <PropertySearchPage />
+  redirect("/properties/search")
 }

@@ -1,0 +1,177 @@
+"use client"
+
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { AlertCircle, Building2, Loader2, MapPin } from "lucide-react"
+import Link from "next/link"
+import { PropertyFiltersSidebar } from "@/components/property/property-filters-sidebar"
+import { PropertyListItem } from "@/components/property/property-list-item"
+import { LocationSearchInput } from "@/components/property/location-search-input"
+import { filtersToQueryParams, filtersToSearchBody, parseFiltersFromParams } from "@/lib/property/search"
+import { readPropertySearchCache, writePropertySearchCache } from "@/lib/property/storage"
+import type { AutocompletePrediction, PropertyResult, PropertySearchFilters } from "@/lib/property/types"
+import { usePropertySaved } from "@/hooks/use-property-saved"
+
+export function PropertySearchPageClient() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const location = searchParams.get("q") || ""
+  const [filters, setFilters] = useState<PropertySearchFilters>(() => parseFiltersFromParams(searchParams))
+  const [results, setResults] = useState<PropertyResult[]>([])
+  const [resultCount, setResultCount] = useState(0)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const { recordRecentSearch, toggleFavorite, isFavorite } = usePropertySaved()
+
+  const returnPath = `/properties/search?${searchParams.toString()}`
+
+  const runSearch = useCallback(async (searchLocation: string, activeFilters: PropertySearchFilters, paramsKey: string) => {
+    if (!searchLocation) {
+      setError("Select a location from the suggestions to begin your search.")
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      const res = await fetch("/api/property-search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(filtersToSearchBody(activeFilters, searchLocation)),
+      })
+      const data = await res.json()
+
+      if (!res.ok || data.error) {
+        setResults([])
+        setResultCount(0)
+        setError(data.error || "Search failed")
+        return
+      }
+
+      const properties = data.properties || []
+      const count = data.resultCount || 0
+      setResults(properties)
+      setResultCount(count)
+      writePropertySearchCache(paramsKey, properties, count)
+      recordRecentSearch(searchLocation, searchLocation)
+    } catch {
+      setError("Something went wrong while searching. Please try again.")
+      setResults([])
+    } finally {
+      setLoading(false)
+    }
+  }, [recordRecentSearch])
+
+  useEffect(() => {
+    const nextFilters = parseFiltersFromParams(searchParams)
+    setFilters(nextFilters)
+    if (!location) return
+
+    const paramsKey = searchParams.toString()
+    const cached = readPropertySearchCache(paramsKey)
+    if (cached) {
+      setResults(cached.results)
+      setResultCount(cached.resultCount)
+      setError(null)
+      setLoading(false)
+      return
+    }
+
+    runSearch(location, nextFilters, paramsKey)
+  }, [searchParams, location, runSearch])
+
+  const applyFilters = () => {
+    if (!location) return
+    const params = filtersToQueryParams(filters, location)
+    router.push(`/properties/search?${params.toString()}`)
+  }
+
+  const handleLocationSelect = (suggestion: AutocompletePrediction) => {
+    const query = suggestion.searchQuery || suggestion.description
+    router.push(`/properties/search?q=${encodeURIComponent(query)}`)
+  }
+
+  const summary = useMemo(() => {
+    if (!location) return "Select a location to explore institutional-grade property intelligence."
+    if (loading) return `Searching properties in ${location}...`
+    return `${resultCount.toLocaleString()} matches in ${location}`
+  }, [location, loading, resultCount])
+
+  return (
+    <div className="mx-auto max-w-7xl px-6 py-8 lg:px-8">
+      <div className="mb-8">
+        <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
+          <Link href="/" className="hover:text-foreground">
+            Home
+          </Link>
+          <span>/</span>
+          <span className="text-foreground">Property Search</span>
+        </div>
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">Property Intelligence Search</h1>
+        <p className="mt-2 text-muted-foreground">{summary}</p>
+        <div className="mt-6 max-w-3xl">
+          <LocationSearchInput
+            initialValue={location}
+            onSelect={handleLocationSelect}
+            compact
+            buttonLabel="Update Location"
+          />
+        </div>
+      </div>
+
+      <div className="grid gap-8 lg:grid-cols-[320px_minmax(0,1fr)]">
+        <PropertyFiltersSidebar
+          filters={filters}
+          onChange={setFilters}
+          onApply={applyFilters}
+          loading={loading}
+        />
+
+        <section className="space-y-4">
+          {error && (
+            <div className="flex items-start gap-3 rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              {error}
+            </div>
+          )}
+
+          {loading && (
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-card/50 py-24">
+              <Loader2 className="h-10 w-10 animate-spin text-primary" />
+              <p className="mt-4 text-sm text-muted-foreground">Querying PropertyRadar...</p>
+            </div>
+          )}
+
+          {!loading && !error && results.length === 0 && location && (
+            <div className="rounded-2xl border border-border bg-card/50 py-20 text-center">
+              <Building2 className="mx-auto h-10 w-10 text-muted-foreground/40" />
+              <p className="mt-4 text-lg font-medium text-foreground">No properties found</p>
+              <p className="mt-2 text-sm text-muted-foreground">Try adjusting your filters or choosing another location.</p>
+            </div>
+          )}
+
+          {!loading &&
+            results.map((property) => (
+              <PropertyListItem
+                key={property.radarId || `${property.address}-${property.city}`}
+                property={property}
+                returnTo={returnPath}
+                isFavorite={isFavorite(property.radarId)}
+                onToggleFavorite={() => toggleFavorite(property)}
+              />
+            ))}
+        </section>
+      </div>
+
+      {!location && (
+        <div className="mt-10 rounded-2xl border border-dashed border-border bg-card/30 p-10 text-center">
+          <MapPin className="mx-auto h-8 w-8 text-primary/60" />
+          <p className="mt-3 text-sm text-muted-foreground">
+            Choose a city or state from the location picker to load PropertyRadar results.
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}

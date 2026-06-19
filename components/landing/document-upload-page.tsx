@@ -95,7 +95,7 @@ export function DocumentUploadPage() {
   }, [])
 
   return (
-    <div className="pt-20">
+    <div>
       {/* Hero Section */}
       <section className="relative overflow-hidden py-16 lg:py-24">
         <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent" />
