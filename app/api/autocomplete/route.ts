@@ -38,11 +38,15 @@ export async function GET(request: NextRequest) {
 
     if (data.status === "OK" && data.predictions) {
       return NextResponse.json({
-        predictions: data.predictions.map((p: any) => ({
+        predictions: data.predictions.map((p: {
+          place_id: string
+          description: string
+          structured_formatting?: { main_text?: string; secondary_text?: string }
+        }) => ({
           placeId: p.place_id,
           description: p.description,
-          mainText: p.main_text,
-          secondaryText: p.secondary_text,
+          mainText: p.structured_formatting?.main_text || p.description,
+          secondaryText: p.structured_formatting?.secondary_text,
         })),
       })
     }

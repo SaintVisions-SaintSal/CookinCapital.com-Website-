@@ -111,3 +111,45 @@ export function getStreetViewUrl(lat: number, lng: number, width = 600, height =
 
   return `https://maps.googleapis.com/maps/api/streetview?size=${width}x${height}&location=${lat},${lng}&key=${MAPS_API_KEY}`
 }
+
+export async function hasStreetViewImagery(lat: number, lng: number): Promise<boolean> {
+  if (!MAPS_API_KEY) return false
+
+  try {
+    const url = `https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lng}&key=${MAPS_API_KEY}`
+    const response = await fetch(url)
+    const data = await response.json()
+    return data.status === "OK"
+  } catch {
+    return false
+  }
+}
+
+export function getPropertyImagePath(property: {
+  latitude?: number
+  longitude?: number
+  address?: string
+  city?: string
+  state?: string
+  zip?: string
+}): string | undefined {
+  const params = new URLSearchParams()
+
+  if (property.latitude != null && property.longitude != null) {
+    params.set("lat", String(property.latitude))
+    params.set("lng", String(property.longitude))
+    return `/api/property-image?${params.toString()}`
+  }
+
+  const address = [property.address, property.city, property.state, property.zip]
+    .filter(Boolean)
+    .join(", ")
+    .trim()
+
+  if (address) {
+    params.set("address", address)
+    return `/api/property-image?${params.toString()}`
+  }
+
+  return undefined
+}

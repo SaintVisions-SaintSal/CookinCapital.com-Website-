@@ -93,6 +93,7 @@ interface PropertyResult {
   daysOnMarket?: number
   assessedValue?: number
   annualTaxes?: number
+  imageUrl?: string
   source?: string
   // RentCast compat
   isSubject?: boolean
@@ -194,6 +195,41 @@ function getDistressBadges(p: PropertyResult) {
   if (p.isDeceased) badges.push({ label: "Deceased Owner", color: "bg-gray-500/20 text-gray-400" })
   if (p.listedForSale) badges.push({ label: "Listed for Sale", color: "bg-green-500/20 text-green-400" })
   return badges
+}
+
+// ---------------------------------------------------------------------------
+// Property Image
+// ---------------------------------------------------------------------------
+
+function PropertyImage({
+  property,
+  className = "",
+  alt,
+}: {
+  property: PropertyResult
+  className?: string
+  alt: string
+}) {
+  const [failed, setFailed] = useState(false)
+  const imageUrl = property.imageUrl
+
+  if (!imageUrl || failed) {
+    return (
+      <div className={`flex items-center justify-center bg-secondary/30 ${className}`}>
+        <Building className="w-10 h-10 text-muted-foreground/30" />
+      </div>
+    )
+  }
+
+  return (
+    <img
+      src={imageUrl}
+      alt={alt}
+      loading="lazy"
+      className={`object-cover ${className}`}
+      onError={() => setFailed(true)}
+    />
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -497,11 +533,13 @@ function PropertyCard({
   isFavorite,
   onToggleFavorite,
   onViewDetail,
+  minimal = false,
 }: {
   property: PropertyResult
   isFavorite: boolean
   onToggleFavorite: () => void
   onViewDetail: () => void
+  minimal?: boolean
 }) {
   const badges = getDistressBadges(property)
 
@@ -512,8 +550,14 @@ function PropertyCard({
       className="bg-card rounded-xl border border-border overflow-hidden transition-all group hover:border-primary/30"
     >
       {/* Top Section with badges */}
-      <div className="relative h-36 bg-secondary/30 flex items-center justify-center">
-        <Building className="w-10 h-10 text-muted-foreground/30" />
+      <div className="relative h-36 bg-secondary/30 overflow-hidden">
+        <PropertyImage
+          property={property}
+          alt={`${property.address}, ${property.city}`}
+          className="absolute inset-0 h-full w-full"
+        />
+
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent" />
 
         {/* Distress badges */}
         {badges.length > 0 && (
@@ -608,7 +652,7 @@ function PropertyCard({
         </div>
 
         {/* Owner info */}
-        {property.ownerName && (
+        {!minimal && property.ownerName && (
           <div className="mb-3 px-3 py-2 bg-secondary/50 rounded-lg">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <User className="w-3.5 h-3.5" />
@@ -632,7 +676,7 @@ function PropertyCard({
               ${Math.round(property.value / property.sqft)}/sqft
             </span>
           )}
-          {property.loanBalance !== undefined && property.loanBalance > 0 && (
+          {!minimal && property.loanBalance !== undefined && property.loanBalance > 0 && (
             <span className="px-2.5 py-1 bg-secondary text-muted-foreground rounded-full text-xs font-medium">
               Loan: {formatCurrency(property.loanBalance)}
             </span>
@@ -646,7 +690,7 @@ function PropertyCard({
             className="px-3 py-2 bg-secondary hover:bg-secondary/80 text-foreground font-medium rounded-lg text-xs transition-colors flex items-center justify-center gap-1.5"
           >
             <Eye className="w-3.5 h-3.5" />
-            Details
+            {minimal ? "View Details" : "Details"}
           </button>
           <Link
             href={`/app/analyzer?address=${encodeURIComponent(property.address)}&price=${property.value || 0}&arv=${property.value || 0}`}
@@ -675,9 +719,11 @@ function PropertyCard({
 function PropertyDetailModal({
   property,
   onClose,
+  loading = false,
 }: {
   property: PropertyResult
   onClose: () => void
+  loading?: boolean
 }) {
   const badges = getDistressBadges(property)
 
@@ -697,22 +743,37 @@ function PropertyDetailModal({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-border">
-          <div>
-            <h2 className="text-lg font-bold text-foreground">{property.address}</h2>
-            <p className="text-sm text-muted-foreground">
-              {property.city}, {property.state} {property.zip}
-              {property.radarId ? ` - Radar ID: ${property.radarId}` : ""}
-            </p>
+        <div className="relative border-b border-border">
+          <PropertyImage
+            property={property}
+            alt={`${property.address}, ${property.city}`}
+            className="h-48 w-full"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-card via-card/20 to-transparent" />
+          <div className="absolute inset-x-0 top-0 flex items-start justify-between p-5">
+            <div>
+              <h2 className="text-lg font-bold text-foreground drop-shadow-sm">{property.address}</h2>
+              <p className="text-sm text-muted-foreground">
+                {property.city}, {property.state} {property.zip}
+                {property.radarId ? ` · Radar ID: ${property.radarId}` : ""}
+              </p>
+            </div>
+            <button onClick={onClose} className="p-2 bg-background/80 hover:bg-background rounded-lg transition-colors">
+              <X className="w-5 h-5 text-muted-foreground" />
+            </button>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-secondary rounded-lg transition-colors">
-            <X className="w-5 h-5 text-muted-foreground" />
-          </button>
         </div>
 
         <div className="p-5 space-y-5">
+          {loading && (
+            <div className="flex items-center justify-center gap-2 py-8 text-muted-foreground">
+              <Loader2 className="w-5 h-5 animate-spin text-primary" />
+              <span className="text-sm">Loading full property details...</span>
+            </div>
+          )}
+
           {/* Distress Badges */}
-          {badges.length > 0 && (
+          {!loading && badges.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {badges.map((b) => (
                 <span key={b.label} className={`px-3 py-1 rounded-full text-sm font-semibold ${b.color}`}>
@@ -723,6 +784,8 @@ function PropertyDetailModal({
           )}
 
           {/* Value & Equity */}
+          {!loading && (
+          <>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <DetailStat label="Est. Value (AVM)" value={formatCurrency(property.value)} highlight />
             <DetailStat label="Equity %" value={property.equityPercent !== undefined ? `${property.equityPercent.toFixed(1)}%` : "--"} />
@@ -848,6 +911,8 @@ function PropertyDetailModal({
               Apply for Capital
             </Link>
           </div>
+          </>
+          )}
         </div>
       </motion.div>
     </motion.div>
@@ -887,6 +952,8 @@ export default function PropertySearchPage() {
   const [error, setError] = useState<string | null>(null)
   const [resultCount, setResultCount] = useState(0)
   const [detailProperty, setDetailProperty] = useState<PropertyResult | null>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [searchSource, setSearchSource] = useState<string>("PropertyRadar")
 
   // Autocomplete state
   const [suggestions, setSuggestions] = useState<AutocompletePrediction[]>([])
@@ -894,6 +961,10 @@ export default function PropertySearchPage() {
   const [loadingAutocomplete, setLoadingAutocomplete] = useState(false)
   const [selectedSuggestion, setSelectedSuggestion] = useState<AutocompletePrediction | null>(null)
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const autocompleteLockedRef = useRef(false)
+  const sessionTokenRef = useRef<string>(
+    typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `session-${Date.now()}`
+  )
 
   // Fetch autocomplete suggestions
   const fetchAutocomplete = useCallback(async (input: string) => {
@@ -905,7 +976,9 @@ export default function PropertySearchPage() {
 
     try {
       setLoadingAutocomplete(true)
-      const response = await fetch(`/api/autocomplete?input=${encodeURIComponent(input)}`)
+      const response = await fetch(
+        `/api/autocomplete?input=${encodeURIComponent(input)}&sessionToken=${encodeURIComponent(sessionTokenRef.current)}`
+      )
       const data = await response.json()
 
       if (data.predictions) {
@@ -922,14 +995,18 @@ export default function PropertySearchPage() {
     }
   }, [])
 
-  // Debounced autocomplete
+  // Debounced autocomplete — skip while a dropdown selection is locked in
   useEffect(() => {
+    if (autocompleteLockedRef.current) return
+
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current)
     }
 
     debounceTimerRef.current = setTimeout(() => {
-      fetchAutocomplete(addressQuery)
+      if (!autocompleteLockedRef.current) {
+        fetchAutocomplete(addressQuery)
+      }
     }, 300)
 
     return () => {
@@ -1022,6 +1099,7 @@ export default function PropertySearchPage() {
       } else {
         setResults(data.properties || [])
         setResultCount(data.resultCount || 0)
+        setSearchSource(data.source || "PropertyRadar")
       }
 
       setHasSearched(true)
@@ -1034,18 +1112,63 @@ export default function PropertySearchPage() {
     }
   }, [filters])
 
+  const applyLocationSelection = useCallback((suggestion: AutocompletePrediction) => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+    }
+
+    autocompleteLockedRef.current = true
+    setAddressQuery(suggestion.description)
+    setSelectedSuggestion(suggestion)
+    setSuggestions([])
+    setShowSuggestions(false)
+    setLoadingAutocomplete(false)
+    handleSearch({ address: suggestion.description })
+  }, [handleSearch])
+
   const toggleFavorite = (id: string) => {
     setFavorites((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]))
   }
 
   const handleAddressSearch = () => {
-    const address = addressQuery.trim()
+    const address = (selectedSuggestion?.description || addressQuery).trim()
     if (!address) {
-      setError("Please enter an address")
+      setError("Please enter a city or address")
       return
+    }
+    if (selectedSuggestion) {
+      setAddressQuery(selectedSuggestion.description)
     }
     handleSearch({ address })
   }
+
+  const handleViewDetail = useCallback(async (property: PropertyResult) => {
+    setDetailProperty(property)
+    setDetailLoading(true)
+
+    try {
+      const params = new URLSearchParams()
+      if (property.radarId) {
+        params.set("radarId", property.radarId)
+      } else {
+        params.set(
+          "address",
+          `${property.address}, ${property.city}, ${property.state} ${property.zip}`.trim()
+        )
+      }
+
+      const res = await fetch(`/api/property-search/detail?${params.toString()}`)
+      const data = await res.json()
+
+      if (res.ok && data.property) {
+        setDetailProperty(data.property)
+      }
+    } catch (err) {
+      console.error("Detail fetch error:", err)
+    } finally {
+      setDetailLoading(false)
+    }
+  }, [])
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -1059,7 +1182,7 @@ export default function PropertySearchPage() {
                 <h1 className="text-xl font-bold text-foreground">
                   Property<span className="text-primary">Search</span>
                 </h1>
-                <p className="text-xs text-muted-foreground">Powered by PropertyAPI</p>
+                <p className="text-xs text-muted-foreground">Powered by PropertyRadar</p>
               </div>
             </div>
             <Link
@@ -1084,11 +1207,11 @@ export default function PropertySearchPage() {
             }`}
           >
             <Home className="w-4 h-4" />
-            Address Lookup
+            Address & Area Search
           </button>
-          <div className="flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold text-muted-foreground/50 flex items-center justify-center gap-2" title="Area search requires a specific address">
+          <div className="flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold text-muted-foreground/50 flex items-center justify-center gap-2" title="Use filters in campaigns for advanced area search">
             <MapPin className="w-4 h-4" />
-            <span className="opacity-50">Area Search (Address Only)</span>
+            <span className="opacity-50">Campaign Filters</span>
           </div>
         </div>
 
@@ -1100,11 +1223,14 @@ export default function PropertySearchPage() {
               type="text"
               value={addressQuery}
               onChange={(e) => {
+                autocompleteLockedRef.current = false
                 setAddressQuery(e.target.value)
                 setSelectedSuggestion(null)
               }}
               onFocus={() => {
-                if (suggestions.length > 0) setShowSuggestions(true)
+                if (!autocompleteLockedRef.current && suggestions.length > 0) {
+                  setShowSuggestions(true)
+                }
               }}
               onBlur={() => {
                 setTimeout(() => setShowSuggestions(false), 200)
@@ -1112,13 +1238,13 @@ export default function PropertySearchPage() {
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   if (selectedSuggestion) {
-                    setAddressQuery(selectedSuggestion.description)
-                    setShowSuggestions(false)
+                    applyLocationSelection(selectedSuggestion)
+                    return
                   }
                   handleAddressSearch()
                 }
               }}
-              placeholder="Enter complete address: 123 Main St, Los Angeles, CA 90001"
+              placeholder="Search by city or address: Los Angeles, CA or 123 Main St, Los Angeles, CA"
               className="w-full bg-input border border-border rounded-xl py-3.5 pl-12 pr-32 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary"
               autoComplete="off"
             />
@@ -1151,11 +1277,7 @@ export default function PropertySearchPage() {
                   {suggestions.map((suggestion, idx) => (
                     <button
                       key={idx}
-                      onClick={() => {
-                        setAddressQuery(suggestion.description)
-                        setSelectedSuggestion(suggestion)
-                        setShowSuggestions(false)
-                      }}
+                      onClick={() => applyLocationSelection(suggestion)}
                       className="w-full flex items-start gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors border-b border-border/50 last:border-0 text-left"
                     >
                       <MapPin className="w-4 h-4 text-primary/60 flex-shrink-0 mt-0.5" />
@@ -1176,7 +1298,9 @@ export default function PropertySearchPage() {
             </AnimatePresence>
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            {loadingAutocomplete ? "Loading suggestions..." : "Powered by PropertyAPI - Enter a complete street address for property details"}
+            {loadingAutocomplete
+              ? "Loading location suggestions..."
+              : "Location suggestions powered by Google Places · Property data from PropertyRadar"}
           </p>
         </div>
 
@@ -1185,7 +1309,7 @@ export default function PropertySearchPage() {
           <div className="max-w-3xl mx-auto mb-12 text-center">
             <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 mb-6">
               <p className="text-sm text-muted-foreground">
-                💡 <span className="text-foreground font-medium">PropertyAPI Tip:</span> Enter a specific street address for detailed property information including owner data, valuations, and legal details.
+                💡 <span className="text-foreground font-medium">Search tip:</span> Type a city (e.g. Los Angeles, CA) to browse properties, or a full street address for a specific parcel. Click a result for full owner and legal details.
               </p>
             </div>
 
@@ -1258,7 +1382,7 @@ export default function PropertySearchPage() {
                 Search 150M+ Properties Nationwide
               </h2>
               <p className="text-muted-foreground max-w-md mx-auto text-pretty">
-                Use PropertyAPI address lookup to find owner data, valuations, legal details, and parcel information.
+                Use PropertyRadar to search 150M+ properties nationwide — owner data, valuations, distress signals, and parcel details.
               </p>
             </motion.div>
           </>
@@ -1268,8 +1392,8 @@ export default function PropertySearchPage() {
         {isSearching && (
           <div className="text-center py-20">
             <Loader2 className="w-12 h-12 mx-auto mb-4 text-primary animate-spin" />
-            <h2 className="text-xl font-semibold text-foreground mb-2">Searching PropertyAPI...</h2>
-            <p className="text-muted-foreground">Looking up the address for detailed property information</p>
+            <h2 className="text-xl font-semibold text-foreground mb-2">Searching PropertyRadar...</h2>
+            <p className="text-muted-foreground">Finding properties matching your location</p>
           </div>
         )}
 
@@ -1282,8 +1406,8 @@ export default function PropertySearchPage() {
                   {resultCount} {resultCount === 1 ? "Property" : "Properties"} Found
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  Real-time data from PropertyAPI
-                  {activeFilterCount > 0 ? ` | ${activeFilterCount} filters active` : ""}
+                  {resultCount.toLocaleString()} total matches · Showing {results.length} preview results from {searchSource}
+                  {activeFilterCount > 0 ? ` · ${activeFilterCount} filters active` : ""}
                 </p>
               </div>
               <Link
@@ -1300,9 +1424,10 @@ export default function PropertySearchPage() {
                 <PropertyCard
                   key={property.radarId || `pr-${idx}`}
                   property={property}
+                  minimal
                   isFavorite={favorites.includes(property.radarId || `pr-${idx}`)}
                   onToggleFavorite={() => toggleFavorite(property.radarId || `pr-${idx}`)}
-                  onViewDetail={() => setDetailProperty(property)}
+                  onViewDetail={() => handleViewDetail(property)}
                 />
               ))}
             </div>
@@ -1317,7 +1442,7 @@ export default function PropertySearchPage() {
             </div>
             <h3 className="text-xl font-semibold text-foreground mb-2">No results found</h3>
             <p className="text-muted-foreground max-w-md mx-auto">
-              Try broadening your search criteria, checking a different city, or removing some filters.
+              Try another city (e.g. Los Angeles, CA), a full street address, or check your spelling.
             </p>
           </div>
         )}
@@ -1328,7 +1453,11 @@ export default function PropertySearchPage() {
         {detailProperty && (
           <PropertyDetailModal
             property={detailProperty}
-            onClose={() => setDetailProperty(null)}
+            loading={detailLoading}
+            onClose={() => {
+              setDetailProperty(null)
+              setDetailLoading(false)
+            }}
           />
         )}
       </AnimatePresence>

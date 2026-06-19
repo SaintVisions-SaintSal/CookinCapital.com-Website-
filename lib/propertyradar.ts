@@ -2,15 +2,9 @@
  * PropertyRadar API Client Library
  * API Version: v4.26 (2026-01-20)
  * Docs: https://developers.propertyradar.com
- *
- * Endpoints:
- *  POST /v1/properties         – Search by Criteria
- *  GET  /v1/properties/:id     – Single property by RadarID
- *  GET  /v1/properties/:id/persons       – Owner / persons data
- *  GET  /v1/properties/:id/comps/sales   – Sales comps
- *  GET  /v1/properties/:id/comps/forsale – Listing comps
- *  GET  /v1/suggestions/fips             – County FIPS lookup
  */
+
+import { getPropertyImagePath } from "@/lib/google-maps"
 
 const BASE_URL = "https://api.propertyradar.com"
 
@@ -218,23 +212,72 @@ export const LISTING_FIELDS = [
   "ListingPrice",
   "ListingDate",
   "DaysOnMarket",
-  "ListingStatus",
-  "ListingType",
 ].join(",")
 
 export const TAX_FIELDS = ["AssessedValue", "AnnualTaxes", "EstimatedTaxRate"].join(",")
 
-/** All important fields combined for a full property lookup */
-export const ALL_FIELDS = [
+/** Detail fields for single-property lookup (max 50 fields per API limit) */
+export const DETAIL_FIELDS = [
   CORE_FIELDS,
-  PROPERTY_FIELDS,
-  VALUE_FIELDS,
-  OWNER_FIELDS,
-  DISTRESS_FIELDS,
-  TRANSFER_FIELDS,
-  LOAN_FIELDS,
-  LISTING_FIELDS,
-  TAX_FIELDS,
+  "PType",
+  "Beds",
+  "Baths",
+  "SqFt",
+  "LotSize",
+  "YearBuilt",
+  "Units",
+  "AVM",
+  "EquityPercent",
+  "AvailableEquity",
+  "TotalLoanBalance",
+  "Owner",
+  "Owner2",
+  "Taxpayer",
+  "isSameMailingOrExempt",
+  "inForeclosure",
+  "ForeclosureStage",
+  "SaleDate",
+  "OpeningBid",
+  "inTaxDelinquency",
+  "inBankruptcyProperty",
+  "inDivorce",
+  "isSiteVacant",
+  "isDeceasedProperty",
+  "LastTransferRecDate",
+  "LastTransferValue",
+  "LastTransferType",
+  "FirstAmount",
+  "FirstRate",
+  "FirstLoanType",
+  "isListedForSale",
+  "ListingPrice",
+  "AssessedValue",
+  "AnnualTaxes",
+].join(",")
+
+/** All important fields combined for a full property lookup */
+export const ALL_FIELDS = DETAIL_FIELDS
+
+/** Minimal fields for list/search results (lowest cost) */
+export const MINIMAL_FIELDS = [
+  "RadarID",
+  "Address",
+  "City",
+  "State",
+  "ZipFive",
+  "Latitude",
+  "Longitude",
+  "PType",
+  "Beds",
+  "Baths",
+  "SqFt",
+  "AVM",
+  "EquityPercent",
+  "inForeclosure",
+  "ForeclosureStage",
+  "inTaxDelinquency",
+  "isListedForSale",
+  "ListingPrice",
 ].join(",")
 
 /** Lighter field set for search results (keeps cost lower) */
@@ -590,6 +633,7 @@ export interface PropertySearchParams {
   // Limits
   limit?: number
   purchase?: 0 | 1
+  fields?: string
 }
 
 /**
@@ -672,7 +716,12 @@ export async function searchPropertiesAdvanced(
     criteria.push(...buildListedForSaleFilter(params.listedForSale))
   }
 
-  return searchProperties(criteria, SEARCH_FIELDS, params.limit || 20, params.purchase ?? 1)
+  return searchProperties(
+    criteria,
+    params.fields || MINIMAL_FIELDS,
+    params.limit || 20,
+    params.purchase ?? 1,
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -680,7 +729,7 @@ export async function searchPropertiesAdvanced(
 // ---------------------------------------------------------------------------
 
 export function mapToPropertyResult(p: PRProperty) {
-  return {
+  const result = {
     radarId: p.RadarID || undefined,
     address: p.Address || "Unknown",
     city: p.City || "",
@@ -705,6 +754,11 @@ export function mapToPropertyResult(p: PRProperty) {
     loanBalance: p.TotalLoanBalance ?? undefined,
     // Owner (Persons data comes in a separate endpoint but Owner field is a summary)
     ownerName: p.Owner || p.Owner2 || undefined,
+    ownerAddress: undefined as string | undefined,
+    ownerCity: undefined as string | undefined,
+    ownerState: undefined as string | undefined,
+    ownerZip: undefined as string | undefined,
+    yearsOwned: undefined as number | undefined,
     ownerOccupied: p.isSameMailingOrExempt === 1,
     absenteeOwner: p.isSameMailingOrExempt === 0,
     // Distress signals (API returns 1/0 booleans)
@@ -745,5 +799,10 @@ export function mapToPropertyResult(p: PRProperty) {
     annualTaxes: p.AnnualTaxes ?? undefined,
     // Source
     source: "PropertyRadar",
+  }
+
+  return {
+    ...result,
+    imageUrl: getPropertyImagePath(result),
   }
 }
