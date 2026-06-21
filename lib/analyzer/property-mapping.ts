@@ -1,0 +1,125 @@
+/** Map PropertyRadar / URL codes to deal analyzer select values */
+export const ANALYZER_PROPERTY_TYPES = [
+  { value: "Single Family", label: "Single Family" },
+  { value: "Multi-Family", label: "Multi-Family" },
+  { value: "Condo", label: "Condo / Townhouse" },
+  { value: "Commercial", label: "Commercial" },
+  { value: "Land", label: "Land" },
+] as const
+
+const CODE_TO_ANALYZER_TYPE: Record<string, string> = {
+  SFR: "Single Family",
+  "single-family": "Single Family",
+  "single family": "Single Family",
+  MFR: "Multi-Family",
+  "multi-family": "Multi-Family",
+  CND: "Condo",
+  CONDO: "Condo",
+  COM: "Commercial",
+  VL: "Land",
+  LND: "Land",
+  MH: "Single Family",
+  APT: "Multi-Family",
+}
+
+export function mapToAnalyzerPropertyType(code?: string | null): string {
+  if (!code) return ""
+  const normalized = code.trim()
+  return (
+    CODE_TO_ANALYZER_TYPE[normalized] ||
+    CODE_TO_ANALYZER_TYPE[normalized.toUpperCase()] ||
+    CODE_TO_ANALYZER_TYPE[normalized.toLowerCase()] ||
+    ANALYZER_PROPERTY_TYPES.find((t) => t.label.toLowerCase() === normalized.toLowerCase())?.value ||
+    normalized
+  )
+}
+
+export function createEmptyDealData(): import("@/components/app/deal-analyzer/types").DealData {
+  return {
+    address: "",
+    city: "",
+    state: "",
+    zip: "",
+    propertyType: "",
+    bedrooms: 0,
+    bathrooms: 0,
+    sqft: 0,
+    yearBuilt: 0,
+    lotSize: 0,
+    askingPrice: 0,
+    arv: 0,
+    purchasePrice: 0,
+    rehabBudget: 0,
+    rehabCategories: {
+      demolition: 0,
+      foundation: 0,
+      roofing: 0,
+      siding: 0,
+      windows: 0,
+      doors: 0,
+      garage: 0,
+      electrical: 0,
+      plumbing: 0,
+      hvac: 0,
+      insulation: 0,
+      drywall: 0,
+      painting: 0,
+      flooring: 0,
+      kitchenCabinets: 0,
+      kitchenCountertops: 0,
+      kitchenAppliances: 0,
+      kitchenFixtures: 0,
+      bathroomVanities: 0,
+      bathroomTileShower: 0,
+      bathroomFixtures: 0,
+      bathroomToilets: 0,
+      interior: 0,
+      landscaping: 0,
+      concrete: 0,
+      decksPatios: 0,
+      fencing: 0,
+      permits: 0,
+      dumpsters: 0,
+      cleaning: 0,
+      staging: 0,
+      generalContractor: 0,
+      contingency: 0,
+      miscellaneous: 0,
+    },
+    customRehabItems: [],
+    financingType: "hard-money",
+    loanAmount: 0,
+    interestRate: 12,
+    loanTermMonths: 12,
+    loanPoints: 2,
+    rehabFinanced: false,
+    rehabLoanAmount: 0,
+    drawSchedule: "monthly",
+    monthlyTaxes: 0,
+    monthlyInsurance: 0,
+    monthlyUtilities: 200,
+    monthlyHOA: 0,
+    holdingPeriodMonths: 6,
+    lawnCare: 0,
+    security: 0,
+    propertyManagement: 0,
+    closingCostsBuying: 0,
+    inspectionCosts: 500,
+    appraisalCosts: 500,
+    titleInsuranceBuying: 0,
+    otherBuyingCosts: 0,
+    surveyFee: 0,
+    attorneyFees: 0,
+    recordingFees: 0,
+    escrowFees: 0,
+    agentCommissionPercent: 6,
+    closingCostsSelling: 0,
+    titleInsuranceSelling: 0,
+    transferTaxes: 0,
+    otherSellingCosts: 0,
+    homeWarranty: 0,
+    concessions: 0,
+    stagingCost: 0,
+    photographyMarketing: 0,
+  }
+}

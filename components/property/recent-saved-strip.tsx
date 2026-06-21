@@ -4,6 +4,7 @@ import Link from "next/link"
 import { Clock3, Heart, MapPin } from "lucide-react"
 import { usePropertySaved } from "@/hooks/use-property-saved"
 import { formatCurrency } from "@/lib/property/format"
+import { buildPropertyDetailUrl } from "@/lib/property/urls"
 
 export function RecentSavedStrip() {
   const { ready, recentSearches, favorites } = usePropertySaved()
@@ -41,10 +42,22 @@ export function RecentSavedStrip() {
             Saved Properties
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            {favorites.slice(0, 4).map((item) => (
+            {favorites.slice(0, 6).map((item) => {
+              const isRadarId = /^P[A-Z0-9]+$/i.test(item.radarId)
+              const href = buildPropertyDetailUrl({
+                radarId: isRadarId ? item.radarId : undefined,
+                address: item.address,
+                city: item.city,
+                state: item.state,
+                zip: item.zip,
+              })
+
+              if (!href) return null
+
+              return (
               <Link
                 key={item.id}
-                href={`/properties/${item.radarId}`}
+                href={href}
                 className="flex items-center gap-3 rounded-xl border border-border bg-card/70 p-3 transition-colors hover:border-primary/30"
               >
                 <div className="h-14 w-20 shrink-0 overflow-hidden rounded-lg bg-secondary/40">
@@ -62,7 +75,8 @@ export function RecentSavedStrip() {
                   ) : null}
                 </div>
               </Link>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}

@@ -10,6 +10,7 @@ import {
   removeFavoriteFromCookie,
   saveFavoriteToCookie,
 } from "@/lib/property/storage"
+import { favoriteKey } from "@/lib/property/urls"
 
 export function usePropertySaved() {
   const [recentSearches, setRecentSearches] = useState<RecentSearchItem[]>([])
@@ -48,30 +49,44 @@ export function usePropertySaved() {
 
   const toggleFavorite = useCallback(
     async (property: PropertyResult) => {
-      if (!property.radarId) return
+      const key = favoriteKey(property)
 
       const currentlySaved = authenticated
-        ? favorites.some((f) => f.radarId === property.radarId)
-        : isFavoriteInCookie(property.radarId)
+        ? favorites.some((f) => f.radarId === key)
+        : isFavoriteInCookie(key)
 
       if (authenticated) {
-        if (currentlySaved) {
-          await fetch(`/api/property-saved?radarId=${encodeURIComponent(property.radarId)}`, {
-            method: "DELETE",
-          })
-        } else {
-          await fetch("/api/property-saved", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ property }),
-          })
+        if (!property.radarId) {
+          // Server favorites require a PropertyRadar ID
+          if (currentlySaved) {
+            setFavorites(removeFavoriteFromCookie(key))
+          } else {
+            setFavorites(saveFavoriteToCookie(property))
+          }
+          return
         }
+
+        const res = currentlySaved
+          ? await fetch(`/api/property-saved?radarId=${encodeURIComponent(property.radarId)}`, {
+              method: "DELETE",
+            })
+          : await fetch("/api/property-saved", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ property }),
+            })
+
+        if (!res.ok) {
+          console.error("[favorites] save failed:", await res.text())
+          return
+        }
+
         await refresh()
         return
       }
 
       if (currentlySaved) {
-        setFavorites(removeFavoriteFromCookie(property.radarId))
+        setFavorites(removeFavoriteFromCookie(key))
       } else {
         setFavorites(saveFavoriteToCookie(property))
       }
@@ -80,9 +95,9 @@ export function usePropertySaved() {
   )
 
   const isFavorite = useCallback(
-    (radarId?: string) => {
-      if (!radarId) return false
-      return favorites.some((f) => f.radarId === radarId)
+    (key?: string) => {
+      if (!key) return false
+      return favorites.some((f) => f.radarId === key)
     },
     [favorites],
   )

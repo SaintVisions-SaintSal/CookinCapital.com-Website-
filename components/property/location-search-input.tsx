@@ -27,6 +27,7 @@ export function LocationSearchInput({
   const [loading, setLoading] = useState(false)
   const [selected, setSelected] = useState<AutocompletePrediction | null>(null)
   const [highlightedIndex, setHighlightedIndex] = useState(-1)
+  const [inputError, setInputError] = useState<string | null>(null)
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
   const lockedRef = useRef(Boolean(initialValue))
   const sessionTokenRef = useRef(
@@ -56,15 +57,22 @@ export function LocationSearchInput({
     if (!input || input.trim().length < 2) {
       setSuggestions([])
       setShowSuggestions(false)
+      setInputError(null)
       return
     }
 
     try {
       setLoading(true)
+      setInputError(null)
       const res = await fetch(
         `/api/autocomplete?input=${encodeURIComponent(input)}&sessionToken=${encodeURIComponent(sessionTokenRef.current)}`,
       )
       const data = await res.json()
+      if (!res.ok) {
+        setSuggestions([])
+        setInputError(data.error || "Location suggestions unavailable")
+        return
+      }
       setSuggestions(data.predictions || [])
       setHighlightedIndex(-1)
       if (!lockedRef.current) {
@@ -72,6 +80,7 @@ export function LocationSearchInput({
       }
     } catch {
       setSuggestions([])
+      setInputError("Unable to load location suggestions")
     } finally {
       setLoading(false)
     }
@@ -167,6 +176,10 @@ export function LocationSearchInput({
           {buttonLabel}
         </Button>
       </div>
+
+      {inputError && (
+        <p className="mt-2 text-xs text-destructive">{inputError}</p>
+      )}
 
       <AnimatePresence>
         {showSuggestions && suggestions.length > 0 && (

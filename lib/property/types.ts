@@ -49,6 +49,7 @@ export interface PropertyResult {
   daysOnMarket?: number
   assessedValue?: number
   annualTaxes?: number
+  inTaxDelinquency?: boolean
   imageUrl?: string
   source?: string
 }

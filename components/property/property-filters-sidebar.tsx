@@ -3,13 +3,14 @@
 import { Filter, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { DEFAULT_PROPERTY_FILTERS, PROPERTY_TYPES } from "@/lib/property/constants"
+import { PROPERTY_TYPES } from "@/lib/property/constants"
 import type { PropertySearchFilters } from "@/lib/property/types"
 
 interface PropertyFiltersSidebarProps {
   filters: PropertySearchFilters
   onChange: (filters: PropertySearchFilters) => void
   onApply: () => void
+  onReset: () => void
   loading?: boolean
 }
 
@@ -40,7 +41,7 @@ function FilterInput({
   )
 }
 
-export function PropertyFiltersSidebar({ filters, onChange, onApply, loading }: PropertyFiltersSidebarProps) {
+export function PropertyFiltersSidebar({ filters, onChange, onApply, onReset, loading }: PropertyFiltersSidebarProps) {
   const update = <K extends keyof PropertySearchFilters>(key: K, value: PropertySearchFilters[K]) => {
     onChange({ ...filters, [key]: value })
   }
@@ -54,7 +55,7 @@ export function PropertyFiltersSidebar({ filters, onChange, onApply, loading }: 
         </div>
         <button
           type="button"
-          onClick={() => onChange({ ...DEFAULT_PROPERTY_FILTERS })}
+          onClick={onReset}
           className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
         >
           <RotateCcw className="h-3.5 w-3.5" />

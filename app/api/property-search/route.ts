@@ -49,6 +49,7 @@ async function buildSearchParams(body: Record<string, unknown>): Promise<Propert
       parsed?.address ||
       (parsed?.hasStreetNumber ? addressInput : undefined),
     limit: typeof body.limit === "number" ? body.limit : 20,
+    start: typeof body.start === "number" ? body.start : 0,
     purchase: body.purchase === 0 ? 0 : 1,
   }
 
@@ -159,6 +160,14 @@ export async function POST(request: NextRequest) {
       if (radar.properties.length > 0) {
         return NextResponse.json(radar)
       }
+    } else if (!PROPERTY_API_KEY) {
+      return NextResponse.json(
+        {
+          error:
+            "Property search is not configured. Add PROPERTY_RADAR_API_TOKEN to .env.local and restart the dev server.",
+        },
+        { status: 503 },
+      )
     }
 
     const parsed = parseAddressQuery(addressInput || "")

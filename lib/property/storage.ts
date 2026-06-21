@@ -60,11 +60,11 @@ export function getFavoritesFromCookie(): SavedPropertyItem[] {
 
 export function saveFavoriteToCookie(property: PropertyResult): SavedPropertyItem[] {
   const id = propertyStorageId(property)
-  if (!property.radarId) return getFavoritesFromCookie()
+  const key = property.radarId || id
 
   const item: SavedPropertyItem = {
     id,
-    radarId: property.radarId,
+    radarId: key,
     address: property.address,
     city: property.city,
     state: property.state,
@@ -74,7 +74,7 @@ export function saveFavoriteToCookie(property: PropertyResult): SavedPropertyIte
     savedAt: new Date().toISOString(),
   }
 
-  const next = [item, ...getFavoritesFromCookie().filter((f) => f.radarId !== property.radarId)].slice(
+  const next = [item, ...getFavoritesFromCookie().filter((f) => f.radarId !== key)].slice(
     0,
     MAX_COOKIE_FAVORITES,
   )

@@ -573,8 +573,10 @@ export async function searchProperties(
   fields: string = SEARCH_FIELDS,
   limit: number = 20,
   purchase: 0 | 1 = 1,
+  start = 0,
 ): Promise<{ properties: PRProperty[]; resultCount: number }> {
-  const url = `${BASE_URL}/v1/properties?Purchase=${purchase}&Fields=${fields}&Limit=${limit}`
+  const startParam = start > 0 ? `&Start=${start}` : ""
+  const url = `${BASE_URL}/v1/properties?Purchase=${purchase}&Fields=${fields}&Limit=${limit}${startParam}`
 
   console.log("[PropertyRadar] POST", url)
   console.log("[PropertyRadar] Criteria:", JSON.stringify(criteria, null, 2))
@@ -742,6 +744,7 @@ export interface PropertySearchParams {
   listedForSale?: boolean
   // Limits
   limit?: number
+  start?: number
   purchase?: 0 | 1
   fields?: string
 }
@@ -754,13 +757,25 @@ export async function searchPropertiesAdvanced(
 ): Promise<{ properties: PRProperty[]; resultCount: number }> {
   const criteria: CriterionItem[] = []
 
+  let county = params.county
+  if (county && params.state && !/^\d+$/.test(county)) {
+    try {
+      const fipsMatches = await lookupFips(`${county}, ${params.state}`)
+      if (fipsMatches[0]?.fips) {
+        county = fipsMatches[0].fips
+      }
+    } catch {
+      // Fall back to county name if FIPS lookup fails
+    }
+  }
+
   // Location
   criteria.push(
     ...buildLocationCriteria({
       state: params.state,
       city: params.city,
       zip: params.zip,
-      county: params.county,
+      county,
       address: params.address,
     }),
   )
@@ -831,6 +846,7 @@ export async function searchPropertiesAdvanced(
     params.fields || MINIMAL_FIELDS,
     params.limit || 20,
     params.purchase ?? 1,
+    params.start ?? 0,
   )
 }
 
@@ -839,9 +855,14 @@ export async function searchPropertiesAdvanced(
 // ---------------------------------------------------------------------------
 
 export function mapToPropertyResult(p: PRProperty) {
+  const rawAddress = p.Address?.trim()
+  const fallbackAddress = [p.City, p.State, p.ZipFive].filter(Boolean).join(", ")
+  const address =
+    rawAddress && !/^unknown$/i.test(rawAddress) ? rawAddress : fallbackAddress || "Address unavailable"
+
   const result = {
     radarId: p.RadarID || undefined,
-    address: p.Address || "Unknown",
+    address,
     city: p.City || "",
     state: p.State || "",
     zip: p.ZipFive || "",

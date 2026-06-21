@@ -1,10 +1,36 @@
 import type { PropertyResult } from "@/lib/property/types"
+import { PROPERTY_TYPES } from "@/lib/property/constants"
 
-export function formatCurrency(num: number | undefined) {
-  if (!num || num === 0) return "$0"
+export function formatCurrency(num: number | undefined, options?: { empty?: string }) {
+  const empty = options?.empty ?? "—"
+  if (num == null || num <= 0) return empty
   if (num >= 1_000_000) return `$${(num / 1_000_000).toFixed(1)}M`
   if (num >= 1_000) return `$${(num / 1_000).toFixed(0)}K`
   return `$${num.toLocaleString()}`
+}
+
+const PROPERTY_TYPE_LABELS = Object.fromEntries(
+  PROPERTY_TYPES.filter((t) => t.value).map((t) => [t.value, t.label]),
+) as Record<string, string>
+
+const PTYPE_LABELS: Record<string, string> = {
+  SFR: "Single Family",
+  MFR: "Multi-Family",
+  CND: "Condo / Townhouse",
+  COM: "Commercial",
+  VL: "Vacant Land",
+  MH: "Mobile / Manufactured",
+  APT: "Apartment",
+  LND: "Land",
+  IND: "Industrial",
+  UTL: "Utility",
+  TRA: "Transportation",
+  ...PROPERTY_TYPE_LABELS,
+}
+
+export function formatPropertyType(code?: string) {
+  if (!code) return "—"
+  return PTYPE_LABELS[code.toUpperCase()] || code
 }
 
 export function getDistressBadges(property: PropertyResult) {
@@ -12,8 +38,8 @@ export function getDistressBadges(property: PropertyResult) {
   if (property.foreclosureStatus) {
     badges.push({ label: `Foreclosure: ${property.foreclosureStatus}`, color: "bg-red-500/15 text-red-400" })
   }
-  if (property.taxDefaultYears && property.taxDefaultYears > 0) {
-    badges.push({ label: `Tax Default ${property.taxDefaultYears}yr`, color: "bg-orange-500/15 text-orange-400" })
+  if (property.inTaxDelinquency || (property.taxDefaultYears && property.taxDefaultYears > 0)) {
+    badges.push({ label: "Tax Delinquent", color: "bg-orange-500/15 text-orange-400" })
   }
   if (property.inBankruptcy) {
     badges.push({

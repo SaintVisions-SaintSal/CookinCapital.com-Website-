@@ -1,9 +1,14 @@
 import type { PropertySearchFilters } from "@/lib/property/types"
 
-export function filtersToSearchBody(filters: PropertySearchFilters, address: string) {
+export function filtersToSearchBody(
+  filters: PropertySearchFilters,
+  address: string,
+  options?: { start?: number; limit?: number },
+) {
   const body: Record<string, unknown> = {
     address,
-    limit: 20,
+    limit: options?.limit ?? 20,
+    start: options?.start ?? 0,
     purchase: 1,
   }
 

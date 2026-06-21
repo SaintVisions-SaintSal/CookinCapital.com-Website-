@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
+import { useSearchParams } from "next/navigation"
 import { AnalyzerStepper } from "./analyzer-stepper"
 import { AnalyzerHeader } from "./analyzer-header"
 import { AnalyzerPropertyInfo } from "./analyzer-property-info"
@@ -14,94 +15,9 @@ import { AnalyzerReview } from "./analyzer-review"
 import { AnalyzerResultsPanel } from "./analyzer-results-panel"
 import { Save, Loader2, Check, Download, Sparkles } from "lucide-react"
 import type { DealData, Calculations } from "./types"
+import { createEmptyDealData, mapToAnalyzerPropertyType } from "@/lib/analyzer/property-mapping"
 
-const initialDealData: DealData = {
-  address: "",
-  city: "",
-  state: "",
-  zip: "",
-  propertyType: "single-family",
-  bedrooms: 3,
-  bathrooms: 2,
-  sqft: 1500,
-  yearBuilt: 1990,
-  lotSize: 0.25,
-  askingPrice: 0,
-  arv: 0,
-  purchasePrice: 0,
-  rehabBudget: 0,
-  rehabCategories: {
-    demolition: 0,
-    foundation: 0,
-    roofing: 0,
-    siding: 0,
-    windows: 0,
-    doors: 0,
-    garage: 0,
-    electrical: 0,
-    plumbing: 0,
-    hvac: 0,
-    insulation: 0,
-    drywall: 0,
-    painting: 0,
-    flooring: 0,
-    kitchenCabinets: 0,
-    kitchenCountertops: 0,
-    kitchenAppliances: 0,
-    kitchenFixtures: 0,
-    bathroomVanities: 0,
-    bathroomTileShower: 0,
-    bathroomFixtures: 0,
-    bathroomToilets: 0,
-    interior: 0,
-    landscaping: 0,
-    concrete: 0,
-    decksPatios: 0,
-    fencing: 0,
-    permits: 0,
-    dumpsters: 0,
-    cleaning: 0,
-    staging: 0,
-    generalContractor: 0,
-    contingency: 0,
-    miscellaneous: 0,
-  },
-  customRehabItems: [],
-  financingType: "hard-money",
-  loanAmount: 0,
-  interestRate: 12,
-  loanTermMonths: 12,
-  loanPoints: 2,
-  rehabFinanced: false,
-  rehabLoanAmount: 0,
-  drawSchedule: "monthly",
-  monthlyTaxes: 0,
-  monthlyInsurance: 0,
-  monthlyUtilities: 200,
-  monthlyHOA: 0,
-  holdingPeriodMonths: 6,
-  lawnCare: 0,
-  security: 0,
-  propertyManagement: 0,
-  closingCostsBuying: 0,
-  inspectionCosts: 500,
-  appraisalCosts: 500,
-  titleInsuranceBuying: 0,
-  otherBuyingCosts: 0,
-  surveyFee: 0,
-  attorneyFees: 0,
-  recordingFees: 0,
-  escrowFees: 0,
-  agentCommissionPercent: 6,
-  closingCostsSelling: 0,
-  titleInsuranceSelling: 0,
-  transferTaxes: 0,
-  otherSellingCosts: 0,
-  homeWarranty: 0,
-  concessions: 0,
-  stagingCost: 0,
-  photographyMarketing: 0,
-}
+const initialDealData = createEmptyDealData()
 
 const steps = [
   { id: "property", label: "Property Info", description: "Basic property details" },
@@ -115,6 +31,7 @@ const steps = [
 ]
 
 export function DealAnalyzer() {
+  const searchParams = useSearchParams()
   const [currentStep, setCurrentStep] = useState(0)
   const [dealData, setDealData] = useState<DealData>(initialDealData)
   const [hasSavedWorksheet, setHasSavedWorksheet] = useState(false)
@@ -123,6 +40,39 @@ export function DealAnalyzer() {
   const [saved, setSaved] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [prefilledFromProperty, setPrefilledFromProperty] = useState(false)
+  const [autoLookupReady, setAutoLookupReady] = useState(false)
+
+  useEffect(() => {
+    if (prefilledFromProperty) return
+    const address = searchParams.get("address")
+    if (!address) return
+
+    const price = Number(searchParams.get("price") || searchParams.get("arv") || 0)
+    const sqft = Number(searchParams.get("sqft") || 0)
+    const beds = Number(searchParams.get("beds") || 0)
+    const baths = Number(searchParams.get("baths") || 0)
+    const yearBuilt = Number(searchParams.get("yearBuilt") || 0)
+    const propertyType = mapToAnalyzerPropertyType(searchParams.get("propertyType"))
+
+    setDealData((prev) => ({
+      ...createEmptyDealData(),
+      address,
+      city: searchParams.get("city") || prev.city,
+      state: searchParams.get("state") || prev.state,
+      zip: searchParams.get("zip") || prev.zip,
+      propertyType: propertyType || prev.propertyType,
+      sqft: sqft || prev.sqft,
+      bedrooms: beds || prev.bedrooms,
+      bathrooms: baths || prev.bathrooms,
+      yearBuilt: yearBuilt || prev.yearBuilt,
+      arv: price || prev.arv,
+      purchasePrice: price || prev.purchasePrice,
+      askingPrice: price || prev.askingPrice,
+    }))
+    setPrefilledFromProperty(true)
+    setAutoLookupReady(true)
+  }, [searchParams, prefilledFromProperty])
 
   const calculations: Calculations = useMemo(() => {
     const d = dealData
@@ -464,7 +414,15 @@ Holding Period.........: ${d.holdingPeriodMonths} months
   const renderStep = () => {
     switch (currentStep) {
       case 0:
-        return <AnalyzerPropertyInfo data={dealData} onChange={updateDealData} />
+        return (
+          <AnalyzerPropertyInfo
+            data={dealData}
+            onChange={updateDealData}
+            autoLookup={autoLookupReady}
+            onAutoLookupComplete={() => setAutoLookupReady(false)}
+            radarId={searchParams.get("radarId") || undefined}
+          />
+        )
       case 1:
         return <AnalyzerPricing data={dealData} onChange={updateDealData} />
       case 2:

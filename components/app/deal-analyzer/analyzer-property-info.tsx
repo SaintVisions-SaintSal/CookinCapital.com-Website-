@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -9,18 +9,38 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Search, Loader2, CheckCircle2, TrendingUp, MapPin, Home, AlertCircle } from "lucide-react"
 import type { DealData } from "./types"
+import { ANALYZER_PROPERTY_TYPES, mapToAnalyzerPropertyType } from "@/lib/analyzer/property-mapping"
 
 interface Props {
   data: DealData
   onChange: (updates: Partial<DealData>) => void
+  autoLookup?: boolean
+  onAutoLookupComplete?: () => void
+  radarId?: string
 }
 
 interface PropertyValuation {
   price: number
   priceRangeLow: number
   priceRangeHigh: number
-  latitude: number
-  longitude: number
+  latitude?: number
+  longitude?: number
+  source?: string
+  property?: {
+    address?: string
+    city?: string
+    state?: string
+    zip?: string
+    beds?: number
+    baths?: number
+    sqft?: number
+    yearBuilt?: number
+    lotSize?: number
+    propertyType?: string
+    value?: number
+    assessedValue?: number
+    annualTaxes?: number
+  }
   comparables: Array<{
     formattedAddress: string
     city: string
@@ -32,10 +52,35 @@ interface PropertyValuation {
   }>
 }
 
-export function AnalyzerPropertyInfo({ data, onChange }: Props) {
+export function AnalyzerPropertyInfo({
+  data,
+  onChange,
+  autoLookup = false,
+  onAutoLookupComplete,
+  radarId,
+}: Props) {
   const [isSearching, setIsSearching] = useState(false)
   const [valuation, setValuation] = useState<PropertyValuation | null>(null)
   const [searchError, setSearchError] = useState<string | null>(null)
+
+  const applyPropertyDetails = (property: PropertyValuation["property"], price?: number) => {
+    if (!property) return
+
+    onChange({
+      address: property.address || data.address,
+      city: property.city || data.city,
+      state: property.state || data.state,
+      zip: property.zip || data.zip,
+      bedrooms: property.beds || data.bedrooms,
+      bathrooms: property.baths || data.bathrooms,
+      sqft: property.sqft || data.sqft,
+      yearBuilt: property.yearBuilt || data.yearBuilt,
+      lotSize: property.lotSize || data.lotSize,
+      propertyType: mapToAnalyzerPropertyType(property.propertyType) || data.propertyType,
+      arv: price || property.value || data.arv,
+      monthlyTaxes: property.annualTaxes ? Math.round(property.annualTaxes / 12) : data.monthlyTaxes,
+    })
+  }
 
   const handlePropertySearch = async () => {
     if (!data.address || !data.city || !data.state) {
@@ -52,14 +97,11 @@ export function AnalyzerPropertyInfo({ data, onChange }: Props) {
         address: data.address,
         city: data.city,
         state: data.state,
-        ...(data.zip && { zip: data.zip }),
-        ...(data.propertyType && { propertyType: data.propertyType }),
-        ...(data.bedrooms && { bedrooms: data.bedrooms.toString() }),
-        ...(data.bathrooms && { bathrooms: data.bathrooms.toString() }),
-        ...(data.sqft && { squareFootage: data.sqft.toString() }),
       })
+      if (data.zip) params.set("zip", data.zip)
+      if (radarId) params.set("radarId", radarId)
 
-      const response = await fetch(`/api/property-search?${params}`)
+      const response = await fetch(`/api/analyzer/valuation?${params.toString()}`)
       const result = await response.json()
 
       if (!response.ok) {
@@ -67,17 +109,19 @@ export function AnalyzerPropertyInfo({ data, onChange }: Props) {
       }
 
       setValuation(result)
-
-      // Auto-populate ARV from valuation
-      if (result.price) {
-        onChange({ arv: result.price })
-      }
+      applyPropertyDetails(result.property, result.price)
     } catch (error) {
       setSearchError(error instanceof Error ? error.message : "Failed to fetch property data")
     } finally {
       setIsSearching(false)
     }
   }
+
+  useEffect(() => {
+    if (!autoLookup || !data.address || !data.city || !data.state) return
+    handlePropertySearch().finally(() => onAutoLookupComplete?.())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoLookup])
 
   const applyValuationAsARV = () => {
     if (valuation?.price) {
@@ -95,24 +139,22 @@ export function AnalyzerPropertyInfo({ data, onChange }: Props) {
               Property Information
             </CardTitle>
             <Badge variant="outline" className="border-primary/30 text-primary">
-              Powered by RentCast
+              PropertyRadar
             </Badge>
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Address */}
           <div className="space-y-2">
             <Label htmlFor="address">Property Address</Label>
             <Input
               id="address"
               value={data.address}
               onChange={(e) => onChange({ address: e.target.value })}
-              placeholder="123 Main Street"
+              placeholder="Street address"
               className="bg-secondary border-0"
             />
           </div>
 
-          {/* City, State, Zip */}
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="city">City</Label>
@@ -120,7 +162,7 @@ export function AnalyzerPropertyInfo({ data, onChange }: Props) {
                 id="city"
                 value={data.city}
                 onChange={(e) => onChange({ city: e.target.value })}
-                placeholder="Austin"
+                placeholder="City"
                 className="bg-secondary border-0"
               />
             </div>
@@ -130,7 +172,7 @@ export function AnalyzerPropertyInfo({ data, onChange }: Props) {
                 id="state"
                 value={data.state}
                 onChange={(e) => onChange({ state: e.target.value })}
-                placeholder="TX"
+                placeholder="ST"
                 className="bg-secondary border-0"
               />
             </div>
@@ -140,30 +182,31 @@ export function AnalyzerPropertyInfo({ data, onChange }: Props) {
                 id="zip"
                 value={data.zip}
                 onChange={(e) => onChange({ zip: e.target.value })}
-                placeholder="78701"
+                placeholder="ZIP"
                 className="bg-secondary border-0"
               />
             </div>
           </div>
 
-          {/* Property Type */}
           <div className="space-y-2">
             <Label>Property Type</Label>
-            <Select value={data.propertyType} onValueChange={(value) => onChange({ propertyType: value })}>
+            <Select
+              value={data.propertyType || undefined}
+              onValueChange={(value) => onChange({ propertyType: value })}
+            >
               <SelectTrigger className="bg-secondary border-0">
-                <SelectValue />
+                <SelectValue placeholder="Select property type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Single Family">Single Family</SelectItem>
-                <SelectItem value="Multi-Family">Multi-Family</SelectItem>
-                <SelectItem value="Condo">Condo/Townhouse</SelectItem>
-                <SelectItem value="Commercial">Commercial</SelectItem>
-                <SelectItem value="Land">Land</SelectItem>
+                {ANALYZER_PROPERTY_TYPES.map((type) => (
+                  <SelectItem key={type.value} value={type.value}>
+                    {type.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
 
-          {/* Beds, Baths, SqFt */}
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="bedrooms">Bedrooms</Label>
@@ -172,6 +215,7 @@ export function AnalyzerPropertyInfo({ data, onChange }: Props) {
                 type="number"
                 value={data.bedrooms || ""}
                 onChange={(e) => onChange({ bedrooms: Number.parseInt(e.target.value) || 0 })}
+                placeholder="—"
                 className="bg-secondary border-0"
               />
             </div>
@@ -183,6 +227,7 @@ export function AnalyzerPropertyInfo({ data, onChange }: Props) {
                 step="0.5"
                 value={data.bathrooms || ""}
                 onChange={(e) => onChange({ bathrooms: Number.parseFloat(e.target.value) || 0 })}
+                placeholder="—"
                 className="bg-secondary border-0"
               />
             </div>
@@ -193,12 +238,12 @@ export function AnalyzerPropertyInfo({ data, onChange }: Props) {
                 type="number"
                 value={data.sqft || ""}
                 onChange={(e) => onChange({ sqft: Number.parseInt(e.target.value) || 0 })}
+                placeholder="—"
                 className="bg-secondary border-0"
               />
             </div>
           </div>
 
-          {/* Year Built, Lot Size */}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="yearBuilt">Year Built</Label>
@@ -207,6 +252,7 @@ export function AnalyzerPropertyInfo({ data, onChange }: Props) {
                 type="number"
                 value={data.yearBuilt || ""}
                 onChange={(e) => onChange({ yearBuilt: Number.parseInt(e.target.value) || 0 })}
+                placeholder="—"
                 className="bg-secondary border-0"
               />
             </div>
@@ -218,12 +264,12 @@ export function AnalyzerPropertyInfo({ data, onChange }: Props) {
                 step="0.01"
                 value={data.lotSize || ""}
                 onChange={(e) => onChange({ lotSize: Number.parseFloat(e.target.value) || 0 })}
+                placeholder="—"
                 className="bg-secondary border-0"
               />
             </div>
           </div>
 
-          {/* Property Search Button */}
           <div className="pt-4 border-t border-border/50">
             <Button
               onClick={handlePropertySearch}
@@ -233,7 +279,7 @@ export function AnalyzerPropertyInfo({ data, onChange }: Props) {
               {isSearching ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Searching Property Data...
+                  Pulling live property data...
                 </>
               ) : (
                 <>
@@ -243,11 +289,10 @@ export function AnalyzerPropertyInfo({ data, onChange }: Props) {
               )}
             </Button>
             <p className="text-xs text-muted-foreground text-center mt-2">
-              Pulls real-time AVM data, comps, and market insights
+              Pulls property details from PropertyRadar and enriches with RentCast AVM when available
             </p>
           </div>
 
-          {/* Search Error */}
           {searchError && (
             <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 flex items-start gap-3">
               <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
@@ -260,17 +305,20 @@ export function AnalyzerPropertyInfo({ data, onChange }: Props) {
         </CardContent>
       </Card>
 
-      {/* Valuation Results */}
       {valuation && (
         <Card className="border-primary/30 bg-primary/5">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-primary">
               <TrendingUp className="h-5 w-5" />
               Live Property Valuation
+              {valuation.source ? (
+                <Badge variant="outline" className="ml-2 border-primary/30 text-primary">
+                  {valuation.source}
+                </Badge>
+              ) : null}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Main Valuation */}
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="p-4 rounded-lg bg-card border border-border/50 text-center">
                 <p className="text-sm text-muted-foreground mb-1">Low Estimate</p>
@@ -286,7 +334,6 @@ export function AnalyzerPropertyInfo({ data, onChange }: Props) {
               </div>
             </div>
 
-            {/* Apply as ARV Button */}
             <Button
               onClick={applyValuationAsARV}
               variant="outline"
@@ -296,8 +343,7 @@ export function AnalyzerPropertyInfo({ data, onChange }: Props) {
               Use ${valuation.price.toLocaleString()} as ARV
             </Button>
 
-            {/* Comparables */}
-            {valuation.comparables && valuation.comparables.length > 0 && (
+            {valuation.comparables?.length > 0 && (
               <div className="space-y-3">
                 <h4 className="font-semibold text-foreground flex items-center gap-2">
                   <MapPin className="h-4 w-4 text-primary" />
@@ -317,11 +363,11 @@ export function AnalyzerPropertyInfo({ data, onChange }: Props) {
                           {comp.squareFootage && ` • ${comp.squareFootage.toLocaleString()} sqft`}
                         </p>
                       </div>
-                      {comp.price && (
+                      {comp.price ? (
                         <Badge variant="outline" className="border-primary/30 text-primary">
                           ${comp.price.toLocaleString()}
                         </Badge>
-                      )}
+                      ) : null}
                     </div>
                   ))}
                 </div>

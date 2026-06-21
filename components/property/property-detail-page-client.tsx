@@ -19,8 +19,9 @@ import {
 } from "lucide-react"
 import { PropertyImageCarousel } from "@/components/property/property-image-carousel"
 import { FavoriteButton } from "@/components/property/favorite-button"
-import { formatCurrency, getDistressBadges } from "@/lib/property/format"
+import { formatCurrency, formatPropertyType, getDistressBadges } from "@/lib/property/format"
 import type { PropertyResult } from "@/lib/property/types"
+import { buildAnalyzerUrl, buildApplyUrl, favoriteKey } from "@/lib/property/urls"
 import { usePropertySaved } from "@/hooks/use-property-saved"
 import { Button } from "@/components/ui/button"
 
@@ -33,10 +34,12 @@ function DetailStat({ label, value }: { label: string; value: string }) {
   )
 }
 
-export function PropertyDetailPageClient({ radarId }: { radarId: string }) {
+export function PropertyDetailPageClient({ radarId: radarIdProp }: { radarId?: string } = {}) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const returnTo = searchParams.get("returnTo")
+  const radarId = radarIdProp || searchParams.get("radarId") || undefined
+  const addressQuery = searchParams.get("address") || undefined
   const [property, setProperty] = useState<PropertyResult | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -52,10 +55,20 @@ export function PropertyDetailPageClient({ radarId }: { radarId: string }) {
 
   useEffect(() => {
     async function loadProperty() {
+      if (!radarId && !addressQuery) {
+        setError("Property not found")
+        setLoading(false)
+        return
+      }
+
       setLoading(true)
       setError(null)
       try {
-        const res = await fetch(`/api/property-search/detail?radarId=${encodeURIComponent(radarId)}`)
+        const params = new URLSearchParams()
+        if (radarId) params.set("radarId", radarId)
+        if (addressQuery) params.set("address", addressQuery)
+
+        const res = await fetch(`/api/property-search/detail?${params.toString()}`)
         const data = await res.json()
         if (!res.ok || !data.property) {
           setError(data.error || "Property not found")
@@ -70,7 +83,7 @@ export function PropertyDetailPageClient({ radarId }: { radarId: string }) {
     }
 
     loadProperty()
-  }, [radarId])
+  }, [radarId, addressQuery])
 
   if (loading) {
     return (
@@ -115,6 +128,18 @@ export function PropertyDetailPageClient({ radarId }: { radarId: string }) {
         <div>
           <PropertyImageCarousel property={property} />
 
+          {property.latitude != null && property.longitude != null && (
+            <div className="mt-4 overflow-hidden rounded-2xl border border-border">
+              <iframe
+                title="Property location map"
+                className="h-56 w-full border-0"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                src={`https://maps.google.com/maps?q=${property.latitude},${property.longitude}&z=15&output=embed`}
+              />
+            </div>
+          )}
+
           <div className="mt-6 flex flex-wrap gap-2">
             {badges.map((badge) => (
               <span key={badge.label} className={`rounded-full px-3 py-1 text-xs font-semibold ${badge.color}`}>
@@ -128,7 +153,9 @@ export function PropertyDetailPageClient({ radarId }: { radarId: string }) {
           <div className="rounded-2xl border border-border bg-card/80 p-6 backdrop-blur-sm">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm text-primary">PropertyRadar Record</p>
+                <p className="text-sm text-primary">
+                  {property.source === "PropertyAPI" ? "Property Record" : "PropertyRadar Record"}
+                </p>
                 <h1 className="mt-1 text-2xl font-bold text-foreground">{property.address}</h1>
                 <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
                   <MapPin className="h-4 w-4" />
@@ -136,7 +163,7 @@ export function PropertyDetailPageClient({ radarId }: { radarId: string }) {
                 </p>
               </div>
               <FavoriteButton
-                active={isFavorite(property.radarId)}
+                active={isFavorite(favoriteKey(property))}
                 onClick={() => toggleFavorite(property)}
               />
             </div>
@@ -162,7 +189,7 @@ export function PropertyDetailPageClient({ radarId }: { radarId: string }) {
                   <DetailStat label="Baths" value={property.baths?.toString() || "—"} />
                   <DetailStat label="Sq Ft" value={property.sqft?.toLocaleString() || "—"} />
                   <DetailStat label="Year Built" value={property.yearBuilt?.toString() || "—"} />
-                  <DetailStat label="Type" value={property.propertyType || "—"} />
+                  <DetailStat label="Type" value={formatPropertyType(property.propertyType)} />
                   <DetailStat label="APN" value={property.apn || "—"} />
                 </div>
               </div>
@@ -229,15 +256,13 @@ export function PropertyDetailPageClient({ radarId }: { radarId: string }) {
             </div>
 
             <div className="mt-8 grid gap-3 sm:grid-cols-2">
-              <Link href={`/app/analyzer?address=${encodeURIComponent(property.address)}&price=${property.value || 0}`}>
+              <Link href={buildAnalyzerUrl(property)}>
                 <Button variant="outline" className="w-full rounded-xl">
                   <Calculator className="mr-2 h-4 w-4" />
                   Analyze Deal
                 </Button>
               </Link>
-              <Link
-                href={`/apply?address=${encodeURIComponent(`${property.address}, ${property.city}, ${property.state} ${property.zip}`)}`}
-              >
+              <Link href={buildApplyUrl(property)}>
                 <Button className="w-full rounded-xl">
                   Apply for Capital
                 </Button>
