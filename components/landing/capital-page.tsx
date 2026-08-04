@@ -699,7 +699,7 @@ export function CapitalPage() {
             </h1>
             <p className="mt-6 text-lg leading-8 text-muted-foreground max-w-2xl mx-auto">
               Access $5K to $50M+ in business funding. Real estate, equipment, working capital, and more.
-              Industry-leading approval process matched by SaintSal™ to the right lender for your deal.
+              SaintSal™ matches your deal to the right lender across our partner network.
             </p>
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link href="/prequal">
@@ -717,7 +717,11 @@ export function CapitalPage() {
             </div>
             <p className="mt-4 text-sm text-muted-foreground">
               <Shield className="inline h-4 w-4 mr-1" />
-              Checking your rate won't affect your credit score
+              {/* Accuracy: a bare "won't affect your credit score" is only true of
+                  a soft inquiry. Stated precisely so the claim is substantiable
+                  (FTC Act §5; FCRA §604 permissible purpose). */}
+              Pre-qualification uses a soft credit inquiry. A hard pull happens only if you choose to proceed with a
+              full application.
             </p>
           </div>
 

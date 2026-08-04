@@ -70,10 +70,16 @@ const LEGACY_ALIASES: Partial<Record<ServerEnvKey, string[]>> = {
     "PROPERTY_RADAR_API_KEY",
     "PROPERTYRADAR_API",
     "NEXT_PUBLIC_PROPERTY_RADAR_API",
+    "PROPERTY_RADAR_API_TOKEN",
   ],
   RENTCAST_API: ["RENTCAST_API_KEY"],
-  GOOGLE_MAPS_API: ["GOOGLE_MAPS_API_KEY", "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY"],
-  ALPACA_API_KEY_ID: ["ALPACA_KEY_ID"],
+  GOOGLE_MAPS_API: [
+    "GOOGLE_MAPS_API_KEY",
+    "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY",
+    "GOOGLE_PLACES_API_KEY",
+    "GOOGLE_MAPS_SECRET_KEY",
+  ],
+  ALPACA_API_KEY_ID: ["ALPACA_KEY_ID", "ALPACA_API_KEY"],
   ALPACA_SECRET_KEY: ["ALPACA_API_SECRET_KEY"],
   GHL_API_KEY: ["GOHIGHLEVEL_API_KEY", "HIGHLEVEL_API_KEY"],
   GHL_LOCATION_ID: ["GOHIGHLEVEL_LOCATION_ID"],
@@ -85,7 +91,7 @@ const LEGACY_ALIASES: Partial<Record<ServerEnvKey, string[]>> = {
  * It returns 401 against every vendor probed (see
  * research/VERIFIED_API_FINDINGS.md). Left unwired on purpose.
  */
-export const UNWIRED_KEYS = ["PROPERTY_API"] as const
+export const UNWIRED_KEYS = ["PROPERTY_API", "PROPERTY_API_KEY", "PROPERTYAPI_KEY"] as const
 
 function read(key: string): string | undefined {
   const direct = process.env[key]

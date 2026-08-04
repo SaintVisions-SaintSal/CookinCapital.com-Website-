@@ -11,13 +11,23 @@ export async function proxy(request: NextRequest) {
     "/app/portfolio", // Personal portfolio
     "/app/rescue", // Personal rescue cases
     "/app/affiliate", // Personal affiliate dashboard
+    // ── Licensed-data surfaces (v2) ───────────────────────────────────
+    // These render PropertyRadar-derived fields — foreclosure stage, NOD
+    // dates, probate/divorce/bankruptcy flags, liens, auction economics and
+    // predictive scores — which are licensed for internal use only and may
+    // never appear on a public surface. The API routes behind them already
+    // enforce requireOperator(), so this is defence in depth, not the only
+    // control. The public equivalent is /properties/search (RentCast only).
+    "/app/properties", // PropertyRadar search
+    "/app/opportunities", // Distress Screener + Lead Brief + Compliance Gate
+    "/app/legal", // Compliance desk: consent, DNC, suppression
+    "/app/campaigns", // Purchases records; spends PropertyRadar credits
+    "/app/markets", // Alpaca advisor (scaffold)
   ]
 
   const publicAppRoutes = [
     "/app", // Main app landing
-    "/app/analyzer", // Deal analyzer - free to use
-    "/app/properties", // Property search - free to browse
-    "/app/opportunities", // Browse opportunities
+    "/app/analyzer", // Deal analyzer — public tier hides internal underwriting
     "/app/deals", // Browse deals
     "/app/research", // Research hub
     "/app/capital", // Capital/lending info

@@ -458,7 +458,11 @@ export function InvestmentPage() {
               Ready to Invest in CookinCapital Fund I?
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
-              Join accredited investors earning 9-12% fixed returns backed by institutional-grade real estate lending.
+              {/* "earning" states a realised return; the fund targets a return.
+                  Targets are forward-looking under SEC Reg D and cannot be
+                  presented as achieved results. See /legal/disclosures. */}
+              Open to verified accredited investors. Fund I targets 9–12% fixed returns, backed by institutional-grade
+              real estate lending. Targets are objectives, not guarantees.
             </p>
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link href="/invest/apply">
@@ -510,8 +514,10 @@ export function InvestmentPage() {
             </p>
             <p>
               This opportunity is available only to accredited investors as defined under Regulation D, Rule 506(c) of
-              the Securities Act of 1933. Please consult with your financial, tax, and legal advisors before making any
-              investment decision.
+              the Securities Act of 1933. Because Rule 506(c) permits general solicitation, CookinCapital must take
+              reasonable steps to verify your accredited status before accepting a subscription — self-certification
+              alone is not sufficient. Please consult your financial, tax and legal advisors before investing. Full
+              disclosures are at cookincapital.com/legal/disclosures.
             </p>
           </div>
         </div>

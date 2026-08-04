@@ -104,13 +104,33 @@ const SECTIONS = [
     ],
   },
   {
-    id: "offering",
+    id: "claims",
     label: "06",
+    title: "Every headline figure is substantiated or it comes down",
+    body: [
+      "Figures such as capital deployed, distressed assets resolved, lending partners and deals analysed are cumulative totals across CookinCapital and Saint Vision Group since inception, not annual or per-fund results, and they include transactions facilitated alongside partner lenders.",
+      "Valuation, rent, cap-rate and yield figures shown in our products are model estimates with the source named on the surface. They are not appraisals, brokers' opinions of value or commitments to lend. Where the model distrusts a derived figure, we mark it and exclude it from any headline average rather than presenting it as an opportunity.",
+    ],
+    authorities: [
+      {
+        text: "FTC Act §5 (substantiation)",
+        href: "https://www.ftc.gov/legal-library/browse/statutes/federal-trade-commission-act",
+      },
+      {
+        text: "FTC Endorsement Guides (2023)",
+        href: "https://www.ftc.gov/business-guidance/resources/ftcs-endorsement-guides-what-people-are-asking",
+      },
+    ],
+  },
+  {
+    id: "offering",
+    label: "07",
     title: "Investment offering disclosure",
     body: [
-      "PLACEHOLDER — PENDING SECURITIES COUNSEL REVIEW. Do not treat this section as final.",
-      "References on this site to fixed returns in the range of 9–12% describe a target objective for CookinCapital Fund I. Targets are not guarantees, are not insured, and past performance does not predict future results. Real estate lending carries the risk of partial or total loss of principal.",
-      "Nothing on this site is an offer to sell, or a solicitation of an offer to buy, any security. Any offering will be made only to qualified investors, only by means of definitive offering documents, and only pursuant to an available exemption from registration. The specific exemption relied upon, investor-qualification standards and the associated transfer restrictions must be stated here before any public solicitation occurs.",
+      "PLACEHOLDER — PENDING SECURITIES COUNSEL REVIEW. The exemption and verification language below reflects what the site currently represents and must be confirmed against the definitive offering documents before any further solicitation.",
+      "References on this site to fixed returns in the range of 9–12% describe a target objective for CookinCapital Fund I, LP. Targets are forward-looking objectives, not guarantees. They are not insured or guaranteed by any government agency, and past performance does not predict future results. Real estate lending carries the risk of partial or total loss of principal.",
+      "Nothing on this site is an offer to sell, or a solicitation of an offer to buy, any security. Any offering is made solely by delivery of a confidential private placement memorandum, and is conducted in reliance on the exemption at Rule 506(c) of Regulation D under the Securities Act of 1933.",
+      "Because Rule 506(c) permits general solicitation, participation is limited to accredited investors and CookinCapital must take reasonable steps to verify accredited status — a signed self-certification is not enough. Interests are not registered, are not listed on any exchange, and are subject to substantial transfer restrictions.",
     ],
     authorities: [
       { text: "SEC Regulation D", href: "https://www.sec.gov/education/smallbusiness/exemptofferings/regd" },
