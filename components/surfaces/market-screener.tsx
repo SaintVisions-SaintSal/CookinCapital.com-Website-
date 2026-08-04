@@ -126,7 +126,14 @@ export function MarketScreener({
     return {
       medianValue: medianOf(valued.map((r) => r.rentcastAvm!).filter(Boolean)),
       medianRent: medianOf(rows.map((r) => r.rentcastRent).filter((v): v is number => !!v)),
-      medianCap: medianOf(rows.map((r) => r.capRate).filter((v): v is number => v !== null)),
+      // Flagged rows are excluded from the median so one AVM artefact cannot
+      // move a headline figure. Flags are set in lib/intelligence/store.ts.
+      medianCap: medianOf(
+        rows
+          .filter((r) => !r.dataFlags?.includes("cap_rate_implausible"))
+          .map((r) => r.capRate)
+          .filter((v): v is number => v !== null),
+      ),
       medianPpsf: medianOf(rows.map((r) => r.pricePerSqft).filter((v): v is number => v !== null)),
     };
   }, [data]);
@@ -381,8 +388,21 @@ export function MarketScreener({
                           <td className="num px-3 py-2.5 text-right text-on-surface">
                             {usd(r.rentcastRent)}
                           </td>
-                          <td className="num px-3 py-2.5 text-right text-gold">
+                          <td
+                            className={cn(
+                              "num px-3 py-2.5 text-right",
+                              r.dataFlags?.includes("cap_rate_implausible") ? "text-outline" : "text-gold",
+                            )}
+                            title={
+                              r.dataFlags?.length
+                                ? `Derived figure flagged: ${r.dataFlags.join(", ").replace(/_/g, " ")}`
+                                : undefined
+                            }
+                          >
                             {pct(r.capRate, 2)}
+                            {r.dataFlags?.includes("cap_rate_implausible") ? (
+                              <span className="ml-1 align-super text-[9px] text-outline">!</span>
+                            ) : null}
                           </td>
                           <td className="num px-3 py-2.5 text-right text-on-surface-variant">
                             {r.pricePerSqft ? nf(r.pricePerSqft) : "—"}
@@ -396,6 +416,12 @@ export function MarketScreener({
                     </tbody>
                   </table>
                 </div>
+                <p className="border-t border-outline-variant/40 px-3 py-2 text-[10.5px] leading-relaxed text-outline/80 sm:px-4">
+                  Value and rent are RentCast AVM estimates; cap rate, $/sq ft and yield are derived by CookinCapital
+                  from them and are not appraisals. A <span className="text-outline">!</span> marks a derived figure the
+                  model distrusts — usually an AVM that excludes land value — and those rows are excluded from the
+                  medians above.
+                </p>
                 <div className="flex flex-wrap items-center justify-between gap-2 border-t border-outline-variant/50 px-3 py-2.5 sm:px-4">
                   <span className="num text-[10.5px] text-outline">
                     Page {page} of {nf(pages)} · showing {data.returned} of {nf(data.total)}

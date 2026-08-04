@@ -213,6 +213,17 @@ export function propertyToDTO(r: Property): PropertyDTO {
     yieldScore = Math.round((capPts + rtvPts + gapPts) * 10) / 10;
   }
 
+  // ── Data-quality flags ────────────────────────────────────────────
+  // A cap rate above 15% in Orange County is almost always an artefact of the
+  // AVM rather than a real opportunity, most often because the value model
+  // excludes land (manufactured/mobile) or the rent AVM is drawn from a
+  // different unit mix. Flag it; never quietly present it as an opportunity.
+  const dataFlags: string[] = [];
+  if (capRate !== null && capRate > 0.15) dataFlags.push("cap_rate_implausible");
+  if (/manufactur|mobile/i.test(r.propertyType ?? "")) dataFlags.push("avm_may_exclude_land");
+  if (value !== null && value < 60000) dataFlags.push("value_below_land_floor");
+  if (r.squareFootage === null || r.squareFootage === 0) dataFlags.push("no_square_footage");
+
   return {
     rcId: r.rcId,
     formattedAddress: r.formattedAddress,
@@ -248,6 +259,7 @@ export function propertyToDTO(r: Property): PropertyDTO {
     pricePerSqft,
     assessedToAvm,
     yieldScore,
+    dataFlags,
   };
 }
 

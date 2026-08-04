@@ -160,7 +160,7 @@ const LOAN_PRODUCTS = {
     termOptions: [6, 12, 18, 24],
     maxLTV: 75,
     minCredit: 620,
-    features: ["Buy before you sell", "Short-term financing", "Quick approval", "6-24 month terms"],
+    features: ["Buy before you sell", "Short-term financing", "Fast decisions", "6-24 month terms"],
     description: "Short-term financing to bridge transactions",
   },
   construction_res: {
@@ -454,8 +454,12 @@ const LOAN_PRODUCTS = {
     minAmount: 4000,
     maxAmount: 5000,
     termOptions: [12, 24, 36],
-    features: ["Finance legal fees", "Save your home", "Low monthly payments", "Quick approval"],
-    description: "Finance legal fees to save your home",
+    // Compliance: outcome claims ("save your home") and approval guarantees are
+    // foreclosure-consultant conduct under Cal. Civ. Code §2945.1(a) and are
+    // deceptive under the FTC MARS Rule, 12 CFR 1015.3. Copy states the product,
+    // not a promised result. See /legal/disclosures.
+    features: ["Finance legal fees", "Retain your own counsel", "Fixed monthly payments", "Fast decisions"],
+    description: "Financing for legal fees, so you can retain counsel of your choosing",
     highlight: true,
   },
   debt_consol: {

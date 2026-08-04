@@ -1,4 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { requireOperator } from "@/lib/intelligence/api"
+import { getEnv } from "@/lib/env"
+
+/** Hard ceiling on records a single campaign run may purchase. */
+const CAMPAIGN_MAX_LIMIT = Number(process.env.MAX_DRAW ?? "25")
 import { searchPropertiesAdvanced, mapToPropertyResult, type PropertySearchParams } from "@/lib/propertyradar"
 import {
   scoreBatch,
@@ -51,13 +56,45 @@ function buildPRParams(searchConfig: Record<string, unknown>): PropertySearchPar
  * }
  */
 export async function POST(request: NextRequest) {
-  const PROPERTYRADAR_API_KEY = process.env.PROPERTYRADAR_API_KEY
+  // ── COST + LICENCE GUARD (added in v2) ───────────────────────────────
+  // This route calls PropertyRadar with Purchase=1, which spends export
+  // credits, and it returns PropertyRadar distress fields. It is therefore
+  // operator-only and requires an explicit confirmation and a capped limit,
+  // matching the control on /api/screener/draw.
+  const auth = await requireOperator()
+  if (!auth.ok) return auth.response
+
+  const PROPERTYRADAR_API_KEY = getEnv("PROPERTY_RADAR_API")
   if (!PROPERTYRADAR_API_KEY) {
-    return NextResponse.json({ error: "PropertyRadar API key not configured" }, { status: 500 })
+    return NextResponse.json(
+      { error: "PropertyRadar API key not configured. Set PROPERTY_RADAR_API in the server environment." },
+      { status: 500 },
+    )
   }
 
   try {
     const body = await request.json()
+
+    if (body.confirmed !== true) {
+      return NextResponse.json(
+        {
+          error:
+            "A campaign run purchases records and spends PropertyRadar export credits. Re-send with confirmed: true and a limit within the ceiling.",
+          kind: "confirmation",
+          maxLimit: CAMPAIGN_MAX_LIMIT,
+        },
+        { status: 400 },
+      )
+    }
+
+    const requestedLimit = Number(body.overrides?.limit ?? body.limit ?? CAMPAIGN_MAX_LIMIT)
+    if (!Number.isFinite(requestedLimit) || requestedLimit < 1 || requestedLimit > CAMPAIGN_MAX_LIMIT) {
+      return NextResponse.json(
+        { error: `limit must be between 1 and ${CAMPAIGN_MAX_LIMIT}.`, kind: "confirmation" },
+        { status: 400 },
+      )
+    }
+    body.overrides = { ...(body.overrides ?? {}), limit: requestedLimit }
     const campaignType = body.type as CampaignType
     const enableStacking = body.enableStacking === true
 

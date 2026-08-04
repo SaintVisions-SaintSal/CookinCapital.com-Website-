@@ -1,5 +1,8 @@
 "use client"
 
+/** Ceiling on records a single campaign run may purchase. Mirrors MAX_DRAW on the server. */
+const CAMPAIGN_RUN_LIMIT = 25
+
 import { useState, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import Link from "next/link"
@@ -705,6 +708,17 @@ export default function CampaignDashboard() {
       return
     }
 
+    // A campaign run purchases records and spends PropertyRadar export
+    // credits, so the operator confirms the spend explicitly. The server
+    // rejects any run that arrives without this confirmation.
+    if (
+      !window.confirm(
+        `This run purchases up to ${CAMPAIGN_RUN_LIMIT} records from PropertyRadar and spends export credits. Continue?`,
+      )
+    ) {
+      return
+    }
+
     setIsRunning(true)
     setError(null)
     setResult(null)
@@ -720,6 +734,8 @@ export default function CampaignDashboard() {
           city: city || undefined,
           zip: zip || undefined,
           enableStacking,
+          confirmed: true,
+          overrides: { limit: CAMPAIGN_RUN_LIMIT },
         }),
       })
 

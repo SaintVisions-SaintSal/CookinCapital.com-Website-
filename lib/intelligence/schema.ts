@@ -330,6 +330,13 @@ export interface PropertyDTO {
   pricePerSqft: number | null;
   assessedToAvm: number | null;
   yieldScore: number | null;
+  /**
+   * Data-quality flags on the derived economics. Present so an implausible
+   * figure is labelled rather than silently presented as fact — e.g. a
+   * manufactured home whose AVM excludes land value will produce a cap rate
+   * that no real transaction supports.
+   */
+  dataFlags: string[];
 }
 
 export interface TrendPoint {

@@ -7,7 +7,7 @@ const footerLinks = {
     { label: "Deal Analyzer", href: "/app/analyzer" },
     { label: "Capital & Lending", href: "/capital" },
     { label: "Invest", href: "/invest" },
-    { label: "Legal Services", href: "/app/legal" },
+    { label: "Market Search", href: "/properties/search" },
     { label: "Investor Portal", href: "/app/opportunities" },
   ],
   company: [
@@ -22,6 +22,7 @@ const footerLinks = {
     { label: "Support", href: "https://saintvisiongroup.com/client-hub", external: true },
   ],
   legal: [
+    { label: "Disclosures", href: "/legal/disclosures" },
     { label: "Help & Legal", href: "/help" },
     { label: "Privacy Policy", href: "/help?doc=privacy" },
     { label: "Terms of Service", href: "/help?doc=terms" },
@@ -164,8 +165,24 @@ export function Footer() {
           </div>
         </div>
 
+        {/* Standing compliance notice — required on every public page.
+            Cal. Civ. Code §2944.7 / §2945.4 and 12 CFR 1015 (advance-fee ban);
+            targets are not guarantees. Full text at /legal/disclosures. */}
+        <div className="mt-12 border-t border-outline-variant/60 pt-8">
+          <p className="max-w-4xl text-[11.5px] leading-[1.7] text-outline/80">
+            CookinCapital never collects a fee before promised services are fully performed, and makes no guarantee of
+            approval, savings or outcome. Nothing here is legal, tax or investment advice, nor an offer to sell any
+            security; any offering is made solely through definitive documents to qualified investors. Foreclosure,
+            probate and lien data is licensed for internal use and is never published. Read the{" "}
+            <Link href="/legal/disclosures" className="text-gold/90 underline decoration-gold/25 underline-offset-2">
+              full disclosures
+            </Link>
+            .
+          </p>
+        </div>
+
         {/* Bottom */}
-        <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-outline-variant/60 pt-8 sm:flex-row">
+        <div className="mt-8 flex flex-col items-center justify-between gap-4 border-t border-outline-variant/60 pt-8 sm:flex-row">
           <p className="text-xs text-outline">
             © {new Date().getFullYear()} CookinCapital. All rights reserved. SaintSal™ and HACP™ are trademarks.
           </p>
