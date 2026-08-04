@@ -33,36 +33,36 @@ const footerLinks = {
 
 export function Footer() {
   return (
-    <footer className="border-t border-border bg-background">
+    <footer className="border-t border-outline-variant/60 bg-background">
       <div className="mx-auto max-w-7xl px-6 py-12 lg:px-8 lg:py-16">
         <div className="grid grid-cols-2 gap-8 sm:grid-cols-4 lg:grid-cols-6">
           {/* Brand */}
           <div className="col-span-2 sm:col-span-4 lg:col-span-2">
             <Link href="/" className="flex items-center gap-3">
-              <Image src="/logo.png" alt="CookinCapital" width={44} height={44} className="rounded-lg" />
+              <Image src="/logo.png" alt="CookinCapital" width={44} height={44} className="rounded-none" />
               <span className="text-xl font-semibold tracking-tight">
-                <span className="text-primary">Cookin'</span>
+                <span className="text-gold">Cookin'</span>
                 <span className="text-white">Capital</span>
               </span>
             </Link>
-            <p className="mt-4 max-w-xs text-sm text-muted-foreground leading-relaxed">
+            <p className="mt-4 max-w-xs text-sm text-outline leading-relaxed">
               The Real Estate Capital OS. Acquire, analyze, fund, manage, and exit—all powered by SaintSal™ + HACP™.
             </p>
 
             <div className="mt-6 space-y-2">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <MapPin className="h-4 w-4 text-primary" />
+              <div className="flex items-center gap-2 text-sm text-outline">
+                <MapPin className="h-4 w-4 text-gold" />
                 <span>438 Main St, Huntington Beach, CA 92648</span>
               </div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Phone className="h-4 w-4 text-primary" />
+              <div className="flex items-center gap-2 text-sm text-outline">
+                <Phone className="h-4 w-4 text-gold" />
                 <a href="tel:+19499972097" className="hover:text-foreground transition-colors">
                   1-949-997-2097
                 </a>
               </div>
             </div>
 
-            <p className="mt-6 text-xs text-muted-foreground">Part of the Saint Vision Group ecosystem.</p>
+            <p className="mt-6 text-xs text-outline">Part of the Saint Vision Group ecosystem.</p>
           </div>
 
           {/* Links */}
@@ -73,7 +73,7 @@ export function Footer() {
                 <li key={link.label}>
                   <Link
                     href={link.href}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    className="text-sm text-outline hover:text-foreground transition-colors"
                   >
                     {link.label}
                   </Link>
@@ -92,14 +92,14 @@ export function Footer() {
                       href={link.href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                      className="text-sm text-outline hover:text-foreground transition-colors"
                     >
                       {link.label}
                     </a>
                   ) : (
                     <Link
                       href={link.href}
-                      className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                      className="text-sm text-outline hover:text-foreground transition-colors"
                     >
                       {link.label}
                     </Link>
@@ -119,14 +119,14 @@ export function Footer() {
                       href={link.href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                      className="text-sm text-outline hover:text-foreground transition-colors"
                     >
                       {link.label}
                     </a>
                   ) : (
                     <Link
                       href={link.href}
-                      className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                      className="text-sm text-outline hover:text-foreground transition-colors"
                     >
                       {link.label}
                     </Link>
@@ -146,14 +146,14 @@ export function Footer() {
                       href={link.href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                      className="text-sm text-outline hover:text-foreground transition-colors"
                     >
                       {link.label}
                     </a>
                   ) : (
                     <Link
                       href={link.href}
-                      className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                      className="text-sm text-outline hover:text-foreground transition-colors"
                     >
                       {link.label}
                     </Link>
@@ -165,11 +165,11 @@ export function Footer() {
         </div>
 
         {/* Bottom */}
-        <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-border pt-8 sm:flex-row">
-          <p className="text-xs text-muted-foreground">
+        <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-outline-variant/60 pt-8 sm:flex-row">
+          <p className="text-xs text-outline">
             © {new Date().getFullYear()} CookinCapital. All rights reserved. SaintSal™ and HACP™ are trademarks.
           </p>
-          <p className="text-xs text-muted-foreground">cookincap.io</p>
+          <p className="text-xs text-outline">cookincap.io</p>
         </div>
       </div>
     </footer>

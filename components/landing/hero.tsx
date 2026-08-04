@@ -1,135 +1,149 @@
-import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { ArrowRight, Brain, Database, Lock, Globe, Zap, Cpu } from "lucide-react"
+import { ArrowRight, Brain, Database, ScrollText, Network } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { HomePropertySearch } from "@/components/landing/home-property-search"
 
-export function Hero() {
+/**
+ * Kinetic Luxury hero.
+ *
+ * Rules honoured here:
+ *   • `.gold-foil` appears exactly once — on the primary headline.
+ *   • Gotham plate sits at 14% opacity, masked upward, never behind a number.
+ *   • Every numeral is JetBrains Mono via `.num`.
+ *   • Square corners; one hairline rule per panel edge.
+ *   • The pulse dot marks a genuinely live figure — the corpus timestamp.
+ */
+
+interface HeroProps {
+  corpus?: { properties: number; valued: number; fetchedAt: string | null }
+}
+
+const CAPABILITIES = [
+  { icon: Brain, title: "HACP™ Engine", note: "Human-AI Collaborative Processing · US Patent #10,290,222" },
+  { icon: Database, title: "Dual-AVM Valuation", note: "RentCast + PropertyRadar cross-checked on every subject" },
+  { icon: ScrollText, title: "Covenant-Governed", note: "Every field carries its source. Explainable, auditable." },
+  { icon: Network, title: "50+ Lender Network", note: "$2B+ capital deployed across the platform" },
+]
+
+export function Hero({ corpus }: HeroProps) {
+  const asOf = corpus?.fetchedAt
+    ? new Date(corpus.fetchedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    : null
+
   return (
-    <section className="relative overflow-hidden pt-8 pb-20 lg:pt-16 lg:pb-28">
-      <div className="absolute inset-0 -z-10">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--border)/0.3)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--border)/0.3)_1px,transparent_1px)] bg-[size:4rem_4rem]" />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 h-[800px] w-[800px] rounded-full bg-primary/5 blur-[120px]" />
-        <div className="absolute bottom-0 right-0 h-[400px] w-[400px] rounded-full bg-primary/3 blur-[80px]" />
+    <section className="relative overflow-hidden border-b border-outline-variant/40 pb-20 pt-14 lg:pb-28 lg:pt-20">
+      {/* ── Atmosphere ─────────────────────────────────────────────── */}
+      <div className="pointer-events-none absolute inset-0 -z-10">
+        <div className="gotham-plate gotham-hero gotham-fade-up opacity-[0.14]" />
+        <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-obsidian via-obsidian/80 to-transparent" />
+        <div className="absolute left-1/2 top-[-10%] h-[620px] w-[900px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(255,215,0,0.07),transparent_65%)]" />
       </div>
 
-      <div className="mx-auto max-w-7xl px-6 lg:px-8">
-        <div className="mx-auto max-w-5xl">
-          <div className="text-center">
-            <div className="mb-6 inline-flex items-center gap-3 rounded-full border border-primary/20 bg-background/80 backdrop-blur-sm px-5 py-2.5">
-              <div className="flex h-2 w-2 rounded-full bg-primary animate-pulse" />
-              <span className="text-sm font-medium tracking-wide text-primary">Autonomous Capital Intelligence</span>
+      <div className="mx-auto max-w-[1400px] px-6 lg:px-10">
+        <div className="mx-auto max-w-4xl">
+          {/* Protocol chip */}
+          <div className="flex justify-center">
+            <div className="inline-flex items-center gap-2.5 border border-outline-variant/70 bg-surface-lowest/80 px-3.5 py-2 backdrop-blur-sm">
+              <span className="pulse-dot inline-block h-1.5 w-1.5 rounded-full bg-pulse" aria-hidden="true" />
+              <span className="kl-label !text-on-surface-variant">Autonomous Capital Intelligence</span>
             </div>
+          </div>
 
-            <h1 className="text-4xl lg:text-6xl font-bold text-foreground tracking-tight text-balance">
-              CookinCapital
-            </h1>
+          <h1 className="mt-8 text-center font-display text-[clamp(2.5rem,6.2vw,4.75rem)] font-semibold leading-[0.98] tracking-[-0.03em]">
+            <span className="gold-foil">Institutional Capital</span>
+            <br />
+            <span className="text-on-surface">Infrastructure</span>
+          </h1>
 
-            <p className="mt-4 text-xl lg:text-2xl font-light text-muted-foreground tracking-wide">
-              Institutional Capital Infrastructure
-            </p>
+          <p className="mx-auto mt-7 max-w-2xl text-center text-[17px] leading-relaxed text-on-surface-variant/85 lg:text-lg">
+            The first autonomous capital platform where institutional lending, legal strategy and AI-driven decision
+            intelligence converge. Every deal analyzed, graded and executed with precision — powered by{" "}
+            <span className="font-medium text-gold">SaintSal™</span>, our proprietary decision engine.
+          </p>
 
-            <p className="mt-8 text-lg leading-relaxed text-muted-foreground lg:text-xl max-w-3xl mx-auto text-pretty">
-              The first autonomous capital platform where institutional lending, legal strategy, and AI-driven decision
-              intelligence converge. Every deal analyzed, graded, and executed with precision—powered by{" "}
-              <span className="text-primary font-medium">SaintSal™</span>, our proprietary decision engine.
-            </p>
-
+          <div className="mt-10">
             <HomePropertySearch />
           </div>
 
-          <div className="mt-16 grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <div className="group relative rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm p-5 transition-all hover:border-primary/30 hover:bg-card">
-              <Brain className="h-6 w-6 text-primary mb-3" />
-              <p className="font-medium text-foreground text-sm">HACP™ Engine</p>
-              <p className="mt-1 text-xs text-muted-foreground">Human-AI Collaborative Processing</p>
-            </div>
-            <div className="group relative rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm p-5 transition-all hover:border-primary/30 hover:bg-card">
-              <Database className="h-6 w-6 text-primary mb-3" />
-              <p className="font-medium text-foreground text-sm">35+ Data Endpoints</p>
-              <p className="mt-1 text-xs text-muted-foreground">PropertyRadar, MLS, County Records</p>
-            </div>
-            <div className="group relative rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm p-5 transition-all hover:border-primary/30 hover:bg-card">
-              <Lock className="h-6 w-6 text-primary mb-3" />
-              <p className="font-medium text-foreground text-sm">Covenant-Governed</p>
-              <p className="mt-1 text-xs text-muted-foreground">Explainable & Auditable AI</p>
-            </div>
-            <div className="group relative rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm p-5 transition-all hover:border-primary/30 hover:bg-card">
-              <Globe className="h-6 w-6 text-primary mb-3" />
-              <p className="font-medium text-foreground text-sm">50+ Lender Network</p>
-              <p className="mt-1 text-xs text-muted-foreground">$2B+ Capital Deployed</p>
-            </div>
-          </div>
-
-          <div className="mt-12 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Link href="/research">
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <Link href="/properties/search" className="w-full sm:w-auto">
               <Button
                 size="lg"
-                className="h-14 px-10 text-base bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
+                className="h-13 w-full rounded-none bg-gold px-8 text-[14px] font-semibold tracking-wide text-[#291f00] hover:bg-gold-light sm:w-auto"
+                data-testid="button-hero-primary"
               >
-                Enter Command Center
-                <ArrowRight className="ml-2 h-5 w-5" />
+                Screen the Market
+                <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
-            <Link href="/prequal">
+            <Link href="/prequal" className="w-full sm:w-auto">
               <Button
                 size="lg"
                 variant="outline"
-                className="h-14 px-10 text-base border-border hover:bg-card bg-transparent font-medium"
+                className="kl-lit h-13 w-full rounded-none border-outline-variant bg-transparent px-8 text-[14px] font-medium text-on-surface-variant sm:w-auto"
+                data-testid="button-hero-secondary"
               >
                 Apply for Capital
               </Button>
             </Link>
           </div>
-
-          <div className="mt-16 pt-12 border-t border-border/50">
-            <div className="flex flex-col lg:flex-row items-center justify-between gap-8">
-              <div className="flex items-center gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 border border-primary/20">
-                  <Cpu className="h-7 w-7 text-primary" />
-                </div>
-                <div>
-                  <p className="text-lg font-semibold text-foreground">SaintSal™ Decision Engine</p>
-                  <p className="text-sm text-muted-foreground">Your autonomous co-pilot for capital decisions</p>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 text-sm text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <Zap className="h-4 w-4 text-primary" />
-                  <span>Real-time Analysis</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Zap className="h-4 w-4 text-primary" />
-                  <span>BUY / PASS / RENEGOTIATE</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Zap className="h-4 w-4 text-primary" />
-                  <span>Grade A-F Scoring</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Zap className="h-4 w-4 text-primary" />
-                  <span>Full Audit Trail</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-12 grid grid-cols-3 gap-8 text-center">
-            <div>
-              <p className="text-3xl lg:text-4xl font-semibold text-foreground">$2B+</p>
-              <p className="mt-1 text-sm text-muted-foreground">Capital Deployed</p>
-            </div>
-            <div>
-              <p className="text-3xl lg:text-4xl font-semibold text-foreground">$3B+</p>
-              <p className="mt-1 text-sm text-muted-foreground">Distressed Assets Resolved</p>
-            </div>
-            <div>
-              <p className="text-3xl lg:text-4xl font-semibold text-foreground">24/7</p>
-              <p className="mt-1 text-sm text-muted-foreground">Autonomous Operations</p>
-            </div>
-          </div>
         </div>
+
+        {/* ── Capability plates ────────────────────────────────────── */}
+        <div className="mt-20 grid grid-cols-1 gap-px border border-outline-variant/50 bg-outline-variant/40 sm:grid-cols-2 lg:grid-cols-4">
+          {CAPABILITIES.map(({ icon: Icon, title, note }) => (
+            <div key={title} className="kl-lit group bg-surface p-6" data-testid={`card-capability-${title.toLowerCase().split(" ")[0]}`}>
+              <Icon className="h-5 w-5 text-gold" strokeWidth={1.5} />
+              <p className="mt-5 font-display text-[15px] font-semibold tracking-tight text-on-surface">{title}</p>
+              <p className="mt-1.5 text-[12.5px] leading-relaxed text-outline">{note}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Verified figures. Corpus counts are live; capital figures are platform totals. ── */}
+        <div className="mt-14 grid grid-cols-2 gap-px border border-outline-variant/50 bg-outline-variant/40 lg:grid-cols-4">
+          <Figure label="Capital Deployed" value="$2B+" />
+          <Figure label="Distressed Assets Resolved" value="$3B+" />
+          <Figure
+            label="Properties On File"
+            value={corpus ? corpus.properties.toLocaleString("en-US") : "—"}
+            note={corpus ? `${corpus.valued.toLocaleString("en-US")} independently valued` : undefined}
+            live
+          />
+          <Figure label="Data As Of" value={asOf ?? "—"} note="RentCast · Orange County, CA" />
+        </div>
+
+        <p className="mt-6 text-center text-[11.5px] leading-relaxed text-outline/80">
+          Property and valuation figures on public surfaces are RentCast-sourced or derived from RentCast data.
+          Foreclosure, lien and predictive-score data is licensed for CookinCapital operator use only and is not
+          displayed publicly.
+        </p>
       </div>
     </section>
+  )
+}
+
+function Figure({
+  label,
+  value,
+  note,
+  live = false,
+}: {
+  label: string
+  value: string
+  note?: string
+  live?: boolean
+}) {
+  return (
+    <div className="bg-surface-lowest px-6 py-7" data-testid={`figure-${label.toLowerCase().replace(/\s+/g, "-")}`}>
+      <div className="flex items-center gap-2">
+        {live && <span className="pulse-dot inline-block h-1.5 w-1.5 rounded-full bg-pulse" aria-hidden="true" />}
+        <span className="kl-label">{label}</span>
+      </div>
+      <p className="num mt-3 text-[26px] font-semibold leading-none tracking-tight text-on-surface lg:text-[30px]">
+        {value}
+      </p>
+      {note && <p className="mt-2 text-[11.5px] text-outline">{note}</p>}
+    </div>
   )
 }

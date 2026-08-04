@@ -16,14 +16,14 @@ export function HomePropertySearch() {
   }
 
   return (
-    <div className="mx-auto mt-10 max-w-4xl">
+    <div className="mx-auto max-w-3xl">
       <LocationSearchInput
         onSelect={handleSelect}
         placeholder="Search by city or state — select from suggestions"
         buttonLabel="Search"
       />
-      <p className="mt-3 text-center text-xs text-muted-foreground">
-        Powered by PropertyRadar · Location suggestions by Google Places
+      <p className="kl-label mt-3.5 text-center">
+        Market data by RentCast · Location suggestions by Google Places
       </p>
       <RecentSavedStrip />
     </div>

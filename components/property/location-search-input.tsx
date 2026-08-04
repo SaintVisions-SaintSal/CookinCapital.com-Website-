@@ -124,7 +124,7 @@ export function LocationSearchInput({
   return (
     <div className="relative w-full">
       <div
-        className={`flex items-center gap-2 rounded-2xl border border-border/70 bg-card/80 backdrop-blur-md shadow-lg ${
+        className={`kl-panel kl-lit flex items-center gap-2 rounded-none border-outline-variant/70 bg-surface/85 backdrop-blur-md ${
           compact ? "p-2" : "p-2.5"
         }`}
       >
@@ -161,7 +161,7 @@ export function LocationSearchInput({
             }
           }}
           placeholder={placeholder}
-          className={`flex-1 bg-transparent outline-none text-foreground placeholder:text-muted-foreground/60 ${
+          className={`min-w-0 flex-1 bg-transparent outline-none text-on-surface placeholder:text-outline/70 ${
             compact ? "text-sm py-2" : "text-base py-3"
           }`}
           autoComplete="off"
@@ -170,7 +170,7 @@ export function LocationSearchInput({
           type="button"
           onClick={submit}
           disabled={!selected && highlightedIndex < 0}
-          className={`${compact ? "h-10 px-5" : "h-12 px-7"} shrink-0 rounded-xl`}
+          className={`${compact ? "h-10 px-4" : "h-12 px-5 sm:px-7"} shrink-0 rounded-none bg-gold font-semibold text-[#291f00] hover:bg-gold-light`}
         >
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4 mr-2" />}
           {buttonLabel}
@@ -187,7 +187,7 @@ export function LocationSearchInput({
             initial={{ opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
-            className="absolute z-50 mt-2 w-full overflow-hidden rounded-xl border border-border bg-card shadow-2xl"
+            className="kl-panel-raised absolute z-50 mt-2 w-full overflow-hidden rounded-none"
           >
             {suggestions.map((suggestion, idx) => (
               <button
