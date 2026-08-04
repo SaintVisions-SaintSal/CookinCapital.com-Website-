@@ -7,7 +7,7 @@ const footerLinks = {
     { label: "Deal Analyzer", href: "/app/analyzer" },
     { label: "Capital & Lending", href: "/capital" },
     { label: "Invest", href: "/invest" },
-    { label: "Legal Services", href: "/app/legal" },
+    { label: "Market Search", href: "/properties/search" },
     { label: "Investor Portal", href: "/app/opportunities" },
   ],
   company: [
@@ -22,6 +22,7 @@ const footerLinks = {
     { label: "Support", href: "https://saintvisiongroup.com/client-hub", external: true },
   ],
   legal: [
+    { label: "Disclosures", href: "/legal/disclosures" },
     { label: "Help & Legal", href: "/help" },
     { label: "Privacy Policy", href: "/help?doc=privacy" },
     { label: "Terms of Service", href: "/help?doc=terms" },
@@ -33,36 +34,36 @@ const footerLinks = {
 
 export function Footer() {
   return (
-    <footer className="border-t border-border bg-background">
+    <footer className="border-t border-outline-variant/60 bg-background">
       <div className="mx-auto max-w-7xl px-6 py-12 lg:px-8 lg:py-16">
         <div className="grid grid-cols-2 gap-8 sm:grid-cols-4 lg:grid-cols-6">
           {/* Brand */}
           <div className="col-span-2 sm:col-span-4 lg:col-span-2">
             <Link href="/" className="flex items-center gap-3">
-              <Image src="/logo.png" alt="CookinCapital" width={44} height={44} className="rounded-lg" />
+              <Image src="/logo.png" alt="CookinCapital" width={44} height={44} className="rounded-none" />
               <span className="text-xl font-semibold tracking-tight">
-                <span className="text-primary">Cookin'</span>
+                <span className="text-gold">Cookin'</span>
                 <span className="text-white">Capital</span>
               </span>
             </Link>
-            <p className="mt-4 max-w-xs text-sm text-muted-foreground leading-relaxed">
+            <p className="mt-4 max-w-xs text-sm text-outline leading-relaxed">
               The Real Estate Capital OS. Acquire, analyze, fund, manage, and exit—all powered by SaintSal™ + HACP™.
             </p>
 
             <div className="mt-6 space-y-2">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <MapPin className="h-4 w-4 text-primary" />
+              <div className="flex items-center gap-2 text-sm text-outline">
+                <MapPin className="h-4 w-4 text-gold" />
                 <span>438 Main St, Huntington Beach, CA 92648</span>
               </div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Phone className="h-4 w-4 text-primary" />
+              <div className="flex items-center gap-2 text-sm text-outline">
+                <Phone className="h-4 w-4 text-gold" />
                 <a href="tel:+19499972097" className="hover:text-foreground transition-colors">
                   1-949-997-2097
                 </a>
               </div>
             </div>
 
-            <p className="mt-6 text-xs text-muted-foreground">Part of the Saint Vision Group ecosystem.</p>
+            <p className="mt-6 text-xs text-outline">Part of the Saint Vision Group ecosystem.</p>
           </div>
 
           {/* Links */}
@@ -73,7 +74,7 @@ export function Footer() {
                 <li key={link.label}>
                   <Link
                     href={link.href}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    className="text-sm text-outline hover:text-foreground transition-colors"
                   >
                     {link.label}
                   </Link>
@@ -92,14 +93,14 @@ export function Footer() {
                       href={link.href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                      className="text-sm text-outline hover:text-foreground transition-colors"
                     >
                       {link.label}
                     </a>
                   ) : (
                     <Link
                       href={link.href}
-                      className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                      className="text-sm text-outline hover:text-foreground transition-colors"
                     >
                       {link.label}
                     </Link>
@@ -119,14 +120,14 @@ export function Footer() {
                       href={link.href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                      className="text-sm text-outline hover:text-foreground transition-colors"
                     >
                       {link.label}
                     </a>
                   ) : (
                     <Link
                       href={link.href}
-                      className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                      className="text-sm text-outline hover:text-foreground transition-colors"
                     >
                       {link.label}
                     </Link>
@@ -146,14 +147,14 @@ export function Footer() {
                       href={link.href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                      className="text-sm text-outline hover:text-foreground transition-colors"
                     >
                       {link.label}
                     </a>
                   ) : (
                     <Link
                       href={link.href}
-                      className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                      className="text-sm text-outline hover:text-foreground transition-colors"
                     >
                       {link.label}
                     </Link>
@@ -164,12 +165,28 @@ export function Footer() {
           </div>
         </div>
 
+        {/* Standing compliance notice — required on every public page.
+            Cal. Civ. Code §2944.7 / §2945.4 and 12 CFR 1015 (advance-fee ban);
+            targets are not guarantees. Full text at /legal/disclosures. */}
+        <div className="mt-12 border-t border-outline-variant/60 pt-8">
+          <p className="max-w-4xl text-[11.5px] leading-[1.7] text-outline/80">
+            CookinCapital never collects a fee before promised services are fully performed, and makes no guarantee of
+            approval, savings or outcome. Nothing here is legal, tax or investment advice, nor an offer to sell any
+            security; any offering is made solely through definitive documents to qualified investors. Foreclosure,
+            probate and lien data is licensed for internal use and is never published. Read the{" "}
+            <Link href="/legal/disclosures" className="text-gold/90 underline decoration-gold/25 underline-offset-2">
+              full disclosures
+            </Link>
+            .
+          </p>
+        </div>
+
         {/* Bottom */}
-        <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-border pt-8 sm:flex-row">
-          <p className="text-xs text-muted-foreground">
+        <div className="mt-8 flex flex-col items-center justify-between gap-4 border-t border-outline-variant/60 pt-8 sm:flex-row">
+          <p className="text-xs text-outline">
             © {new Date().getFullYear()} CookinCapital. All rights reserved. SaintSal™ and HACP™ are trademarks.
           </p>
-          <p className="text-xs text-muted-foreground">cookincap.io</p>
+          <p className="text-xs text-outline">cookincap.io</p>
         </div>
       </div>
     </footer>

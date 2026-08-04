@@ -160,7 +160,7 @@ const LOAN_PRODUCTS = {
     termOptions: [6, 12, 18, 24],
     maxLTV: 75,
     minCredit: 620,
-    features: ["Buy before you sell", "Short-term financing", "Quick approval", "6-24 month terms"],
+    features: ["Buy before you sell", "Short-term financing", "Fast decisions", "6-24 month terms"],
     description: "Short-term financing to bridge transactions",
   },
   construction_res: {
@@ -454,8 +454,12 @@ const LOAN_PRODUCTS = {
     minAmount: 4000,
     maxAmount: 5000,
     termOptions: [12, 24, 36],
-    features: ["Finance legal fees", "Save your home", "Low monthly payments", "Quick approval"],
-    description: "Finance legal fees to save your home",
+    // Compliance: outcome claims ("save your home") and approval guarantees are
+    // foreclosure-consultant conduct under Cal. Civ. Code §2945.1(a) and are
+    // deceptive under the FTC MARS Rule, 12 CFR 1015.3. Copy states the product,
+    // not a promised result. See /legal/disclosures.
+    features: ["Finance legal fees", "Retain your own counsel", "Fixed monthly payments", "Fast decisions"],
+    description: "Financing for legal fees, so you can retain counsel of your choosing",
     highlight: true,
   },
   debt_consol: {
@@ -695,7 +699,7 @@ export function CapitalPage() {
             </h1>
             <p className="mt-6 text-lg leading-8 text-muted-foreground max-w-2xl mx-auto">
               Access $5K to $50M+ in business funding. Real estate, equipment, working capital, and more.
-              Industry-leading approval process matched by SaintSal™ to the right lender for your deal.
+              SaintSal™ matches your deal to the right lender across our partner network.
             </p>
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link href="/prequal">
@@ -713,7 +717,11 @@ export function CapitalPage() {
             </div>
             <p className="mt-4 text-sm text-muted-foreground">
               <Shield className="inline h-4 w-4 mr-1" />
-              Checking your rate won't affect your credit score
+              {/* Accuracy: a bare "won't affect your credit score" is only true of
+                  a soft inquiry. Stated precisely so the claim is substantiable
+                  (FTC Act §5; FCRA §604 permissible purpose). */}
+              Pre-qualification uses a soft credit inquiry. A hard pull happens only if you choose to proceed with a
+              full application.
             </p>
           </div>
 

@@ -1,13 +1,16 @@
 import type React from "react"
 import type { Metadata, Viewport } from "next"
-import { Inter, Playfair_Display, Geist_Mono } from "next/font/google"
+import { Hanken_Grotesk, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google"
 import Script from "next/script"
 import { VibePageTracker } from "@/components/vibe-page-tracker"
+import { AppProviders } from "@/components/providers"
 import "./globals.css"
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" })
-const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-playfair" })
-const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" })
+// Kinetic Luxury type stack: Hanken Grotesk display, Plus Jakarta Sans body,
+// JetBrains Mono for every numeral, label and data cell.
+const hanken = Hanken_Grotesk({ subsets: ["latin"], variable: "--font-hanken", display: "swap" })
+const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-jakarta", display: "swap" })
+const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains", display: "swap" })
 
 export const metadata: Metadata = {
   title: "CookinCapital | Real Estate Capital OS",
@@ -92,8 +95,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#0f0f12" },
-    { media: "(prefers-color-scheme: light)", color: "#d4a744" },
+    { media: "(prefers-color-scheme: dark)", color: "#0f0f0f" },
+    { media: "(prefers-color-scheme: light)", color: "#0f0f0f" },
   ],
   width: "device-width",
   initialScale: 1,
@@ -115,7 +118,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="CookinCap" />
         <meta name="application-name" content="CookinCap" />
-        <meta name="msapplication-TileColor" content="#0f0f12" />
+        <meta name="msapplication-TileColor" content="#0f0f0f" />
         <meta name="msapplication-tap-highlight" content="no" />
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
         <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192x192.png" />
@@ -133,9 +136,9 @@ export default function RootLayout({
         />
         <Script src="https://js.stripe.com/v3/buy-button.js" strategy="afterInteractive" async />
       </head>
-      <body className={`${inter.variable} ${playfair.variable} ${geistMono.variable} font-sans antialiased`}>
+      <body className={`${hanken.variable} ${jakarta.variable} ${jetbrains.variable} font-sans antialiased`}>
         <VibePageTracker />
-        {children}
+        <AppProviders>{children}</AppProviders>
       </body>
     </html>
   )

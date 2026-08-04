@@ -1,114 +1,122 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* ═══════════════════════════════════════════════════════════════════
+   KINETIC LUXURY — cookincapital.com v2
+   Ported from /home/user/workspace/design/kinetic-luxury.css and the
+   component-library port at cookincapital-app/client/src/index.css.
+   Dark only. There is no light mode in this product.
+   ═══════════════════════════════════════════════════════════════════ */
+
 @custom-variant dark (&:is(.dark *));
 
-/* <CHANGE> CookinCapital theme - "Apple-clean meets private bank war room" */
-:root {
-  /* Deep charcoal / near-black primary */
-  --background: oklch(0.13 0.005 250);
-  --foreground: oklch(0.95 0.01 90);
-
-  /* Card surfaces - slightly lighter charcoal */
-  --card: oklch(0.16 0.005 250);
-  --card-foreground: oklch(0.95 0.01 90);
-
-  --popover: oklch(0.14 0.005 250);
-  --popover-foreground: oklch(0.95 0.01 90);
-
-  /* Gold accent as primary action color */
-  --primary: oklch(0.78 0.15 85);
-  --primary-foreground: oklch(0.13 0.005 250);
-
-  /* Warm stone/gray for secondary */
-  --secondary: oklch(0.22 0.005 250);
-  --secondary-foreground: oklch(0.85 0.01 90);
-
-  /* Muted stone tones */
-  --muted: oklch(0.2 0.005 250);
-  --muted-foreground: oklch(0.6 0.01 90);
-
-  /* Accent - bright gold */
-  --accent: oklch(0.78 0.15 85);
-  --accent-foreground: oklch(0.13 0.005 250);
-
-  --destructive: oklch(0.55 0.2 25);
-  --destructive-foreground: oklch(0.95 0.01 90);
-
-  /* Borders - subtle charcoal */
-  --border: oklch(0.25 0.005 250);
-  --input: oklch(0.2 0.005 250);
-  --ring: oklch(0.78 0.15 85);
-
-  /* Chart colors - gold spectrum */
-  --chart-1: oklch(0.78 0.15 85);
-  --chart-2: oklch(0.7 0.12 70);
-  --chart-3: oklch(0.6 0.08 90);
-  --chart-4: oklch(0.5 0.05 250);
-  --chart-5: oklch(0.4 0.03 250);
-
-  --radius: 0.5rem;
-
-  /* Sidebar - darker */
-  --sidebar: oklch(0.11 0.005 250);
-  --sidebar-foreground: oklch(0.95 0.01 90);
-  --sidebar-primary: oklch(0.78 0.15 85);
-  --sidebar-primary-foreground: oklch(0.13 0.005 250);
-  --sidebar-accent: oklch(0.18 0.005 250);
-  --sidebar-accent-foreground: oklch(0.95 0.01 90);
-  --sidebar-border: oklch(0.22 0.005 250);
-  --sidebar-ring: oklch(0.78 0.15 85);
-
-  /* Custom tokens for CookinCapital */
-  --gold: oklch(0.78 0.15 85);
-  --gold-dim: oklch(0.65 0.12 85);
-  --ivory: oklch(0.95 0.01 90);
-  --stone: oklch(0.75 0.02 80);
-  --charcoal: oklch(0.13 0.005 250);
-  --charcoal-light: oklch(0.18 0.005 250);
-}
-
+:root,
 .dark {
-  --background: oklch(0.13 0.005 250);
-  --foreground: oklch(0.95 0.01 90);
-  --card: oklch(0.16 0.005 250);
-  --card-foreground: oklch(0.95 0.01 90);
-  --popover: oklch(0.14 0.005 250);
-  --popover-foreground: oklch(0.95 0.01 90);
-  --primary: oklch(0.78 0.15 85);
-  --primary-foreground: oklch(0.13 0.005 250);
-  --secondary: oklch(0.22 0.005 250);
-  --secondary-foreground: oklch(0.85 0.01 90);
-  --muted: oklch(0.2 0.005 250);
-  --muted-foreground: oklch(0.6 0.01 90);
-  --accent: oklch(0.78 0.15 85);
-  --accent-foreground: oklch(0.13 0.005 250);
-  --destructive: oklch(0.55 0.2 25);
-  --destructive-foreground: oklch(0.95 0.01 90);
-  --border: oklch(0.25 0.005 250);
-  --input: oklch(0.2 0.005 250);
-  --ring: oklch(0.78 0.15 85);
-  --chart-1: oklch(0.78 0.15 85);
-  --chart-2: oklch(0.7 0.12 70);
-  --chart-3: oklch(0.6 0.08 90);
-  --chart-4: oklch(0.5 0.05 250);
-  --chart-5: oklch(0.4 0.03 250);
-  --sidebar: oklch(0.11 0.005 250);
-  --sidebar-foreground: oklch(0.95 0.01 90);
-  --sidebar-primary: oklch(0.78 0.15 85);
-  --sidebar-primary-foreground: oklch(0.13 0.005 250);
-  --sidebar-accent: oklch(0.18 0.005 250);
-  --sidebar-accent-foreground: oklch(0.95 0.01 90);
-  --sidebar-border: oklch(0.22 0.005 250);
-  --sidebar-ring: oklch(0.78 0.15 85);
+  /* ── Primary palette ── */
+  --obsidian: #0f0f0f;
+  --gold: #ffd700;
+  --gold-light: #fff6df;
+  --gold-dark: #705e00;
+  --pulse: #00ff00;
+  --pulse-bright: #28ff1d;
+  --pulse-deep: #02e600;
+  --titanium: #242424;
+
+  /* ── Surface elevation ramp ── */
+  --surface: #131313;
+  --surface-lowest: #0e0e0e;
+  --surface-low: #1c1b1b;
+  --surface-mid: #201f1f;
+  --surface-high: #2a2a2a;
+  --surface-highest: #353534;
+  --surface-bright: #3a3939;
+
+  /* ── Text + line ── */
+  --on-surface: #e5e2e1;
+  --on-surface-variant: #d0c6ab;
+  --outline: #999077;
+  --outline-variant: #4d4732;
+
+  /* ── shadcn / app contract ── */
+  --background: var(--obsidian);
+  --foreground: var(--on-surface);
+  --border: var(--outline-variant);
+  --input: #2e2e2e;
+  --ring: var(--gold);
+
+  --card: var(--surface);
+  --card-foreground: var(--on-surface);
+  --card-border: var(--outline-variant);
+  --popover: var(--surface-mid);
+  --popover-foreground: var(--on-surface);
+
+  --primary: var(--gold);
+  --primary-foreground: #291f00;
+  --secondary: var(--surface-high);
+  --secondary-foreground: var(--on-surface);
+  --muted: var(--surface-low);
+  --muted-foreground: var(--outline);
+  --accent: var(--surface-high);
+  --accent-foreground: var(--gold-light);
+  --destructive: #ffb4ab;
+  --destructive-foreground: #690005;
+
+  --sidebar: #0e0e0e;
+  --sidebar-foreground: var(--on-surface);
+  --sidebar-border: var(--outline-variant);
+  --sidebar-primary: var(--gold);
+  --sidebar-primary-foreground: #291f00;
+  --sidebar-accent: var(--surface-high);
+  --sidebar-accent-foreground: var(--gold-light);
+  --sidebar-ring: var(--gold);
+
+  --chart-1: #ffd700;
+  --chart-2: #c9b16b;
+  --chart-3: #d0c6ab;
+  --chart-4: #705e00;
+  --chart-5: #999077;
+
+  /* Legacy tokens still referenced by older marketing components */
+  --gold-dim: #c9a227;
+  --ivory: #f2efe9;
+  --stone: #b9b3a5;
+  --charcoal: #131313;
+  --charcoal-light: #201f1f;
+
+  /* Radii: protocol (0px) and industrial (4px) ONLY */
+  --radius: 0px;
 }
 
+/* ─── TAILWIND v4 THEME ─────────────────────────────────────────── */
 @theme inline {
-  --font-sans: "Inter", "Inter Fallback", system-ui, sans-serif;
-  --font-serif: "Playfair Display", "Georgia", serif;
-  --font-mono: "Geist Mono", "Geist Mono Fallback";
+  --color-obsidian: var(--obsidian);
+  --color-titanium: var(--titanium);
+  --color-gold: var(--gold);
+  --color-gold-light: var(--gold-light);
+  --color-gold-dark: var(--gold-dark);
+  --color-gold-dim: var(--gold-dim);
+  --color-pulse: var(--pulse);
+  --color-pulse-bright: var(--pulse-bright);
+  --color-pulse-deep: var(--pulse-deep);
+
+  --color-surface: var(--surface);
+  --color-surface-lowest: var(--surface-lowest);
+  --color-surface-low: var(--surface-low);
+  --color-surface-mid: var(--surface-mid);
+  --color-surface-high: var(--surface-high);
+  --color-surface-highest: var(--surface-highest);
+  --color-surface-bright: var(--surface-bright);
+
+  --color-on-surface: var(--on-surface);
+  --color-on-surface-variant: var(--on-surface-variant);
+  --color-outline: var(--outline);
+  --color-outline-variant: var(--outline-variant);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
@@ -123,52 +131,392 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
   --color-sidebar-accent: var(--sidebar-accent);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  --color-gold: var(--gold);
-  --color-gold-dim: var(--gold-dim);
   --color-ivory: var(--ivory);
   --color-stone: var(--stone);
   --color-charcoal: var(--charcoal);
   --color-charcoal-light: var(--charcoal-light);
+
+  --font-sans: var(--font-jakarta), "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-display: var(--font-hanken), "Hanken Grotesk", system-ui, sans-serif;
+  --font-serif: var(--font-hanken), "Hanken Grotesk", system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), "JetBrains Mono", ui-monospace, monospace;
+
+  /* Radii — protocol / industrial only */
+  --radius-none: 0px;
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius-md: 4px;
+  --radius-lg: 4px;
+  --radius-xl: 4px;
+  --radius-2xl: 4px;
+  --radius-3xl: 4px;
+  --radius-4xl: 4px;
+  --radius-protocol: 0px;
+  --radius-industrial: 4px;
+
+  --tracking-protocol: 0.14em;
+
+  --ease-weighted: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
   }
+
+  html {
+    color-scheme: dark;
+    background-color: var(--obsidian);
+    scroll-behavior: smooth;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-jakarta), "Plus Jakarta Sans", system-ui, sans-serif;
+    font-feature-settings: "ss01" on;
+  }
+
+  /* ── GOTHAM: altitude, vignette, gold light through fog ──
+     Fixed, non-interactive, behind everything. Never behind a number. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(
+        120% 90% at 50% -10%,
+        rgba(255, 215, 0, 0.055) 0%,
+        rgba(255, 215, 0, 0.018) 26%,
+        transparent 58%
+      ),
+      radial-gradient(140% 120% at 50% 55%, transparent 34%, rgba(0, 0, 0, 0.72) 100%),
+      linear-gradient(180deg, rgba(32, 31, 31, 0.55) 0%, transparent 34%, rgba(0, 0, 0, 0.45) 100%);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-hanken), "Hanken Grotesk", system-ui, sans-serif;
+    overflow-wrap: break-word;
+  }
+
+  /* Numbers are always mono + tabular. Non-negotiable. */
+  .num,
+  th.num,
+  td.num,
+  input[inputmode="numeric"] {
+    font-family: var(--font-jetbrains), "JetBrains Mono", ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" on, "zero" on;
+    letter-spacing: -0.01em;
+  }
+
+  /* Radius discipline: nothing softer than industrial 4px. */
+  .rounded-lg,
+  .rounded-xl,
+  .rounded-2xl,
+  .rounded-3xl {
+    border-radius: 4px;
   }
 }
 
-/* Smooth scrolling */
-html {
-  scroll-behavior: smooth;
+/* ─── PANELS: a lit surface against darkness ─────────────────────── */
+@layer components {
+  .kl-panel {
+    position: relative;
+    background-color: var(--surface);
+    border: 1px solid color-mix(in srgb, var(--outline-variant) 55%, transparent);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 246, 223, 0.035),
+      0 8px 26px -14px rgba(0, 0, 0, 0.9);
+  }
+
+  .kl-panel-raised {
+    position: relative;
+    background-color: var(--surface-mid);
+    border: 1px solid color-mix(in srgb, var(--outline-variant) 70%, transparent);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 246, 223, 0.05),
+      0 12px 34px -16px rgba(0, 0, 0, 0.95);
+  }
+
+  .kl-well {
+    background-color: var(--surface-lowest);
+    border: 1px solid color-mix(in srgb, var(--outline-variant) 45%, transparent);
+  }
+
+  /* Gold is light. Hover = light warming an edge, never a colour swap. */
+  .kl-lit {
+    transition:
+      border-color 220ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1),
+      background-color 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .kl-lit:hover {
+    border-color: rgba(255, 215, 0, 0.4);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 246, 223, 0.06),
+      0 0 0 1px rgba(255, 215, 0, 0.1),
+      0 0 22px -6px rgba(255, 215, 0, 0.22);
+  }
+  .kl-lit:focus-visible {
+    outline: none;
+    border-color: rgba(255, 215, 0, 0.62);
+    box-shadow:
+      0 0 0 1px rgba(255, 215, 0, 0.3),
+      0 0 26px -6px rgba(255, 215, 0, 0.3);
+  }
+
+  .kl-label {
+    font-family: var(--font-jetbrains), "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.625rem;
+    line-height: 1rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--outline);
+  }
 }
 
-/* Gold text gradient */
-.text-gold-gradient {
-  background: linear-gradient(135deg, oklch(0.85 0.15 85), oklch(0.7 0.15 85));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+@layer utilities {
+  /* ═══ GOLD FOIL — hero headline + score number ONLY ═══ */
+  .gold-foil {
+    background: linear-gradient(
+      135deg,
+      #8b6914 0%,
+      #b8860b 18%,
+      #ffd700 38%,
+      #fff6df 50%,
+      #ffd700 62%,
+      #b8860b 82%,
+      #705e00 100%
+    );
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    background-size: 200% 200%;
+    animation: foil-shift 6s ease-in-out infinite;
+  }
+
+  .gold-foil-fill {
+    background: linear-gradient(
+      135deg,
+      #8b6914 0%,
+      #b8860b 18%,
+      #ffd700 38%,
+      #fff6df 50%,
+      #ffd700 62%,
+      #b8860b 82%,
+      #705e00 100%
+    );
+    background-size: 200% 200%;
+    animation: foil-shift 6s ease-in-out infinite;
+  }
+
+  /* Legacy alias used by pre-v2 marketing components */
+  .text-gold-gradient {
+    background: linear-gradient(135deg, #ffd700, #fff6df 50%, #b8860b);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  @keyframes foil-shift {
+    0%,
+    100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+
+  .gold-border {
+    border: 1px solid transparent;
+    border-image: linear-gradient(135deg, #8b6914, #ffd700, #fff6df, #ffd700, #8b6914) 1;
+  }
+
+  /* ═══ PULSE GREEN — LIVE signals only ═══ */
+  @keyframes pulse-vibrate {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 rgba(0, 255, 0, 0.7);
+    }
+    50% {
+      box-shadow: 0 0 0 6px rgba(0, 255, 0, 0);
+    }
+  }
+  .pulse-dot {
+    animation: pulse-vibrate 1.6s infinite;
+  }
+
+  .active-bloom {
+    filter: drop-shadow(0 0 15px rgba(0, 255, 0, 0.3));
+  }
+
+  .gold-bloom {
+    filter: drop-shadow(0 0 22px rgba(255, 215, 0, 0.22));
+  }
+
+  /* ═══ GOTHAM atmosphere plates ═══ */
+  .gotham-plate {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center bottom;
+  }
+  .gotham-hero {
+    background-image: url("/gotham/gotham-hero-wide.webp");
+  }
+  .gotham-strip {
+    background-image: url("/gotham/gotham-strip.webp");
+  }
+  .gotham-texture {
+    background-image: url("/gotham/gotham-texture.webp");
+  }
+  .gotham-fade {
+    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.9) 0%, transparent 88%);
+    -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.9) 0%, transparent 88%);
+  }
+  .gotham-fade-up {
+    mask-image: linear-gradient(0deg, rgba(0, 0, 0, 1) 0%, transparent 92%);
+    -webkit-mask-image: linear-gradient(0deg, rgba(0, 0, 0, 1) 0%, transparent 92%);
+  }
+
+  @keyframes shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
+  }
+  .animate-shimmer {
+    animation: shimmer 2s infinite;
+  }
+
+  .kl-skeleton {
+    position: relative;
+    overflow: hidden;
+    background-color: color-mix(in srgb, var(--surface-high) 60%, transparent);
+  }
+  .kl-skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 215, 0, 0.07), transparent);
+    animation: shimmer 1.8s infinite;
+  }
+
+  .tnum {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" on, "zero" on;
+  }
+
+  /* Hairline grid rules for dense tables */
+  .rule-t {
+    border-top: 1px solid color-mix(in srgb, var(--outline-variant) 45%, transparent);
+  }
+  .rule-b {
+    border-bottom: 1px solid color-mix(in srgb, var(--outline-variant) 45%, transparent);
+  }
+  .rule-l {
+    border-left: 1px solid color-mix(in srgb, var(--outline-variant) 45%, transparent);
+  }
+  .rule-r {
+    border-right: 1px solid color-mix(in srgb, var(--outline-variant) 45%, transparent);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .gold-foil,
+    .gold-foil-fill,
+    .pulse-dot,
+    .animate-shimmer,
+    .kl-skeleton::after {
+      animation: none !important;
+    }
+    .active-bloom,
+    .gold-bloom {
+      filter: none !important;
+    }
+  }
+
+  /* ═══ SCROLLBARS ═══ */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(153, 144, 119, 0.35);
+    transition: background 0.2s ease;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 215, 0, 0.45);
+  }
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(153, 144, 119, 0.3) transparent;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  input[type="search"]::-webkit-search-cancel-button {
+    display: none;
+  }
+
+  /* Range slider — gold thumb, titanium track */
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 2px;
+    background: var(--surface-highest);
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    background: var(--gold);
+    cursor: pointer;
+    border-radius: 0;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.45);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    background: var(--gold);
+    border: none;
+    border-radius: 0;
+    cursor: pointer;
+  }
 }

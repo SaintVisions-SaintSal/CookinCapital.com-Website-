@@ -8,12 +8,20 @@ import { TechStack } from "@/components/landing/tech-stack"
 import { CTASection } from "@/components/landing/cta-section"
 import { Footer } from "@/components/landing/footer"
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt"
+import { corpusStats } from "@/lib/intelligence/store"
 
+/**
+ * Homepage. Server component so the hero can quote real corpus counts —
+ * every figure it shows is RentCast-sourced or derived, and therefore safe
+ * on a public surface.
+ */
 export default function HomePage() {
+  const corpus = corpusStats()
+
   return (
-    <main className="min-h-screen bg-background">
+    <main className="min-h-screen bg-obsidian">
       <Header />
-      <Hero />
+      <Hero corpus={corpus} />
       <CapitalShowcase />
       <Pillars />
       <HowItWorks />
