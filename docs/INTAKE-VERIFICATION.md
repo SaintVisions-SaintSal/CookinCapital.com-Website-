@@ -29,4 +29,4 @@ Browser QA also caught an error-state bug where CAPTCHA reset cleared the failed
 
 Next.js was upgraded from 16.0.10 to 16.3.7; compatible dependency audit fixes were applied. Use the tested npm lockfile with `npm ci`. The stale parallel pnpm lockfile was removed.
 
-The private hosted review runs with `CC_PREVIEW_MODE=true`, no real provider keys and no auth database binding. Do not treat it as customer onboarding proof or promote its build artifacts to production.
+The private hosted review exports six actual rendered screens from the `CC_PREVIEW_MODE=true` build. It has no database binding, credentials, server dependency or enabled submission action. Do not treat it as customer onboarding proof or promote these static review files to production.
