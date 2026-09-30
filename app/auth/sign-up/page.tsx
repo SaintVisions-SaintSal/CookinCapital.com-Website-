@@ -12,6 +12,8 @@ import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { Sparkles, ArrowLeft } from "lucide-react"
+import { authMessage, safeNext } from "@/lib/auth-flow"
+import { CONSENT_VERSION } from "@/lib/intake/contracts"
 
 export default function SignUpPage() {
   const [fullName, setFullName] = useState("")
@@ -24,7 +26,6 @@ export default function SignUpPage() {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
-    const supabase = createClient()
     setIsLoading(true)
     setError(null)
 
@@ -34,27 +35,32 @@ export default function SignUpPage() {
       return
     }
 
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters")
+    if (password.length < 12) {
+      setError("Password must be at least 12 characters")
       setIsLoading(false)
       return
     }
 
     try {
-      const { error } = await supabase.auth.signUp({
-        email,
+      const supabase = createClient()
+      const next = safeNext(new URLSearchParams(window.location.search).get("next"))
+      const callback = new URL("/auth/callback", window.location.origin)
+      callback.searchParams.set("next", next)
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
         password,
         options: {
-          emailRedirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/app`,
+          emailRedirectTo: callback.toString(),
           data: {
-            full_name: fullName,
+            full_name: fullName.trim(),
+            cc_terms_version: CONSENT_VERSION,
           },
         },
       })
       if (error) throw error
-      router.push("/auth/sign-up-success")
+      router.push(data.session ? `/auth/complete?next=${encodeURIComponent(next)}` : "/auth/sign-up-success")
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred")
+      setError(authMessage(error))
     } finally {
       setIsLoading(false)
     }
@@ -76,7 +82,7 @@ export default function SignUpPage() {
             <Image src="/logo.png" alt="CookinCap" width={48} height={48} className="rounded-xl" />
           </Link>
           <h1 className="text-2xl font-bold text-foreground">Create Your Account</h1>
-          <p className="text-muted-foreground mt-1">Join CookinCap and start analyzing deals</p>
+          <p className="text-muted-foreground mt-1">Get SAL and keep your research in one place</p>
         </div>
 
         <Card className="border-border/50 shadow-xl">
@@ -85,7 +91,7 @@ export default function SignUpPage() {
               <Sparkles className="h-5 w-5 text-primary" />
               <CardTitle className="text-xl">Sign Up</CardTitle>
             </div>
-            <CardDescription>Get access to Deal Analyzer, Legal Help, and SaintSal AI</CardDescription>
+            <CardDescription>Create your account for SaintSal and research. No loan application required.</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSignUp}>
@@ -97,6 +103,8 @@ export default function SignUpPage() {
                     type="text"
                     placeholder="John Smith"
                     required
+                    autoComplete="name"
+                    maxLength={100}
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     className="h-11"
@@ -109,6 +117,7 @@ export default function SignUpPage() {
                     type="email"
                     placeholder="you@example.com"
                     required
+                    autoComplete="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="h-11"
@@ -119,7 +128,9 @@ export default function SignUpPage() {
                   <Input
                     id="password"
                     type="password"
-                    placeholder="Min 6 characters"
+                    placeholder="At least 12 characters"
+                    autoComplete="new-password"
+                    minLength={12}
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -131,13 +142,14 @@ export default function SignUpPage() {
                   <Input
                     id="confirmPassword"
                     type="password"
+                    autoComplete="new-password"
                     required
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     className="h-11"
                   />
                 </div>
-                {error && <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+                {error && <div role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
                 <Button type="submit" className="w-full h-11 mt-2" disabled={isLoading}>
                   {isLoading ? "Creating account..." : "Create Account"}
                 </Button>
@@ -153,7 +165,8 @@ export default function SignUpPage() {
         </Card>
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
-          By signing up, you agree to our Terms of Service and Privacy Policy
+          By signing up, you agree to our <Link href="/help?doc=terms" className="underline">Terms of Service</Link> and{" "}
+          <Link href="/help?doc=privacy" className="underline">Privacy Policy</Link>. This does not opt you into marketing messages.
         </p>
       </div>
     </div>

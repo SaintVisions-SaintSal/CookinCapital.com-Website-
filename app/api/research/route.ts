@@ -2,7 +2,7 @@ import { streamText, tool } from "ai"
 import { z } from "zod"
 import { getSaintSalContext } from "@/lib/saintsal/rag"
 import { getOrCreateSession, addMessageToSession, getConversationContext } from "@/lib/saintsal/session"
-import { trackSaintSalEvent } from "@/lib/saintsal/ghl-integration"
+import { trackServerEvent as trackSaintSalEvent } from "@/lib/saintsal/ghl-server"
 
 const SAINTSAL_RESEARCH_PROMPT = `You are SaintSal™, the AI Co-CEO of CookinCapital's Research Intelligence Hub. You search, analyze, synthesize, and deliver actionable intelligence.
 

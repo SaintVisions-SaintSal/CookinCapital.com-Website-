@@ -3,6 +3,21 @@ import { NextResponse, type NextRequest } from "next/server"
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
+  if (process.env.CC_PREVIEW_MODE === "true") {
+    const allowed = ["/preview", "/prequal", "/auth/login", "/auth/sign-up", "/auth/sign-up-success",
+      "/auth/forgot-password", "/auth/reset-password", "/auth/error", "/help", "/operations/intake"]
+    const asset = pathname.startsWith("/_next/") || /\.(png|jpg|jpeg|svg|webp|ico|woff2?)$/.test(pathname)
+    if (!allowed.includes(pathname) && !asset) {
+      if (pathname.startsWith("/api/")) {
+        return NextResponse.json({ error: "This review preview is disconnected from production." }, { status: 503 })
+      }
+      return NextResponse.rewrite(new URL("/preview", request.url))
+    }
+  }
+  // Route handlers enforce their own auth/origin checks. Never redirect JSON APIs to HTML.
+  if (pathname.startsWith("/api/") || pathname.startsWith("/auth/") || pathname.startsWith("/operations/")) {
+    return NextResponse.next()
+  }
 
   const protectedRoutes = [
     "/app/dashboard", // Personal dashboard
@@ -49,7 +64,7 @@ export async function proxy(request: NextRequest) {
 
   // Check route type
   const isProtectedRoute = protectedRoutes.some((route) => pathname === route || pathname.startsWith(route + "/"))
-  const isPublicAppRoute = publicAppRoutes.some((route) => pathname === route || pathname.startsWith(route + "/"))
+  const isPublicAppRoute = !isProtectedRoute && publicAppRoutes.some((route) => pathname === route || (route !== "/app" && pathname.startsWith(route + "/")))
   const isPublicRoute = publicRoutes.some((route) => pathname === route || pathname.startsWith(route + "/"))
   const isProtectedApi = protectedApiRoutes.some((route) => pathname.startsWith(route))
   const isStaticAsset =

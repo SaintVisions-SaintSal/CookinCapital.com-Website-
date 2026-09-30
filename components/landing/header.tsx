@@ -43,7 +43,7 @@ export function Header() {
             </div>
           </Link>
 
-          <div className="hidden items-center gap-6 lg:flex ml-12">
+          <div className="hidden items-center gap-4 xl:gap-6 lg:flex ml-6">
             {navItems.map((item) => (
               <Link
                 key={item.label}
@@ -102,8 +102,8 @@ export function Header() {
                 <ChevronDown className="ml-1 h-4 w-4" />
               </Button>
             )}
-            <Link href="/app/analyzer">
-              <Button className="bg-primary text-primary-foreground hover:bg-primary/90">Analyze a Deal</Button>
+            <Link href="/auth/sign-up">
+              <Button className="bg-primary text-primary-foreground hover:bg-primary/90">Get SAL</Button>
             </Link>
           </div>
 
@@ -151,8 +151,8 @@ export function Header() {
                     Extended Application
                   </Button>
                 </Link>
-                <Link href="/app/analyzer" onClick={() => setMobileMenuOpen(false)}>
-                  <Button className="w-full bg-primary text-primary-foreground">Analyze a Deal</Button>
+                <Link href="/auth/sign-up" onClick={() => setMobileMenuOpen(false)}>
+                  <Button className="w-full bg-primary text-primary-foreground">Get SAL</Button>
                 </Link>
               </div>
             </div>

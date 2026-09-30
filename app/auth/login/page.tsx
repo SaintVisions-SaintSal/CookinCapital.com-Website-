@@ -12,6 +12,7 @@ import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { Sparkles, ArrowLeft } from "lucide-react"
+import { authMessage, safeNext } from "@/lib/auth-flow"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -22,20 +23,22 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    const supabase = createClient()
     setIsLoading(true)
     setError(null)
 
     try {
+      const supabase = createClient()
       const { error } = await supabase.auth.signInWithPassword({
-        email,
+        email: email.trim(),
         password,
       })
       if (error) throw error
-      router.push("/app")
+      const params = new URLSearchParams(window.location.search)
+      const next = safeNext(params.get("redirect") || params.get("next"))
+      router.push(`/auth/complete?next=${encodeURIComponent(next)}`)
       router.refresh()
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred")
+      setError(authMessage(error))
     } finally {
       setIsLoading(false)
     }
@@ -78,6 +81,7 @@ export default function LoginPage() {
                     type="email"
                     placeholder="you@example.com"
                     required
+                    autoComplete="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="h-11"
@@ -94,12 +98,13 @@ export default function LoginPage() {
                     id="password"
                     type="password"
                     required
+                    autoComplete="current-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="h-11"
                   />
                 </div>
-                {error && <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+                {error && <div role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
                 <Button type="submit" className="w-full h-11 mt-2" disabled={isLoading}>
                   {isLoading ? "Signing in..." : "Sign In"}
                 </Button>
@@ -115,7 +120,8 @@ export default function LoginPage() {
         </Card>
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
-          By signing in, you agree to our Terms of Service and Privacy Policy
+          <Link href="/help?doc=terms" className="underline">Terms of Service</Link>{" · "}
+          <Link href="/help?doc=privacy" className="underline">Privacy Policy</Link>
         </p>
       </div>
     </div>
