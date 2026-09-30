@@ -6,7 +6,7 @@ import {
   updateSessionContext,
   getConversationContext,
 } from "@/lib/saintsal/session"
-import { trackSaintSalEvent } from "@/lib/saintsal/ghl-integration"
+import { trackServerEvent as trackSaintSalEvent } from "@/lib/saintsal/ghl-server"
 
 const SAINTSAL_SYSTEM_PROMPT = `You are SaintSal™, the HACP™-powered decision engine for CookinCapital. You embody the "Gotta Guy" principle - whatever the problem, you HAVE the answer.
 

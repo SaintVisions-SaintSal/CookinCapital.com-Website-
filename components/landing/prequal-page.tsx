@@ -1,172 +1,183 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useRef, useState, type FormEvent } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { ArrowLeft, Shield, Clock, CheckCircle2, Phone, CreditCard, ExternalLink } from "lucide-react"
+import Script from "next/script"
+import { ArrowLeft, ArrowUpRight, CheckCircle2, ShieldCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { SMS_CONSENT_TEXT } from "@/lib/intake/contracts"
+
+type Turnstile = {
+  render: (element: HTMLElement, options: Record<string, unknown>) => string
+  reset: (id: string) => void
+  remove: (id: string) => void
+}
 
 export function PreQualPage() {
-  useEffect(() => {
-    const script = document.createElement("script")
-    script.src = "https://link.msgsndr.com/js/form_embed.js"
-    script.async = true
-    document.body.appendChild(script)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState("")
+  const [reference, setReference] = useState("")
+  const [captchaToken, setCaptchaToken] = useState("")
+  const [smsConsent, setSmsConsent] = useState(false)
+  const [phone, setPhone] = useState("")
+  const requestId = useRef<string | null>(null)
+  const captcha = useRef<HTMLDivElement>(null)
+  const widget = useRef<string | null>(null)
+  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
+  const turnstile = () => (window as typeof window & { turnstile?: Turnstile }).turnstile
 
-    return () => {
-      const existingScript = document.querySelector('script[src="https://link.msgsndr.com/js/form_embed.js"]')
-      if (existingScript) {
-        existingScript.remove()
-      }
-    }
+  function renderCaptcha() {
+    if (widget.current || !captcha.current || !siteKey || !turnstile()) return
+    widget.current = turnstile()!.render(captcha.current, {
+      sitekey: siteKey, action: "cc-intake", theme: "dark",
+      callback: (token: string) => setCaptchaToken(token),
+      "expired-callback": () => setCaptchaToken(""),
+      "error-callback": () => { setCaptchaToken(""); setError("The security check couldn't load. Please refresh and try again.") },
+    })
+  }
+
+  useEffect(() => () => {
+    if (widget.current) turnstile()?.remove(widget.current)
   }, [])
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError("")
+    if (!captchaToken) { setError("Complete the security check before sending your request."); return }
+    if (smsConsent && !phone) { setError("Add a phone number or turn off text updates."); return }
+    const form = new FormData(event.currentTarget)
+    requestId.current ||= crypto.randomUUID()
+    setBusy(true)
+    try {
+      const response = await fetch("/api/intake", {
+        method: "POST", headers: { "Content-Type": "application/json" }, signal: AbortSignal.timeout(20000),
+        body: JSON.stringify({
+          requestId: requestId.current, fullName: form.get("fullName"),
+          email: form.get("email"), purpose: form.get("purpose"), message: form.get("message"),
+          phone, smsConsent, privacyAccepted: form.get("privacyAccepted") === "on",
+          website: form.get("website") || "", captchaToken,
+        }),
+      })
+      const body = await response.json()
+      if (!response.ok || !body.received || !body.reference) throw new Error(body.error || "We couldn't confirm your request was saved. Please retry.")
+      setReference(body.reference)
+    } catch (error) {
+      setError(error instanceof Error && !/fetch|timeout|aborted/i.test(error.message)
+        ? error.message : "Connection interrupted. We couldn't confirm the save. Retry with the same details.")
+    } finally {
+      setBusy(false)
+      setCaptchaToken("")
+      if (widget.current) turnstile()?.reset(widget.current)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="mx-auto max-w-7xl px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-            <Image src="/logo.png" alt="CookinCap" width={40} height={40} className="rounded-lg" />
-            <span className="text-xl font-semibold text-foreground">CookinCap</span>
+      <header className="border-b border-border">
+        <div className="max-w-6xl mx-auto px-6 h-20 flex items-center justify-between gap-4">
+          <Link href="/" className="flex items-center gap-3">
+            <Image src="/logo.png" alt="CookinCapital" width={36} height={36} className="rounded-lg" />
+            <span className="font-semibold">CookinCapital</span>
           </Link>
-          <Link href="/">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Home
-            </Button>
+          <Link href="/" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="h-4 w-4" /> Home
           </Link>
         </div>
       </header>
-
-      <div className="mx-auto max-w-7xl px-6 py-12">
-        <div className="grid lg:grid-cols-3 gap-12">
-          {/* Left sidebar - Benefits */}
-          <div className="lg:col-span-1 space-y-8">
-            <div>
-              <h1 className="text-3xl font-semibold text-foreground mb-4">Pre-Qualify for Capital</h1>
-              <p className="text-muted-foreground">
-                Start your journey to funding. Takes about 2 minutes and does not affect your credit score.
-              </p>
+      <main className="max-w-6xl mx-auto px-6 py-12 lg:py-16 grid lg:grid-cols-[0.8fr_1fr] gap-12 lg:gap-20">
+        <section className="space-y-7">
+          <p className="text-xs uppercase tracking-widest text-primary">Capital / Research / SaintSal</p>
+          <h1 className="text-3xl sm:text-4xl font-semibold leading-tight">One request.<br />The right next step.</h1>
+          <p className="text-muted-foreground leading-relaxed max-w-md">
+            Tell us what you’re working on. Start with the essentials; detailed financial documents come later, only if needed.
+          </p>
+          <div className="border-t border-border pt-7 space-y-5">
+            <div className="flex items-start gap-3">
+              <ShieldCheck className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+              <p className="text-sm text-muted-foreground">No SSN, date of birth or credit report is requested in this form. Please do not include sensitive financial information in your message.</p>
             </div>
-
-            {/* Trust indicators */}
-            <div className="space-y-4">
-              <div className="flex items-start gap-3 p-4 rounded-lg bg-card border border-border">
-                <Shield className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                <div>
-                  <div className="font-medium text-foreground">No Hard Credit Pull</div>
-                  <div className="text-sm text-muted-foreground">Pre-qualification uses a soft inquiry only</div>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3 p-4 rounded-lg bg-card border border-border">
-                <Clock className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                <div>
-                  <div className="font-medium text-foreground">24-Hour Response</div>
-                  <div className="text-sm text-muted-foreground">Our team reviews every application personally</div>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3 p-4 rounded-lg bg-card border border-border">
-                <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                <div>
-                  <div className="font-medium text-foreground">50+ Lending Partners</div>
-                  <div className="text-sm text-muted-foreground">SaintSal™ matches you with the right lender</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-4 rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/30">
-              <div className="flex items-center gap-2 mb-2">
-                <CreditCard className="h-4 w-4 text-primary" />
-                <span className="font-medium text-foreground">Pull Your Credit Report</span>
-              </div>
-              <p className="text-sm text-muted-foreground mb-3">
-                Get your FICO score to speed up the approval process.
-              </p>
-              <a
-                href="https://member.myscoreiq.com/get-fico-max.aspx?offercode=4321396P"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-primary font-medium text-sm hover:underline"
-              >
-                Get Your FICO Score
-                <ExternalLink className="h-3.5 w-3.5" />
-              </a>
-            </div>
-
-            {/* Contact info */}
-            <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
-              <div className="flex items-center gap-2 mb-2">
-                <Phone className="h-4 w-4 text-primary" />
-                <span className="font-medium text-foreground">Prefer to talk?</span>
-              </div>
-              <p className="text-sm text-muted-foreground mb-3">
-                Call us directly and speak with a funding specialist.
-              </p>
-              <a href="tel:+19499972097" className="text-primary font-semibold hover:underline">
-                (949) 997-2097
-              </a>
-            </div>
-
-            {/* Already have a deal? */}
-            <div className="pt-4 border-t border-border">
-              <p className="text-sm text-muted-foreground mb-2">Already analyzed a deal?</p>
-              <Link href="/apply">
-                <Button variant="outline" size="sm" className="w-full bg-transparent">
-                  Submit Full Application
-                </Button>
-              </Link>
-            </div>
+            <p className="text-sm text-muted-foreground">This is an initial inquiry, not a credit application, offer of financing or approval.</p>
           </div>
-
-          {/* Right side - GHL Form */}
-          <div className="lg:col-span-2">
-            <div className="rounded-xl border border-border bg-card overflow-hidden">
-              <div className="p-4 border-b border-border bg-card/50">
-                <div className="flex items-center gap-2">
-                  <div className="h-3 w-3 rounded-full bg-red-500" />
-                  <div className="h-3 w-3 rounded-full bg-yellow-500" />
-                  <div className="h-3 w-3 rounded-full bg-green-500" />
-                  <span className="ml-4 text-sm text-muted-foreground">Secure Pre-Qualification Form</span>
+          <div className="border-t border-border pt-7 space-y-4">
+            <Link href="/auth/sign-up" className="flex items-center justify-between gap-4 text-sm font-medium text-primary">
+              Just need SAL? Create your account <ArrowUpRight className="h-4 w-4" />
+            </Link>
+            <Link href="/apply" className="flex items-center justify-between gap-4 text-sm text-muted-foreground hover:text-foreground">
+              Already working with us? Full application <ArrowUpRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </section>
+        <section className="rounded-xl border border-border bg-card p-6 sm:p-8">
+          {reference ? (
+            <div role="status" className="space-y-6 py-8">
+              <CheckCircle2 className="h-7 w-7 text-primary" />
+              <h2 className="text-xl font-semibold">Your request is saved.</h2>
+              <p className="text-sm text-muted-foreground">It is queued for team review. This receipt does not mean financing is approved or that an email or text has been sent.</p>
+              <p className="text-xs text-muted-foreground break-all">Reference: {reference}</p>
+              <Button asChild className="w-full h-11"><Link href="/research">Continue with SAL Research</Link></Button>
+            </div>
+          ) : (
+            <form onSubmit={submit} className="space-y-5">
+              <h2 className="text-xl font-semibold">How can we help?</h2>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="space-y-2"><Label htmlFor="intake-name">Full name</Label>
+                  <Input id="intake-name" name="fullName" autoComplete="name" minLength={2} maxLength={100} required className="h-11" />
+                </div>
+                <div className="space-y-2"><Label htmlFor="intake-email">Email</Label>
+                  <Input id="intake-email" name="email" type="email" autoComplete="email" maxLength={254} required className="h-11" />
                 </div>
               </div>
-
-              <div className="p-2">
-                <iframe
-                  src="https://api.leadconnectorhq.com/widget/form/gPGc1pTZGRvxybqPpDRL"
-                  style={{
-                    width: "100%",
-                    height: "1944px",
-                    border: "none",
-                    borderRadius: "4px",
-                  }}
-                  id="inline-gPGc1pTZGRvxybqPpDRL"
-                  data-layout="{'id':'INLINE'}"
-                  data-trigger-type="alwaysShow"
-                  data-trigger-value=""
-                  data-activation-type="alwaysActivated"
-                  data-activation-value=""
-                  data-deactivation-type="neverDeactivate"
-                  data-deactivation-value=""
-                  data-form-name="Apply Now SVG2"
-                  data-height="1944"
-                  data-layout-iframe-id="inline-gPGc1pTZGRvxybqPpDRL"
-                  data-form-id="gPGc1pTZGRvxybqPpDRL"
-                  title="Apply Now SVG2"
-                />
+              <div className="space-y-2"><Label htmlFor="intake-purpose">I’m here for</Label>
+                <select id="intake-purpose" name="purpose" required defaultValue="capital"
+                  className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary">
+                  <option value="capital">Capital for a property or business</option>
+                  <option value="research">Property research and deal analysis</option>
+                  <option value="account">SAL or account support</option>
+                  <option value="general">Something else</option>
+                </select>
               </div>
-            </div>
-
-            {/* Security badge */}
-            <div className="mt-4 flex items-center justify-center gap-2 text-xs text-muted-foreground">
-              <Shield className="h-3 w-3" />
-              <span>256-bit SSL Encryption • Your information is secure</span>
-            </div>
-          </div>
-        </div>
-      </div>
+              <div className="space-y-2"><Label htmlFor="intake-message">A little about your request</Label>
+                <textarea id="intake-message" name="message" required minLength={10} maxLength={2000} rows={3}
+                  placeholder="What are you working on, and how can we help?"
+                  className="w-full rounded-md border border-input bg-background p-3 text-sm focus-visible:outline-2 focus-visible:outline-primary resize-y" />
+              </div>
+              <details className="border-y border-border py-4">
+                <summary className="cursor-pointer text-sm text-muted-foreground">Add a phone number or request text updates (optional)</summary>
+                <div className="space-y-3 mt-4">
+                  <Label htmlFor="intake-phone">Phone, including country code</Label>
+                  <Input id="intake-phone" type="tel" autoComplete="tel" placeholder="+19495550123" pattern="\+[1-9][0-9]{7,14}"
+                    value={phone} onChange={(event) => setPhone(event.target.value)} className="h-11" />
+                  <label className="flex gap-3 items-start py-2 text-xs text-muted-foreground">
+                    <input type="checkbox" checked={smsConsent} onChange={(event) => setSmsConsent(event.target.checked)}
+                      className="mt-1 h-4 w-4 accent-primary shrink-0" />
+                    {SMS_CONSENT_TEXT}
+                  </label>
+                </div>
+              </details>
+              <div aria-hidden="true" className="hidden">
+                <label htmlFor="intake-website">Website</label><input id="intake-website" name="website" tabIndex={-1} autoComplete="off" />
+              </div>
+              <label className="flex items-start gap-3 py-2 text-xs text-muted-foreground">
+                <input name="privacyAccepted" type="checkbox" required className="h-4 w-4 mt-0.5 accent-primary shrink-0" />
+                <span>I agree to the <Link href="/help?doc=terms" className="underline text-foreground">Terms of Service</Link> and acknowledge the{" "}
+                  <Link href="/help?doc=privacy" className="underline text-foreground">Privacy Policy</Link>. You may email me about this request. This is not marketing consent.</span>
+              </label>
+              {siteKey ? <>
+                <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" onReady={renderCaptcha}
+                  onError={() => setError("The security check couldn't load. Please refresh and try again.")} />
+                <div ref={captcha} />
+              </> : <p role="status" className="text-sm text-muted-foreground">Online intake is awaiting secure configuration. No request can be sent from this preview.</p>}
+              {error && <p role="alert" className="text-sm text-destructive bg-destructive/10 rounded-lg p-3">{error}</p>}
+              <Button type="submit" disabled={busy || !captchaToken} className="h-11 w-full">
+                {busy ? "Saving your request…" : "Send request"}
+              </Button>
+            </form>
+          )}
+        </section>
+      </main>
     </div>
   )
 }

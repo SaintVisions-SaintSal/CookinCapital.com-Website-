@@ -119,7 +119,7 @@ export default function RootLayout({
         <meta name="msapplication-tap-highlight" content="no" />
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
         <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192x192.png" />
-        <Script id="vibe-pixel" strategy="beforeInteractive">
+        {process.env.CC_PREVIEW_MODE !== "true" && <><Script id="vibe-pixel" strategy="beforeInteractive">
           {`
             !function(v,i,b,e,c,o){if(!v[c]){var s=v[c]=function(){s.process?s.process.apply(s,arguments):s.queue.push(arguments)};s.queue=[],s.b=1*new Date;var t=i.createElement(b);t.async=!0,t.src=e;var n=i.getElementsByTagName(b)[0];n.parentNode.insertBefore(t,n)}}(window,document,"script","https://s.vibe.co/vbpx.js","vbpx");
             vbpx('init','8nmf0P');
@@ -131,7 +131,7 @@ export default function RootLayout({
           data-tracking-id="tk_e37c7e5d744c471d813761da55d893c7"
           strategy="afterInteractive"
         />
-        <Script src="https://js.stripe.com/v3/buy-button.js" strategy="afterInteractive" async />
+        <Script src="https://js.stripe.com/v3/buy-button.js" strategy="afterInteractive" async /></>}
       </head>
       <body className={`${inter.variable} ${playfair.variable} ${geistMono.variable} font-sans antialiased`}>
         <VibePageTracker />
